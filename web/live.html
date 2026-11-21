@@ -207,7 +207,7 @@
   .ringBox.scanning .fill { opacity: .35; }
   @keyframes sweep { to { transform: rotate(360deg); } }
   .ringBox.b-red .fill { stroke: #e5484d; color: #e5484d; } .ringBox.b-amber .fill { stroke: #f5a524; color: #f5a524; } .ringBox.b-green .fill { stroke: #2fbf71; color: #2fbf71; }
-  .ringMid { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ringMid { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   #score { font-family: var(--display); font-size: 2.9em; line-height: .9; letter-spacing: -.03em; font-variant-numeric: tabular-nums; transition: color .3s; }
   #score small { font: 600 .2em/1 var(--ui); letter-spacing: 0; color: var(--ink-3); margin-left: .1em; vertical-align: super; }
   .ringLbl { font: 700 .5em/1 var(--ui); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); margin-top: .5em; }
@@ -215,7 +215,7 @@
   .ringBox.pop { animation: ringPop .7s cubic-bezier(.3, 1.6, .5, 1); }
   @keyframes ringPop { 0% { transform: scale(1); } 35% { transform: scale(1.07); } 100% { transform: scale(1); } }
   .gSide { min-width: 0; display: grid; }
-  .gSide > div { grid-area: 1 / 1; transition: opacity .35s var(--ease), transform .35s var(--ease); }
+  .gSide > div { grid-area: 1 / 1; min-width: 0; transition: opacity .35s var(--ease), transform .35s var(--ease); }
   .gSide > div.hide { opacity: 0; transform: translateY(.4em); pointer-events: none; }
   #steps { display: flex; flex-direction: column; gap: .55em; }
   .ck { display: grid; grid-template-columns: 1.5em minmax(0, 1fr) auto; align-items: center; gap: .5em; font-weight: 650; font-size: .82em; white-space: nowrap; color: var(--ink-3); transition: color .3s; }
@@ -225,18 +225,18 @@
   @keyframes tickIn { from { transform: scale(.4); } to { transform: scale(1); } }
   .ck .d { grid-column: 2 / -1; font: 500 .7em/1.25 var(--ui); color: var(--ink-3); margin-top: -.3em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ck .ms { font: 600 .62em/1 var(--mono); color: var(--ink-3); }
-  #bars { display: flex; flex-direction: column; gap: .42em; }
-  .bar { display: grid; grid-template-columns: 8.4em minmax(2em, 1fr) 1.9em; align-items: center; gap: .5em; font-size: .7em; }
-  .bar b { font-weight: 650; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #bars { display: grid; grid-template-columns: max-content minmax(1.5em, 1fr) max-content; align-items: center; column-gap: .5em; row-gap: .42em; font-size: .7em; }
+  .bar { display: contents; }
+  .bar b { font-weight: 650; color: var(--ink-2); white-space: nowrap; }
   .bar .tr { height: .55em; border-radius: 99px; background: var(--paper-2); overflow: hidden; }
   .bar .tr i { display: block; height: 100%; width: 0; border-radius: 99px; background: var(--accent); transition: width 1s cubic-bezier(.25, .9, .3, 1); }
   .bar.b-red .tr i { background: #e5484d; } .bar.b-amber .tr i { background: #f5a524; } .bar.b-green .tr i { background: #2fbf71; }
-  .bar em { font: 700 1em/1 var(--ui); font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+  .bar em { min-width: 1.9em; font: 700 1em/1 var(--ui); font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
   .bar.weak b { color: var(--ink); }
   .fixtag { font: 800 .62em/1 var(--ui); letter-spacing: .1em; text-transform: uppercase; color: var(--on-accent); background: var(--accent);
     padding: .25em .4em; border-radius: 4px; vertical-align: .15em; }
   .bar.weak .tr { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
-  .meas { font: 600 .58em/1.3 var(--mono); color: var(--ink-3); margin-top: .15em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meas { grid-column: 1 / -1; min-width: 0; font: 600 .82em/1.3 var(--mono); color: var(--ink-3); margin-top: .15em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .bar small { grid-column: 1 / -1; margin-top: -.35em; font-size: .78em; color: var(--ink-3); }
   #idleSide { color: var(--ink-3); font-size: .85em; line-height: 1.35; }
   #idleSide b { display: block; color: var(--ink); font-family: var(--display); font-weight: 400; font-size: 1.5em; line-height: 1.15; margin-bottom: .25em; }
@@ -279,6 +279,24 @@
   @keyframes bubbleIn { from { opacity: 0; transform: translateY(.7em) scale(.92); } to { opacity: 1; transform: none; } }
   .box { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: .9em 1.1em; display: flex; flex-direction: column; min-height: 0; }
   .box .cap { margin-bottom: .4em; }
+  .box.nocap > .cap { display: none; }
+  /* minimal judge screen: no helper sentences or repeated captions; every label one line */
+  .brand > .eyebrow, #langName, #romCap, #photoCap, #meaningCap, #lensPhase, #lensLabel, #ringLbl, #hint, .meas, #idleSmall,
+  #tutor #reaction, .ck .d, #shotLbl, #conv li.ai .who span:not(.orb) { display: none !important; }
+  .cap, .cap .eyebrow, .ck, .schip, #crumbs, #conv .bub, #conv .tools, #idleBig, #tutor #feedback, .stream li .t { white-space: nowrap; }
+  #tutor #feedback { display: block; overflow: hidden; text-overflow: ellipsis; -webkit-line-clamp: unset; }
+  #conv .bub { display: block; overflow: hidden; text-overflow: ellipsis; -webkit-line-clamp: unset; max-width: 100%; }
+  #conv li { max-width: 92%; }
+  #conv .tools { flex-wrap: nowrap; overflow: hidden; max-width: 100%; }
+  #conv li.ai { flex-direction: row; align-items: center; gap: .4em; flex-wrap: nowrap; }
+  #conv li.ai .who { margin: 0; flex: none; }
+  #conv li.ai .tools { margin-top: 0; flex: 0 1 auto; min-width: 0; }
+  #conv li.ai .bub { flex: 0 1 auto; min-width: 0; }
+  #idleBig { overflow: hidden; text-overflow: ellipsis; }
+  #conv li.ai .who { display: none; }
+  #conv .tools span:not(:first-child):not(.ms) { display: none; }
+  #voice { grid-template-columns: auto minmax(0, 1fr); } /* labels removed for a cleaner judge screen; the content stays */
+  #lat { display: none !important; }    /* latency chips removed (numbers alone read as noise) */
   .stream { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
     -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28%); mask-image: linear-gradient(to bottom, transparent, #000 28%); }
   .stream li { display: grid; grid-template-columns: 1.5em minmax(0, 1fr) auto; align-items: baseline; gap: .55em; padding: .18em 0; font-size: .9em;
@@ -364,27 +382,27 @@
 
   <main>
     <section class="panel" id="lensPanel">
-      <div class="cap"><span class="eyebrow"><span class="simTag">On the glasses</span><span class="liveTag"><i></i>LIVE: what the wearer sees</span></span><span class="tnum" id="romCap">&nbsp;</span></div>
+      <div class="cap"><span class="eyebrow"><span class="simTag">Wearer</span><span class="liveTag"><i></i>Wearer</span></span><span class="tnum" id="romCap">&nbsp;</span></div>
       <div class="fit"><div class="square lens" id="lens">
         <div class="grid" style="position:absolute;inset:0"></div>
         <div id="ink"></div>
         <div id="lensPhase">&nbsp;</div>
         <div id="lensLabel">&nbsp;</div>
-        <div id="lensOff">Glasses not connected</div>
+        <div id="lensOff">Offline</div>
         <img id="screen" alt="Live view of the glasses display">
       </div></div>
     </section>
 
     <section class="panel" id="camPanel">
-      <div class="cap" id="camCapRow"><span class="eyebrow"><span class="simTag">What the glasses camera sees</span><span class="liveTag"><i></i>LIVE: glasses camera</span></span><span class="tnum" id="photoCap">&nbsp;</span></div>
+      <div class="cap" id="camCapRow"><span class="eyebrow"><span class="simTag">Camera</span><span class="liveTag"><i></i>Camera</span></span><span class="tnum" id="photoCap">&nbsp;</span></div>
       <div class="fit"><div class="square" id="paper">
         <img id="imgA" alt=""><img id="imgB" alt="">
         <div id="paperEmpty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg>
           <span>The latest photo from the glasses camera shows up here</span></div>
         <canvas id="cam" aria-label="Live view from the glasses camera"></canvas>
-        <div id="camBadge"><i></i>LIVE <span id="camStats"></span></div>
+        <div id="camBadge"><i></i><span id="camStats"></span></div>
         <div id="shot" title="Tap to enlarge"><canvas id="shotCv"></canvas><div id="shotRef" class="script"></div>
-          <div id="shotCap"><span id="shotLbl">Graded</span><button id="ovBtn" type="button" title="Overlay the model glyph (o)">Overlay</button></div></div>
+          <div id="shotCap"><span id="shotLbl">Graded</span><button id="ovBtn" type="button" title="Overlay the model glyph (o)">Ref</button></div></div>
         <div id="flash"></div>
       </div></div>
     </section>
@@ -401,9 +419,9 @@
           <div class="gSide">
             <div id="idleSide"><b id="idleBig">Watching the pen</b><span id="idleSmall">Each stroke is scored as it lands on the paper.</span></div>
             <div id="steps" class="hide">
-              <div class="ck" id="ck1"><span class="dotc"></span><span>Finding your writing</span><span class="ms"></span><span class="d"></span></div>
-              <div class="ck" id="ck2"><span class="dotc"></span><span>Comparing strokes</span><span class="ms"></span><span class="d"></span></div>
-              <div class="ck" id="ck3"><span class="dotc"></span><span>Scribi is reviewing…</span><span class="ms"></span><span class="d"></span></div>
+              <div class="ck" id="ck1"><span class="dotc"></span><span>Find</span><span class="ms"></span><span class="d"></span></div>
+              <div class="ck" id="ck2"><span class="dotc"></span><span>Compare</span><span class="ms"></span><span class="d"></span></div>
+              <div class="ck" id="ck3"><span class="dotc"></span><span>Review</span><span class="ms"></span><span class="d"></span></div>
             </div>
             <div id="bars" class="hide"></div>
           </div>
@@ -417,14 +435,14 @@
 
   <section class="lower">
     <div class="box">
-      <div class="cap"><span class="eyebrow">Conversation</span><span class="orbState"><span class="orb o-off" id="orbBig"></span><span id="orbText">Mic off</span></span></div>
+      <div class="cap"><span class="eyebrow">Voice</span><span class="orbState"><span class="orb o-off" id="orbBig"></span><span id="orbText">Mic off</span></span></div>
       <ul id="conv"></ul>
     </div>
-    <div class="box">
+    <div class="box nocap">
       <div class="cap"><span class="eyebrow">Agent brain</span><span class="tnum" id="brainCap">&nbsp;</span></div>
       <ul class="stream" id="brain"></ul>
     </div>
-    <div class="box">
+    <div class="box nocap">
       <div class="cap"><span class="eyebrow">Timeline</span><span class="tnum" id="progressCap">&nbsp;</span></div>
       <ul class="stream" id="timeline"></ul>
     </div>
@@ -434,7 +452,7 @@
 <div id="milestone"><span class="eyebrow">Milestone</span><div id="msText" class="display"></div></div>
 <div id="idle" class="hide">
   <span class="wordmark">Scribi</span>
-  <p id="idleText">Waiting for the first lesson</p>
+  <p id="idleText" hidden>Waiting for the first lesson</p>
   <div class="scripts" aria-hidden="true"><span class="script" data-lang="mandarin">你好</span><span class="script" data-lang="hindi">नमस्ते</span><span class="script" data-lang="arabic">مرحبا</span><span class="script" data-lang="russian">Привет</span><span class="script" data-lang="hebrew">שלום</span><span class="script" data-lang="greek">Γεια σου</span></div>
 </div>
 
@@ -710,17 +728,17 @@
   }
 
   // sub-scores: A's grader reports them as r.subscores when available; until then only real numbers are shown
-  var SUBS = [["recognizable", "Recognizable"], ["proportions", "Proportions"], ["placement", "Placement"], ["completeness", "Completeness"], ["neatness", "Neatness"]];
+  var SUBS = [["recognizable", "Legible"], ["proportions", "Shape"], ["placement", "Place"], ["completeness", "Whole"], ["neatness", "Neat"]];
   function subRows(r) {
     var sub = r.subscores || r.sub_scores || (r.agent && r.agent.subscores);
     if (sub && typeof sub === "object") {
       return SUBS.filter(function (k) { return typeof sub[k[0]] === "number"; }).map(function (k) { return [k[1], sub[k[0]], null, k[0] === r.weakest]; });
     }
     var rows = [], vis = r.agent && typeof r.agent.model_score === "number" ? r.agent.model_score : r.score;
-    if (typeof vis === "number") rows.push(["Recognizable", vis, "vision model"]);
-    if (typeof r.template_score === "number") rows.push(["Shape match", r.template_score, "vs. the model glyph"]);
+    if (typeof vis === "number") rows.push(["Legible", vis]);
+    if (typeof r.template_score === "number") rows.push(["Shape", r.template_score]);
     var avg = strokeAvg();
-    if (avg !== null) rows.push(["Strokes", avg, "average of " + chipScores.filter(function (x) { return typeof x === "number"; }).length + " scored"]);
+    if (avg !== null) rows.push(["Strokes", avg]);
     return rows;
   }
   function renderBars(r) {
@@ -778,7 +796,7 @@
     if (matches && (r.status === "no_writing" || r.score === null || r.score === undefined)) {
       tutor.classList.remove("waiting");
       side("idleSide");
-      setText($("idleBig"), "No writing found");
+      setText($("idleBig"), "No writing");
       setText($("idleSmall"), "Scribi couldn’t find ink in the photo.");
       ringTo(0, null); rb.classList.remove("scanning");
       $("score").innerHTML = "–"; setText($("ringLbl"), "try again");
@@ -818,17 +836,17 @@
         side("steps");
         $("score").innerHTML = avg !== null ? avg + "<small>%</small>" : "…";
         setText($("ringLbl"), "analyzing");
-        swapText(fb, "Hold the paper still…");
+        swapText(fb, "");
       } else {
         side("idleSide");
         var scored = chipScores.filter(function (x) { return typeof x === "number"; }).length;
         ringTo(total ? scored / total : 0, avg);
         $("score").innerHTML = avg !== null ? avg + "<small>%</small>" : "–";
         setText($("ringLbl"), avg !== null ? "so far" : "accuracy");
-        setText($("idleBig"), s.show_char === false ? "From memory" : phase === "writing" && total > 1 ? "Stroke " + Math.min(k, total) + " of " + total : phase === "writing" ? "Writing" : "Watching");
+        setText($("idleBig"), s.show_char === false ? "From memory" : phase === "writing" && total > 1 ? Math.min(k, total) + " / " + total : phase === "writing" ? "Writing" : "Watch");
         setText($("idleSmall"), s.show_char === false ? "Dictation: they write from the sound alone." :
           phase === "writing" ? "Each stroke is scored as it lands on the paper." : "Watch the animation, then write it on paper.");
-        swapText(fb, s.prompt || (phase === "writing" ? "Writing…" : "Watching the animation…"));
+        swapText(fb, "");
       }
       $("reaction").innerHTML = "&nbsp;";
     }
@@ -1004,7 +1022,7 @@
       list.innerHTML = '<li class="empty-note"><span></span><span class="t">Lessons, photos and grades appear here.</span></li>';
       return;
     }
-    var QUIET = { tier1: 1, photo: 1, ink: 1, "glasses.frame": 1, "ink.tier1_ms": 1, "glasses.show": 1, glasses: 1, heartbeat: 1, "glasses.heartbeat": 1 };
+    var QUIET = { voice: 1, listening_start: 1, listening_stop: 1, tier1: 1, photo: 1, ink: 1, "glasses.frame": 1, "ink.tier1_ms": 1, "glasses.show": 1, glasses: 1, heartbeat: 1, "glasses.heartbeat": 1 };
     var prevScreen = null;
     ev = ev.filter(function (e) { // app_state fires on every phase tick: keep only real screen changes
       if (e.type !== "app_state" && e.type !== "app.state") return true;
@@ -1065,7 +1083,7 @@
   }
   // ---------------------------------------------------------------- Scribi orb + conversation
   var micState = "off", speakUntil = 0, convSeen = {}, convN = 0;
-  var ORB_TEXT = { off: "Mic off", listening: "Listening", hearing: "Hearing you…", thinking: "Thinking…", speaking: "Speaking" };
+  var ORB_TEXT = { off: "Off", listening: "Listening", hearing: "Hearing", thinking: "Thinking", speaking: "Speaking" };
   function renderOrb() {
     var st = micState;
     if (st !== "hearing" && st !== "thinking" && Date.now() < speakUntil) st = "speaking";
@@ -1103,7 +1121,7 @@
       if (e.type === "voice") {
         var heard = d.heard || d.text || "", intent = d.intent || d.command || "";
         var ignored = !intent || intent === "unknown" || intent === "none";
-        if (heard) bubble("me" + (ignored && !d.say ? " ign" : ""), '<span class="bub">' + esc(iso(heard)) + "</span>" + (ignored && !d.say ? '<span class="tag">ignored · not a command</span>' : ""));
+        if (heard) bubble("me" + (ignored && !d.say ? " ign" : ""), '<span class="bub">' + esc(iso(heard)) + "</span>" + (ignored && !d.say ? '<span class="tag">ignored</span>' : ""));
         var say = d.say && !/\{\w+\}/.test(d.say) ? d.say : "";
         var tools = d.tools || (d.actions || []).map(function (a) { return a && (a.tool || a.name || a); }) ;
         if (!tools.length && !ignored) tools = [String(intent)];
@@ -1118,7 +1136,7 @@
       }
     });
     if (!convN && !$("conv").children.length) {
-      $("conv").innerHTML = '<li class="ai"><span class="who"><span class="orb o-listening"></span>Scribi</span><span class="bub">Hi, I’m Scribi. Say “learn Mandarin” to start.</span></li>';
+      $("conv").innerHTML = '<li class="ai"><span class="who"><span class="orb o-listening"></span>Scribi</span><span class="bub">Hi, I’m Scribi.</span></li>';
       convN = -1;
     }
   }
