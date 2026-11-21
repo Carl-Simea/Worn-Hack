@@ -39,7 +39,7 @@ def _step(progress, i: int) -> None:
             pass
 
 
-async def grade(jpeg: bytes, char: str, lang: str, progress=None) -> dict:
+async def grade(jpeg: bytes, char: str, lang: str, progress=None, romanization: str | None = None) -> dict:
     t0 = time.perf_counter()
     _step(progress, 0)  # finding your writing
     fw = await asyncio.to_thread(measure.find_writing, jpeg)
@@ -53,7 +53,7 @@ async def grade(jpeg: bytes, char: str, lang: str, progress=None) -> dict:
 
     async def _rubric():
         try:
-            return await asyncio.wait_for(vision.rubric(board, char, lang), RUBRIC_TIMEOUT)
+            return await asyncio.wait_for(vision.rubric(board, char, lang, romanization), RUBRIC_TIMEOUT)
         except Exception as e:
             log.warning("rubric unavailable: %r", e)
             return None, {"error": f"{type(e).__name__}: {str(e)[:80]}"}

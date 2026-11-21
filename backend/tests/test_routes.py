@@ -25,7 +25,7 @@ class FakeModels:
         data = {"seen": seen, "score": 92 if seen == char else 30, "fix": "" if seen == char else "Close the top loop."}
         return vision.parse_grade(data, char), {"model": "fake-vision", "ms": 5}
 
-    async def vision_rubric(self, image, char, lang):
+    async def vision_rubric(self, image, char, lang, romanization=None):
         """The rubric on the crop: a confident 9s for the target, 1s for anything else."""
         self.vision_calls += 1
         seen = char if self.seen is None else self.seen
@@ -77,7 +77,7 @@ def start(client, lang="mandarin", item="hello", i=0, mode="write"):
 def test_health(client):
     d = client.get("/health").json()
     assert d["ok"] is True
-    assert d["langs"] == ["mandarin", "hebrew", "greek"]  # fixed order, japanese cut
+    assert d["langs"] == ["mandarin", "hindi", "arabic", "russian", "hebrew", "greek"]  # fixed order, japanese cut
     assert d["models"]["tutor"] == "qwen2.5:14b" and d["models"]["vision"] == "qwen2.5vl:7b"
     assert d["models"]["tutor_fallback"] == "qwen2.5:7b"
 

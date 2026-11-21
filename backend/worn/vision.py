@@ -123,7 +123,7 @@ def unicode_name(char: str) -> str:
 
 # ------------------------------------------------------------------ rubric (measured grading, worn/grading.py)
 
-RUBRIC_PROMPT = """This image has two panels. LEFT: a beginner's handwriting (photo, cropped). RIGHT: the target {lang_name} character "{char}" ({uname}) in print.
+RUBRIC_PROMPT = """This image has two panels. LEFT: a beginner's handwriting (photo, cropped). RIGHT: the target in print: {lang_name}, {script} script, "{char}" ({uname}){rom}.
 Rate the LEFT handwriting as an attempt at the RIGHT character. Personal style (print vs cursive, slant, line thickness) is never a fault.
 
 Reply with JSON only:
@@ -147,11 +147,17 @@ def _rubric_validator(d: dict) -> dict:
     return out
 
 
-async def rubric(image_jpeg: bytes, char: str, lang: str) -> tuple[dict, dict]:
+SCRIPTS = {"mandarin": "Simplified Chinese (hanzi)", "hindi": "Devanagari", "arabic": "Arabic (isolated form)",
+           "russian": "Cyrillic", "hebrew": "Hebrew (block print)", "greek": "Greek", "latin": "Latin"}
+
+
+async def rubric(image_jpeg: bytes, char: str, lang: str, romanization: str | None = None) -> tuple[dict, dict]:
     """qwen2.5vl scores the cropped writing next to the reference → ({5 sub-scores 0-10, seen, fix}, meta)."""
     import time
     t0 = time.perf_counter()
-    prompt = RUBRIC_PROMPT.format(lang_name=LANG_NAMES.get(lang, lang), char=char, uname=unicode_name(char))
+    prompt = RUBRIC_PROMPT.format(lang_name=LANG_NAMES.get(lang, lang).split(" (")[0], script=SCRIPTS.get(lang, lang),
+                                  char=char, uname=unicode_name(char),
+                                  rom=f', pronounced "{romanization}"' if romanization else "")
     data = await llm.json_call(llm.config.VISION_MODEL, prompt, images=[base64.b64encode(image_jpeg).decode()],
                                timeout=llm.config.GRADE_TIMEOUT, validate=_rubric_validator, temperature=0.1,
                                num_predict=70)

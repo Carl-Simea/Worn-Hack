@@ -25,7 +25,11 @@ from . import content, strokes
 
 S = 128
 FIT = 0.8
-REF_FONT = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
+FONT_DIR = __import__("pathlib").Path(__file__).resolve().parents[1] / "fonts"
+REF_FONT = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"  # last resort: covers every script
+NOTO = {"mandarin": "NotoSansSC-Regular.ttf", "hindi": "NotoSansDevanagari-Regular.ttf",
+        "arabic": "NotoNaskhArabic-Regular.ttf", "russian": "NotoSans-Regular.ttf",
+        "hebrew": "NotoSansHebrew-Regular.ttf", "greek": "NotoSans-Regular.ttf", "latin": "NotoSans-Regular.ttf"}
 POSES = [(a, sh) for a in (-8, 0, 8) for sh in (-0.25, 0.0, 0.25)]
 FEW_POSES = [(0, 0.0), (-8, 0.0), (8, 0.0), (0, 0.25), (0, -0.25)]
 
@@ -98,17 +102,39 @@ def find_writing(raw: bytes | np.ndarray) -> dict | None:
 # ------------------------------------------------------------------ 2. references
 
 @functools.lru_cache(maxsize=64)
-def _font(size: int = 220):
-    return ImageFont.truetype(REF_FONT, size)
+def _font(lang: str = "", size: int = 220):
+    f = FONT_DIR / NOTO.get(lang, "")
+    try:
+        return ImageFont.truetype(str(f) if f.is_file() else REF_FONT, size)
+    except OSError:
+        return ImageFont.truetype(REF_FONT, size)
+
+
+def font_name(lang: str) -> str:
+    f = FONT_DIR / NOTO.get(lang, "")
+    return f.stem if f.is_file() else "Arial Unicode"
+
+
+def _missing(font, char: str) -> bool:
+    """The font has no glyph for char (it would draw .notdef, the same box as a private-use code point)."""
+    def r(c):
+        im = Image.new("L", (300, 300), 0)
+        ImageDraw.Draw(im).text((150, 150), c, font=font, fill=255, anchor="mm")
+        return np.array(im)
+    return np.array_equal(r(char), r("\ue000"))
 
 
 @functools.lru_cache(maxsize=512)
-def glyph_mask(char: str) -> np.ndarray | None:
-    """Target rendered in the reference font. Only for single code points (no complex shaping here)."""
+def glyph_mask(lang: str, char: str) -> np.ndarray | None:
+    """Target rendered in the matching Noto font for its script. Single code points only: without complex
+    shaping, Devanagari conjuncts (स्ते) would render wrong, so those use the stroke template."""
     if len(char) != 1:
         return None
+    font = _font(lang)
+    if _missing(font, char):
+        font = ImageFont.truetype(REF_FONT, 220)
     img = Image.new("L", (320, 320), 0)
-    ImageDraw.Draw(img).text((160, 160), char, font=_font(), fill=255, anchor="mm")
+    ImageDraw.Draw(img).text((160, 160), char, font=font, fill=255, anchor="mm")
     m = (np.array(img) > 127).astype(np.uint8) * 255
     if not m.any():
         return None
@@ -134,7 +160,7 @@ def _template_mask(lang: str, char: str) -> np.ndarray | None:
 def references(lang: str, char: str) -> tuple:
     """(name, skeleton points in [0,1] (aspect kept), aspect, components) for each reference."""
     out = []
-    for name, m in (("font", glyph_mask(char)), ("template", _template_mask(lang, char))):
+    for name, m in (("font", glyph_mask(lang, char)), ("template", _template_mask(lang, char))):
         if m is None:
             continue
         sk = cv2.ximgproc.thinning(m)
@@ -294,7 +320,7 @@ def rubric_image(gray_crop: np.ndarray, lang: str, char: str, side: int = 280) -
         canvas[(s - h) // 2:(s - h) // 2 + h, (s - w) // 2:(s - w) // 2 + w] = a
         return Image.fromarray(canvas).resize((side, side), Image.LANCZOS)
     left = square(gray_crop)
-    g = glyph_mask(char)
+    g = glyph_mask(lang, char)
     if g is None:
         t = _template_mask(lang, char)
         g = t if t is not None else np.zeros((10, 10), np.uint8)

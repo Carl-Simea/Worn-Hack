@@ -41,6 +41,15 @@ LESSONS = {
     "japanese": {"lang": "japanese", "name": "Japanese", "items": [  # cut language: must be hidden
         {"id": "hello", "text": "こ", "chars": ["こ"]}]},
 }
+# the other three scripts use the real lesson files and C's stroke paths (content/strokes/{lang}/*.svg)
+for lang in ("hindi", "arabic", "russian"):
+    src = ROOT / "content" / f"{lang}.json"
+    if src.exists():
+        LESSONS[lang] = json.loads(src.read_text(encoding="utf-8"))
+for lang in ("hindi", "arabic", "russian", "hebrew", "greek"):
+    d = ROOT / "content" / "strokes" / lang
+    if d.is_dir():
+        shutil.copytree(d, CONTENT / "strokes" / lang, dirs_exist_ok=True)
 for lang, data in LESSONS.items():
     (CONTENT / f"{lang}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 

@@ -207,7 +207,8 @@ async def run_grade(jpeg: bytes, char: str, lang: str, session: dict | None, ima
     # EVALUATE: find the writing → measure its shape → Scribi's rubric (worn/grading.py)
     t_eval = time.perf_counter()
     try:
-        g = await grading.grade(jpeg, char, lang, progress=progress)
+        g = await grading.grade(jpeg, char, lang, progress=progress,
+                                romanization=(session or {}).get("char_romanization") if sess_match else None)
     except Exception as e:
         run.step("evaluate", f"grade failed: {str(e)[:100]}", tool="grade_character", status="error")
         raise
