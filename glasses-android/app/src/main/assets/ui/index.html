@@ -23,10 +23,11 @@
   #mic.speaking i { background:var(--blue); }
   @keyframes pulse { to { transform:scale(1.35); } }
   #main { position:absolute; left:0; right:0; top:68px; bottom:92px; padding:0 22px; }
-  #bottom { position:absolute; left:0; right:0; bottom:0; height:92px; padding:8px 22px 12px; border-top:1px solid #1d2127; }
-  #hint { font-size:23px; color:var(--say); font-weight:600; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  #hint2 { font-size:17px; color:var(--dim); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  #heard { position:absolute; right:22px; bottom:12px; font-size:16px; color:var(--blue); max-width:300px;
+  #bottom { position:absolute; left:0; right:0; bottom:0; height:92px; padding:30px 22px 14px; }
+  #hint { font-size:22px; color:var(--say); font-weight:500; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* clean look: one spoken hint on the optics. hint2 is still reported to /app-state (and /live), just not drawn here */
+  #hint2 { display:none; }
+  #heard { position:absolute; right:22px; bottom:58px; font-size:15px; color:var(--blue); max-width:300px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:0; transition:opacity .3s; }
   #heard.on { opacity:1; }
   #toast { position:absolute; left:60px; right:60px; bottom:100px; text-align:center; font-size:21px; color:var(--fg);
@@ -40,16 +41,21 @@
   .menu li .n { width:30px; color:var(--dim); font-size:18px; }
   .menu li .k { flex:1; }
   .menu li .x { color:var(--dim); font-size:19px; }
-  .menu li.sel { background:#16302099; outline:2px solid var(--say); }
+  /* clean menu: no boxes. Selected row = accent bar + bright text; the side note only shows on the selected row */
+  .menu li { color:#b9bcc3; }
+  .menu li .x { opacity:0; }
+  .menu li.sel { color:var(--fg); box-shadow:inset 4px 0 0 var(--say); border-radius:2px; font-weight:600; }
+  .menu li.sel .x { opacity:1; font-weight:400; }
+  .menu li.sel .n { color:var(--say); }
   .menu.two { columns:2; column-gap:14px; }
   .menu.two li { break-inside:avoid; }
-  .hero { font-size:28px; margin-right:12px; min-width:92px; display:inline-block; }
+  .hero { font-size:28px; margin-right:12px; min-width:124px; display:inline-block; }
 
   /* lesson */
   #lesson { display:flex; height:100%; }
   #board { position:relative; width:300px; height:300px; flex:none; }
-  #board .grid { position:absolute; top:0;left:0;right:0;bottom:0; border:1px solid #20242b; }
-  #board .grid:before, #board .grid:after { content:""; position:absolute; background:#20242b; }
+  #board .grid { position:absolute; top:0;left:0;right:0;bottom:0; border:0; }
+  #board .grid:before, #board .grid:after { content:""; position:absolute; background:#171a20; }
   #board .grid:before { left:50%; top:0; bottom:0; width:1px; }
   #board .grid:after { top:50%; left:0; right:0; height:1px; }
   #ink { position:absolute; top:0;left:0;right:0;bottom:0; }

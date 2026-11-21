@@ -473,6 +473,8 @@ class H(BaseHTTPRequestHandler):
         path = u.path.rstrip("/") or "/"
         if path in ROUTES:
             return self.file(WEB / ROUTES[path])
+        if path == "/glasses-app":  # dev preview of the glasses APK's own screens (assets/ui/index.html)
+            return self.file(WEB.parent / "glasses-android/app/src/main/assets/ui/index.html")
         if re.fullmatch(r"/print/\w+", path):
             return self.file(WEB / "print.html")
         if path.startswith("/static/web/"):
