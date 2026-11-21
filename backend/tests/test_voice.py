@@ -200,3 +200,42 @@ def test_content_matcher_is_used_when_present(monkeypatch):
     assert r["intent"] == "learn" and r["args"]["lang"] == "greek" and r["matcher"] == "content"
     r = V.parse_any("how do I write good morning in Greek", "home", ctx)
     assert r["intent"] == "compose" and r["args"] == {"text": "good morning", "lang": "greek"}
+
+
+def test_content_matcher_start_and_pick(monkeypatch):
+    f = REPO / "content" / "tools" / "voice_match.py"
+    if not f.exists():
+        pytest.skip("C's matcher not in this checkout")
+    monkeypatch.setattr(V.config, "CONTENT_DIR", REPO / "content")
+    monkeypatch.setattr(V, "_C", None)
+    items = [{"id": i, "meaning": i.replace("_", " ")} for i in ("hello", "thank_you", "water", "friend", "one")]
+    ctx = {"lang": "greek", "items": items, "langs": {"greek": {"items": items}}}
+    assert V.parse_any("start", "daily5", ctx)["intent"] == "next"
+    assert V.parse_any("practice it", "compose", ctx)["intent"] == "practice"
+    r = V.parse_any("the second one", "words", ctx)
+    assert r["intent"] == "select" and r["args"]["item_id"] == "thank_you"
+    assert V.parse_any("how do I write water and Greek", "home", ctx)["args"].get("lang") == "greek"
+    assert V.parse_any("great", "learn", ctx)["args"]["lang"] == "greek"
+
+
+def test_content_matcher_start_and_pick(monkeypatch):
+    f = REPO / "content" / "tools" / "voice_match.py"
+    if not f.exists():
+        pytest.skip("C's matcher not in this checkout")
+    monkeypatch.setattr(V.config, "CONTENT_DIR", REPO / "content")
+    monkeypatch.setattr(V, "_C", None)
+    items = [{"id": i, "meaning": i.replace("_", " ")} for i in ("hello", "thank_you", "water", "friend", "one")]
+    ctx = {"lang": "greek", "items": items, "langs": {"greek": {"items": items}}}
+    assert V.parse_any("start", "daily5", ctx)["intent"] == "next"
+    assert V.parse_any("practice it", "compose", ctx)["intent"] == "practice"
+    r = V.parse_any("the second one", "words", ctx)
+    assert r["intent"] == "select" and r["args"]["item_id"] == "thank_you"
+    assert V.parse_any("how do I write water and Greek", "home", ctx)["args"].get("lang") == "greek"
+    assert V.parse_any("great", "learn", ctx)["args"]["lang"] == "greek"
+    assert V.parse_any("Hey Scribi, learn Greek", "home", ctx)["args"]["lang"] == "greek"
+
+
+def test_assistant_is_scribi_app_is_worn(vc):
+    assert say(vc, "go home", "learn")["say"].startswith("Hi, I'm Scribi.")
+    assert "Just talk to Scribi" in say(vc, "how to use", "home")["say"]
+    assert say(vc, "hey scribi, open journal", "home")["nav"] == {"screen": "journal"}

@@ -523,7 +523,7 @@ async def _do_voice(heard: str, screen: str | None) -> dict:
     in_lesson = screen == "lesson" and sess is not None
 
     if intent == "home":
-        nav, say = {"screen": "home"}, "Home. " + V.HINTS["home"]
+        nav, say = {"screen": "home"}, f"Hi, I'm {V.ASSISTANT}. " + V.HINTS["home"]
     elif intent == "back":
         bc = list(st.get("breadcrumb") or ["home"])
         prev = bc[-2] if len(bc) >= 2 else "home"
@@ -545,7 +545,7 @@ async def _do_voice(heard: str, screen: str | None) -> dict:
             say = (f"Your journal: {len(ent)} tries, {ok} correct. " if ent else "Your journal is empty so far. ") + \
                 V.HINTS["journal"]
         else:
-            say = {"learn": "Pick a language. ", "howto": "Here's what you can say. ", "name": "Write my name. ",
+            say = {"learn": "Pick a language. ", "howto": f"Just talk to {V.ASSISTANT}. Here's what you can say. ", "name": "Write my name. ",
                    "compose": "Help me write. "}.get(scr, "") + V.HINTS.get(scr, "")
     elif intent == "learn":
         lang = args["lang"]
@@ -689,7 +689,7 @@ async def post_voice(audio: UploadFile | None = File(None), screen: str | None =
         raw = await audio.read()
         t1 = time.perf_counter()
         try:
-            heard = await asyncio.to_thread(V.transcribe, raw, audio.filename or "audio.wav")
+            heard = await asyncio.to_thread(V.transcribe, raw, audio.filename or "audio.wav", screen)
         except V.STTError as e:
             log.warning("stt: %s", e)
             heard = ""

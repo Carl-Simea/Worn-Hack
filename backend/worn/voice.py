@@ -99,7 +99,8 @@ def get_state() -> dict:
 STT_MODEL = os.environ.get("WORN_STT_MODEL", "base")
 _stt = None
 _stt_lock = threading.Lock()
-VOCAB = ("Worn. Commands: home, back, next, previous, repeat, slower, show me again, check, I'm done, skip, help, "
+ASSISTANT = "Scribi"  # the voice tutor inside the Worn app
+VOCAB = ("Hey Scribi. Commands: home, back, next, previous, repeat, slower, show me again, check, I'm done, skip, help, "
          "what can I say, what does this mean, open learn, open journal, daily five, write my name, "
          "how do I write thank you in Hindi. Learn Mandarin, Hindi, Arabic, Russian, Hebrew, Greek. "
          "Hello, thank you, water, friend, one.")
@@ -155,7 +156,18 @@ def decode_audio(audio: bytes, filename: str = "audio.wav"):
     return np.frombuffer(p.stdout, np.int16).astype(np.float32) / 32768
 
 
-def transcribe(audio: bytes, filename: str = "audio.wav") -> str:
+SCREEN_VOCAB = {
+    "learn": "Mandarin. Hindi. Arabic. Russian. Hebrew. Greek. Back. Home. Help.",
+    "words": "Hello. Thank you. Water. Friend. One. Number two. Back. Home. Help.",
+    "lesson": "Check. I'm done. Next. Previous. Repeat. Slower. Show me again. Skip. Back. Home. "
+              "What does this mean? Help.",
+    "daily5": "Start. Next. Skip. Back. Home. Help.",
+    "compose": "How do I write thank you in Greek? Practice it. Back. Home.",
+    "name": "Write my name, Maria. Back. Home.",
+}
+
+
+def transcribe(audio: bytes, filename: str = "audio.wav", screen: str | None = None) -> str:
     """Audio bytes (wav/m4a/aac/mp3/...) → English text. Runs on this Mac, no network."""
     if not audio or len(audio) < 200:
         return ""
@@ -168,13 +180,15 @@ def transcribe(audio: bytes, filename: str = "audio.wav") -> str:
         return ""
     try:
         segs, _info = m.transcribe(pcm, language="en", beam_size=1, vad_filter=True,
-                                   initial_prompt=VOCAB, condition_on_previous_text=False,
+                                   initial_prompt=(SCREEN_VOCAB.get(norm_screen(screen), "") + " " + VOCAB).strip(), condition_on_previous_text=False,
                                    without_timestamps=True)
         text = " ".join(s.text.strip() for s in segs).strip()
     except Exception as e:
         raise STTError(f"couldn't read the audio: {e}")
     # whisper hallucinates the prompt or "Thank you." on silence
-    if text.lower().startswith("worn. commands") or len(text) > 200:
+    low = text.lower()
+    if low.startswith("hey scribi. commands") or len(text) > 200 or (len(low) > 30 and low in (SCREEN_VOCAB.get(
+            norm_screen(screen), "").lower() + " " + VOCAB.lower())):
         return ""
     return text
 
@@ -212,7 +226,7 @@ LANG_WORDS = {
     "arabic": ["arabic", "arabik", "arab", "arabian"],
     "russian": ["russian", "russia", "rushin", "cyrillic", "russhian"],
     "hebrew": ["hebrew", "ebrew", "hebrews", "he brew", "hibrew", "israeli"],
-    "greek": ["greek", "greece", "greeks", "creek", "grik"],
+    "greek": ["greek", "greece", "greeks", "creek", "grik", "greet", "brief"],
 }
 ORDINALS = {"one": 1, "first": 1, "1": 1, "two": 2, "second": 2, "2": 2, "to": 2, "too": 2, "three": 3, "third": 3,
             "3": 3, "four": 4, "fourth": 4, "for": 4, "4": 4, "five": 5, "fifth": 5, "5": 5}
@@ -246,10 +260,14 @@ OPEN_WORDS = {
 }
 
 
+WAKE_RE = re.compile(r"^(?:(?:hey|hi|hello|ok|okay)\s+)?(?:scribi|scribby|scribie|scrubby|scribe|scruby|skribi)\b\s*")
+
+
 def norm(text: str) -> str:
     t = (text or "").lower().replace("’", "'")
     t = re.sub(r"[^\w\s']", " ", t)
-    return re.sub(r"\s+", " ", t).strip()
+    t = re.sub(r"\s+", " ", t).strip()
+    return WAKE_RE.sub("", t).strip()  # "Hey Scribi, learn Greek" → "learn greek"
 
 
 def _has(t: str, phrase: str) -> bool:
@@ -259,6 +277,10 @@ def _has(t: str, phrase: str) -> bool:
 def _fuzzy_word(word: str, choices: list[str], cutoff: float = 0.8) -> str | None:
     m = difflib.get_close_matches(word, choices, n=1, cutoff=cutoff)
     return m[0] if m else None
+
+
+LEARN_SCREEN_ALIASES = {"great": "greek", "grief": "greek", "the brew": "hebrew", "rush": "russian",
+                        "and in": "hindi", "in the": "hindi", "rabbit": "arabic"}
 
 
 def find_lang(t: str) -> str | None:
@@ -420,6 +442,10 @@ def parse_any(text: str, screen: str | None, ctx: dict) -> dict:
     global _C
     screen = norm_screen(screen)
     t = norm(text)
+    t = re.sub(r"\s+and\s+(\w+)$", lambda m: f" in {m.group(1)}" if find_lang(m.group(1)) else m.group(0), t)
+    if screen == "learn" and t in LEARN_SCREEN_ALIASES:
+        return {"intent": "learn", "args": {"lang": LEARN_SCREEN_ALIASES[t]}, "matcher": "backend"}
+    text = t
     # screen-specific words the shared matcher reads differently
     if screen == "daily5" and t in ("start", "go", "begin", "yes", "ok", "okay", "let's go", "lets go", "start daily five"):
         return {"intent": "next", "args": {"start": True}, "matcher": "backend"}
@@ -430,6 +456,7 @@ def parse_any(text: str, screen: str | None, ctx: dict) -> dict:
     if _C:
         try:
             r = _C.match(text, screen)
+            r["heard"] = text
         except Exception as e:
             log.warning("content matcher failed on %r: %s", text, e)
             r = {"intent": None}
@@ -445,6 +472,22 @@ def parse_any(text: str, screen: str | None, ctx: dict) -> dict:
                     intent = None
             if intent == "open":
                 a["screen"] = norm_screen(a.get("screen"))
+            if intent == "start":
+                intent, a = {"daily5": ("next", {"start": True}), "compose": ("practice", {}),
+                             "lesson": ("next", {}), "name": ("help", {})}.get(screen, (None, {}))
+            if intent == "pick":
+                k = int(a.get("ordinal") or 0)
+                langs = [l for l in config.LANG_ORDER if l in (ctx.get("langs") or {})] or list(config.LANG_ORDER)
+                menu = ["learn", "name", "compose", "daily5", "journal", "howto"]
+                items = ctx.get("items") or []
+                if screen == "learn" and 1 <= k <= len(langs):
+                    intent, a = "learn", {"lang": langs[k - 1]}
+                elif screen == "words" and items:
+                    intent, a = "select", {"lang": ctx.get("lang"), "item_id": items[min(k, len(items)) - 1]["id"]}
+                elif screen == "home" and 1 <= k <= len(menu):
+                    intent, a = "open", {"screen": menu[k - 1]}
+                else:
+                    intent = None
             if intent == "compose" and not a.get("text"):
                 intent = None
             if intent:
