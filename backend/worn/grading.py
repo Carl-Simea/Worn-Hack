@@ -18,7 +18,7 @@ log = logging.getLogger("worn.grading")
 SHAPE_W, RUBRIC_W = 0.6, 0.4
 PASS = 70
 RUBRIC_LO, RUBRIC_HI = 15.0, 50.0  # calibrated in eval_grading.py (REMAINING-A.md)
-RUBRIC_TIMEOUT = float(__import__('os').environ.get('WORN_RUBRIC_TIMEOUT', '4.0'))
+RUBRIC_TIMEOUT = float(__import__('os').environ.get('WORN_RUBRIC_TIMEOUT', '5.0'))
 # rubric sub-score weights (0-10 each → 0-100)
 RW = {"recognizable": 0.35, "proportions": 0.15, "stroke_placement": 0.2, "completeness": 0.2, "neatness": 0.1}
 NO_WRITING = "I can't see your writing. Hold the paper flat, about 30 cm away."
@@ -82,7 +82,18 @@ async def grade(jpeg: bytes, char: str, lang: str, progress=None, romanization: 
         r10 = {k: rub[k] * 10 for k in RW}
     else:
         rubric_score, r10, seen = None, {}, ""
+    guard = None
+    if rub is not None and shape_score >= 75 and rubric_score < 60:
+        # the strokes clearly match the target and nothing else: the vision model misreads unfamiliar scripts
+        rubric_score, guard = 60.0, "shape-confident"
     final = shape_score if rubric_score is None else SHAPE_W * shape_score + RUBRIC_W * rubric_score
+    if shp.get("score") is not None and shape_score < 30:
+        final, guard = min(final, 35), "shape says not the target"  # the rubric can't rescue it (echo guard)
+    if rub and seen and len(seen) == 1 and seen != char and seen.casefold() != char.casefold() \
+            and vision._base(seen) != vision._base(char) and lang in scripts._RANGES and scripts.in_script(seen, lang):
+        alt = await asyncio.to_thread(measure.raw_for, fw["mask"], lang, seen)
+        if alt is not None and shp.get("raw") is not None and alt >= shp["raw"] - 0.02:
+            final, guard = min(final, 35), f"reads as {seen} and the strokes agree"
     score = int(round(max(0, min(100, final))))
 
     def blend(measured: float | None, rk: str) -> int:
@@ -106,7 +117,7 @@ async def grade(jpeg: bytes, char: str, lang: str, progress=None, romanization: 
         feedback = f"Work on {LABEL[weakest]} ({subscores[weakest]}): {fix}"
     return {"status": "ok", "score": score, "correct": correct, "subscores": subscores, "weakest": weakest,
             "feedback": feedback, "crop": measure.crop_jpeg(fw["gray"]), "crop_box": fw["box"], "frame": fw["frame"],
-            "deskew_deg": fw["angle"], "seen": seen,
+            "deskew_deg": fw["angle"], "seen": seen, "guard": guard,
             "shape": {k: shp.get(k) for k in ("score", "raw", "metrics", "coverage", "precision", "ref", "margin",
                                               "other_char", "ms")},
             "rubric": ({**{k: rub[k] for k in RW}, "score": round(rubric_score), "raw": round(rubric_raw), "fix": rub.get("fix"),

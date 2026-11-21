@@ -263,9 +263,11 @@ def extract_ink(bgr: np.ndarray) -> np.ndarray:
         x, y, bw, bh, area = stats[i]
         touches = x <= 2 or y <= 2 or x + bw >= w - 2 or y + bh >= h - 2
         sparse_long = (bw > 0.6 * w or bh > 0.6 * h) and area < 0.08 * bw * bh  # page edge, long line
-        if area < min_area or touches or sparse_long:
+        if area < min_area or touches:
             continue
         comp = labels[y:y + bh, x:x + bw] == i
+        if sparse_long and float(strong[y:y + bh, x:x + bw][comp].mean()) < 0.5:
+            continue  # faint and long: a ruled line or the page edge. A dark pen stroke filling the frame stays.
         thick = float(dist[y:y + bh, x:x + bw][comp].max())
         cand.append((i, x, y, bw, bh, area, thick))
     if not cand:

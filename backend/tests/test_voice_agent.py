@@ -14,15 +14,15 @@ def test_one_word_commands_skip_the_model(vc, nlu):
 
 
 def test_model_plan_is_executed_server_side(vc, nlu):
-    nlu.replies["teach me water in greek please"] = 'start_lesson {"language": "greek", "word": "water"}'
-    d = say(vc, "teach me water in greek please", "home")
+    nlu.replies["uh could you maybe teach me that water one in greek"] = 'start_lesson {"language": "greek", "word": "water"}'
+    d = say(vc, "uh could you maybe teach me that water one in greek", "home")
     assert d["matcher"] == "model" and d["intent"] == "select"
     assert vc.get("/session").json()["item_id"] == "water" and d["session"]["lang"] == "greek"
     assert d["actions"] == [{"tool": "open_word", "args": {"lang": "greek", "item_id": "water", "char_index": 0}}]
     st = vc.get("/app-state").json()
     assert st["screen"] == "lesson" and st["breadcrumb"][-1] == "lesson"
     steps = [s for s in vc.get("/live/state").json()["agent_steps"] if s["tool"] == "understand"]
-    assert steps and "teach me water" in steps[-1]["summary"] and steps[-1]["ms"] is not None
+    assert steps and "water one in greek" in steps[-1]["summary"] and steps[-1]["ms"] is not None
 
 
 def test_multi_step(vc, nlu):
@@ -89,8 +89,10 @@ def test_chatter_tool_none_is_harmless(vc, nlu):
 
 
 def test_model_down_falls_back_to_rules(vc, nlu):
-    d = say(vc, "how do I write water in Greek", "home")  # no fake reply → timeout → rules
-    assert d["matcher"] == "rules" and d["intent"] == "select" and d["session"]["lang"] == "greek"
+    d = say(vc, "go to the main menu", "words")  # no fake reply → timeout → rules
+    assert d["matcher"] == "rules" and d["intent"] == "home"
+    d = say(vc, "how do I write water in Greek", "home")  # fixed-shape sentence: the rule path, no model
+    assert d["matcher"] == "fast" and d["intent"] == "select" and d["session"]["lang"] == "greek"
 
 
 def test_parse_lines_tolerates_aliases_and_junk():

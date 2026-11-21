@@ -249,6 +249,27 @@ def fast_path(heard: str, screen: str, ctx: dict) -> dict | None:
     return None
 
 
+EXACT_INTENTS = ("learn", "compose", "write_name", "select")
+
+
+def exact_path(heard: str, screen: str, ctx: dict) -> dict | None:
+    """Sentences with a fixed shape ("learn Hindi", "how do I write water in Greek", "write my name, Sam",
+    a lesson word on the word list) are answered by the rule matcher: instant and never misrouted."""
+    t = V.norm(heard)
+    if len(t.split()) > 9:
+        return None
+    r = V.parse_any(heard, screen, ctx)
+    if r["intent"] not in EXACT_INTENTS:
+        return None
+    a = r["args"]
+    if r["intent"] == "learn" and not re.search(r"\b(learn|study|practice|practise|teach me|do|start|open|switch to)\b", t) \
+            and screen != "learn" and len(t.split()) > 1:
+        return None  # "I was in Greece" is not "learn Greek"
+    if r["intent"] == "compose" and not a.get("lang"):
+        return None  # let the model (or the question) find the language
+    return r
+
+
 async def plan(heard: str, screen: str, state: dict, ctx: dict) -> dict:
     """→ {intents: [{intent, args}], say?, pending?, via: fast|pending|model|rules|wake, model_say, ms, confidence}"""
     t0 = time.perf_counter()
@@ -276,7 +297,7 @@ async def plan(heard: str, screen: str, state: dict, ctx: dict) -> dict:
             return {"intents": intents, **(ask or {}), "pending": (ask or {}).get("pending"), "via": "pending",
                     "ms": ms()}
 
-    fp = fast_path(heard, screen, ctx)
+    fp = fast_path(heard, screen, ctx) or exact_path(heard, screen, ctx)
     if fp:
         return {"intents": [{"intent": fp["intent"], "args": fp["args"]}], "via": "fast", "ms": ms()}
 

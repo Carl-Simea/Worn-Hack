@@ -37,6 +37,8 @@ FEW_POSES = [(0, 0.0), (-8, 0.0), (8, 0.0), (0, 0.25), (0, -0.25)]
 W = {"iou": 0.20, "chamfer": 0.30, "hausdorff": 0.10, "grid": 0.20, "aspect": 0.10, "components": 0.10}
 # shape score = raw mapped with these, minus a penalty when another character explains the ink better
 RAW_LO, RAW_HI = 0.30, 0.78
+# dense scripts (hanzi) and cursive-shaped ones (Arabic) reach lower raw similarity for the same quality
+RAW_HI_LANG = {"mandarin": 0.70, "arabic": 0.66}
 MARGIN_PENALTY = 4.0
 
 
@@ -74,7 +76,9 @@ def find_writing(raw: bytes | np.ndarray) -> dict | None:
     if int((mask > 0).sum()) < min_px:
         return None
     # the main cluster: strokes of one character sit close together; far specks and other words drop out
-    k = max(9, int(0.05 * min(h, w)))
+    # Characters have separate parts (亻 + 尔, Arabic dots, Devanagari matras), so pieces within ~10% of the
+    # frame merge; then nearby clusters with a real share of ink join too.
+    k = max(15, int(0.10 * min(h, w)))
     grown = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
     n, lab = cv2.connectedComponents(grown, connectivity=8)
     if n <= 1:
@@ -82,7 +86,18 @@ def find_writing(raw: bytes | np.ndarray) -> dict | None:
     counts = np.bincount(lab[mask > 0].ravel(), minlength=n)
     counts[0] = 0
     best = int(counts.argmax())
-    ink = np.where(lab == best, mask, 0).astype(np.uint8)
+    keep = lab == best
+    ys0, xs0 = np.nonzero(keep)
+    bx0, bx1, by0, by1 = xs0.min(), xs0.max(), ys0.min(), ys0.max()
+    size = max(bx1 - bx0, by1 - by0)
+    for i in range(1, n):
+        if i == best or counts[i] < 0.08 * counts[best]:
+            continue
+        yi, xi = np.nonzero(lab == i)
+        gap = max(0, max(bx0 - xi.max(), xi.min() - bx1, by0 - yi.max(), yi.min() - by1))
+        if gap < 0.6 * size:
+            keep |= lab == i
+    ink = np.where(keep, mask, 0).astype(np.uint8)
     if int((ink > 0).sum()) < min_px:
         return None
     ys, xs = np.nonzero(ink)
@@ -292,16 +307,17 @@ def shape(mask: np.ndarray, lang: str, char: str) -> dict:
     tgt_len = len(references(lang, char)[0][1])
     for c in distractors(lang, char):
         refs = references(lang, c)
-        if not refs or len(refs[0][1]) < 0.35 * tgt_len:
+        if not refs or len(refs[0][1]) < 0.55 * tgt_len:
             continue  # a much simpler shape (ا, ι, 一) "fits" part of anything; not a fair rival
         r = best_match(pts, n_comp, lang, c, FEW_POSES)
         if r:
             rivals.append((r["raw"], c))
     rivals.sort(reverse=True)
     best_other, other_char = rivals[0] if rivals else (0.0, None)
-    base = _clip01((tgt["raw"] - RAW_LO) / (RAW_HI - RAW_LO))
+    hi = RAW_HI_LANG.get(lang, RAW_HI)
+    base = _clip01((tgt["raw"] - RAW_LO) / (hi - RAW_LO))
     margin = tgt["raw"] - best_other
-    penalty = MARGIN_PENALTY * max(0.0, 0.03 - margin)  # another character fits as well or better
+    penalty = MARGIN_PENALTY * max(0.0, 0.005 - margin)  # another character fits better
     score = int(round(100 * _clip01(base - penalty)))
     return {"score": score, "raw": round(tgt["raw"], 3), "metrics": {k: round(v, 3) for k, v in tgt["metrics"].items()},
             "coverage": round(tgt["coverage"], 3), "precision": round(tgt["precision"], 3), "ref": tgt["ref"],
@@ -345,3 +361,12 @@ def rubric_image(gray_crop: np.ndarray, lang: str, char: str, side: int = 280) -
 
 def crop_jpeg(gray_crop: np.ndarray) -> bytes:
     return cv2.imencode(".jpg", gray_crop, [cv2.IMWRITE_JPEG_QUALITY, 88])[1].tobytes()
+
+
+def raw_for(mask: np.ndarray, lang: str, char: str) -> float | None:
+    """Raw shape similarity of the ink to `char` (used to check the rubric's reading)."""
+    pts, n_comp = _ink_points(mask)
+    if len(pts) < 5 or not references(lang, char):
+        return None
+    r = best_match(pts, n_comp, lang, char)
+    return r["raw"] if r else None
