@@ -21,6 +21,9 @@ final class VoiceListener {
     private var task: SFSpeechRecognitionTask?
     private var firedForUtterance: Set<String> = []
     private var restartWork: Task<Void, Never>?
+    /// Back off when the recognizer keeps failing (e.g. on-device model missing) instead of spinning.
+    private var failures = 0
+    private var startedAt = Date()
 
     var isOnDevice: Bool { recognizer?.supportsOnDeviceRecognition ?? false }
 
@@ -77,13 +80,17 @@ final class VoiceListener {
         try engine.start()
 
         firedForUtterance = []
+        startedAt = Date()
         task = recognizer.recognitionTask(with: req) { [weak self] result, error in
             let text = result?.bestTranscription.formattedString
             let isFinal = result?.isFinal ?? false
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                if let text { self.heard(text) }
-                if isFinal || error != nil { self.scheduleRestart() }
+                if let text { self.heard(text); self.failures = 0 }
+                if error != nil, Date().timeIntervalSince(self.startedAt) < 2 { self.failures += 1 }
+                if isFinal || error != nil {
+                    self.scheduleRestart(after: min(5, 0.2 * pow(2, Double(min(self.failures, 5)))))
+                }
             }
         }
     }

@@ -56,6 +56,8 @@ final class PracticeEngine {
     private(set) var outcomes: [Outcome] = []
     private(set) var lastInk: InkDiff.Result?
     private(set) var lastPhoto: CGImage?
+    private var lastPhotoAt: Date?
+    private var lastInkAt: Date?
     private(set) var now = Date()
     private(set) var attemptsOnCurrent = 0
     /// Dictation: the answer stays hidden until graded.
@@ -230,6 +232,7 @@ final class PracticeEngine {
             }
             guard let frame, phase == .writing else { continue }
             lastPhoto = frame
+            lastPhotoAt = t0
             let t1 = Date()
             let r = ink.process(frame)
             let diffMs = Self.ms(since: t1)
@@ -257,6 +260,7 @@ final class PracticeEngine {
     }
 
     private func inkArrived(_ frame: CGImage) {
+        lastInkAt = Date()
         if mode == .dictation { dictationInkAt = Date(); return }
         apply(pacer.strokeWritten(.ink))
         if app.useStrokeMatch, let jpeg = PhoneCamera.jpeg(frame, quality: 0.6), let item = current, let api = app.api {
@@ -378,7 +382,14 @@ final class PracticeEngine {
         }
         var jpeg: Data?
         if app.photoSource == .glasses {
-            jpeg = try? await app.glasses.takePhoto().0
+            // A glasses photo takes seconds. If the last one is fresh and nothing new was written since, grade that.
+            if let at = lastPhotoAt, Date().timeIntervalSince(at) < 2.5, lastInkAt.map({ $0 <= at }) ?? true,
+               let frame = lastPhoto {
+                jpeg = PhoneCamera.jpeg(frame, quality: 0.85)
+                app.report("grade.photo", ["reused": .bool(true), "age_ms": .int(Self.ms(since: at))])
+            } else {
+                jpeg = try? await app.glasses.takePhoto().0
+            }
         }
         if jpeg == nil { jpeg = app.camera.jpeg() ?? lastPhoto.flatMap { PhoneCamera.jpeg($0) } }
         guard let jpeg, let api = app.api else {

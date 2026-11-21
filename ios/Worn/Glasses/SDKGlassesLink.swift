@@ -63,7 +63,17 @@ final class SDKGlassesLink: GlassesLink {
 
     // MARK: photo round trip
 
+    /// One photo at a time: the camera app and the file list are shared, so overlapping requests would mix files up.
+    private var photoInFlight = false
+
     func takePhoto() async throws -> (Data, PhotoTiming) {
+        while photoInFlight { try await Task.sleep(for: .milliseconds(100)) }
+        photoInFlight = true
+        defer { photoInFlight = false }
+        return try await takePhotoNow()
+    }
+
+    private func takePhotoNow() async throws -> (Data, PhotoTiming) {
         guard session.isConnected else { throw GlassesError.notConnected }
         if let problem = GlassesSession.fileTransferNetworkProblem() { throw GlassesError.network(problem) }
         var timing = PhotoTiming()
