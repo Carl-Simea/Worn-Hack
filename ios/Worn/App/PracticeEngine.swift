@@ -63,6 +63,10 @@ final class PracticeEngine {
     /// Step by step (default): the learner moves through the strokes with Next / Back / Replay or voice.
     /// Nothing advances on its own: no timer, no camera guess. Off = the old auto-pacing (pen, voice or timer).
     private(set) var stepByStep = true
+    /// The app watches the page and moves on by itself, but only once the stroke is finished (pen lifted).
+    private(set) var followPen = true
+    private(set) var tracker = StrokeTracker()
+    var trackState: StrokeTracker.State { tracker.state }
     var manual: Bool { stepByStep && mode != .dictation }
     private var glassesFailures = 0
     /// Where this practice takes its photos.
@@ -253,18 +257,24 @@ final class PracticeEngine {
             let diffMs = Self.ms(since: t1)
             app.recordLatency(.inkDiff, ms: diffMs)
             lastInk = r
+            let finished = mode != .dictation && tracker.feed(strokeAdded: r.strokeAdded, unusable: r.unusable)
             if r.strokeAdded {
                 app.recordLatency(.nextStroke, ms: Self.ms(since: t0))
                 app.report("ink", ["new_ink": .number(r.newInk), "coverage": .number(r.inkCoverage),
                                    "tier1_ms": .int(diffMs), "pen_to_next_ms": .int(Self.ms(since: t0))])
-                inkArrived(frame)
+                lastInkAt = Date()
+                if mode == .dictation { dictationInkAt = Date() }
+            }
+            if finished {
+                app.report("stroke.finished", ["stroke": .int(shownStroke)])
+                if followPen { inkArrived(frame) }
             }
         }
     }
 
     /// Simulator / no camera: a pretend writer adds the shown stroke ~1.4 s after it appears.
     private func simulatePen() {
-        guard source == .phone, app.camera.usesSimulatedPage, !manual else { return }
+        guard source == .phone, app.camera.usesSimulatedPage, (!manual || followPen) else { return }
         let page = app.camera.simulated
         let target = mode == .dictation ? (strokes?.count ?? 3) : shownStroke
         let delay = mode == .dictation ? 0.9 : 1.4 * pacer.speed
@@ -275,9 +285,6 @@ final class PracticeEngine {
     }
 
     private func inkArrived(_ frame: CGImage) {
-        lastInkAt = Date()
-        if mode == .dictation { dictationInkAt = Date(); return }
-        if manual { return }   // step by step: the page never moves the stroke on by itself
         apply(pacer.strokeWritten(.ink))
         if app.useStrokeMatch, let jpeg = PhoneCamera.jpeg(frame, quality: 0.6), let item = current, let api = app.api {
             let strokeIndex = max(0, shownStroke - 2)   // the stroke that was just written (0-based)
@@ -311,6 +318,7 @@ final class PracticeEngine {
     }
 
     private func showStroke(_ i: Int, trigger: Pacer.Trigger) {
+        tracker.reset()
         shownStroke = i
         strokeEpoch += 1
         lastTrigger = trigger
@@ -352,6 +360,18 @@ final class PracticeEngine {
     func back() {
         guard phase == .writing, mode != .dictation else { return }
         apply(pacer.back())
+    }
+
+    /// Arrow forward: the next stroke (never grades; Check does that).
+    func forward() {
+        guard phase == .writing, mode != .dictation, !pacer.isOnLastStroke else { return }
+        apply(pacer.advance(.manual))
+    }
+
+    func setFollowPen(_ on: Bool) {
+        followPen = on
+        tracker.reset()
+        app.report("follow_pen", ["on": .bool(on)])
     }
 
     /// Step by step: play the stroke on screen once more.

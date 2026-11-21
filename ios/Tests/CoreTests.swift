@@ -94,6 +94,15 @@ check(sl.tick(now: t + 5) == [] && sl.tick(now: t + 6.1) == [.showStroke(index: 
 var stuck = Pacer(strokeCount: 4, now: t); var acts = 0
 for i in 1...40 { acts += stuck.tick(now: t + Double(i) * 0.5).count }
 check(acts == 4, "no input at all still finishes (3 strokes + finalize), got \(acts)")
+// StrokeTracker: a stroke is finished only after the ink stopped growing
+var tr = StrokeTracker()
+check(!tr.feed(strokeAdded: false, unusable: false) && !tr.feed(strokeAdded: false, unusable: false), "tracker: nothing written, nothing finished")
+check(!tr.feed(strokeAdded: true, unusable: false) && tr.state == .writing, "tracker: ink arriving = still writing")
+check(!tr.feed(strokeAdded: false, unusable: false), "tracker: one quiet frame is not enough")
+check(!tr.feed(strokeAdded: true, unusable: false) && !tr.feed(strokeAdded: false, unusable: false), "tracker: more ink restarts the wait")
+check(!tr.feed(strokeAdded: false, unusable: true) && !tr.feed(strokeAdded: false, unusable: false), "tracker: a hand in view resets the wait")
+check(tr.feed(strokeAdded: false, unusable: false) && tr.state == .watching, "tracker: finished after two quiet usable frames")
+
 print(fails == 0 ? "ALL PASS" : "\(fails) FAILED"); exit(fails == 0 ? 0 : 1)
 
 enum ScriptInfo { static func isRTL(_ l: String) -> Bool { l == "arabic" || l == "hebrew" } }
