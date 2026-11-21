@@ -15,13 +15,17 @@ paper, then back again, and it can't see your handwriting. So people stall at th
 
 ## What Worn does
 
-1. **Pick on the phone.** Choose a language and a word (hello, thank you, water, friend, one) or your own name.
-2. **Hand off to the glasses.** The glasses show the next character stroke by stroke, with numbered strokes,
-   pronunciation audio, romanization and meaning, while your hands stay free for pen and paper.
-3. **Write it on real paper.** Tap the glasses: they take a photo and grade it in a couple of seconds. You get a check
-   and a goofy reaction ("Chef's kiss!"), or one specific fix ("add the dot under the letter"), spoken aloud.
-4. **Keep going hands-free.** The phone advances by itself, and the iPad at the table mirrors the glasses live,
-   including what the AI saw and why it decided what it did.
+1. **Just talk.** "Learn Mandarin." "Hello." The glasses are fully voice-driven: Home, Learn, Write my name,
+   Help me write, Daily 5, Journal and How to use. Every screen shows what to say next, "what can I say" reads the
+   options aloud, and the button is only a backup.
+2. **Watch.** The glasses show each character stroke by stroke, with numbered strokes, pronunciation audio,
+   romanization and meaning, while your hands stay free for pen and paper.
+3. **Write it on real paper, then say "I'm done".** The glasses take a photo and grade it in a couple of seconds.
+   You get a check and a goofy reaction ("Chef's kiss!"), or one specific fix ("add the dot under the letter"),
+   spoken aloud. "Show me again", "slower", "skip", "what does this mean" all work mid-lesson.
+4. **Ask for anything.** "Write my name, Maria." "How do I write good morning in Greek?" The iPad at the table
+   mirrors the real glasses display live, including what the AI saw and why it decided what it did. The phone app
+   follows the same session (seamless handoff) and is the backup controller.
 
 **Six scripts, each taught the way it works:**
 
@@ -38,11 +42,16 @@ Each of the 30 items has the native text, romanization, meaning, a one-line "how
 "why it's useful" (read a menu, write a card), a dictation hint, per-character romanization and native-voice audio.
 **Write your name** spells names by sound in Devanagari, Arabic, Cyrillic, Hebrew and Greek.
 
-**Measured on teammates' real handwriting (local model):** 87% of 76 grades correct, 94% on real letters,
-94% of wrong-target attempts rejected, and no harsh feedback (`backend/test_data/eval_results.md`).
+**Measured on teammates' real handwriting (local models):** the vision model alone reads 93% of 76 grades
+correctly (94% of real letters). The full grading agent (vision + stroke templates + guardrails + tutor) accepted
+100% of right letters and rejected 100% of wrong ones (28 grades, 7 targets in 6 scripts, print and
+slanted/tilted/shadowed paper), with no harsh feedback (`backend/test_data/eval_results.md`).
 
 ## How it works
 
+- **Glasses app (Android, on the MicroLumin M6):** every screen, the microphone (sent to `POST /voice`), the
+  camera (to `/grade`) and the button. Voice commands are fuzzy-matched against a hand-written command set with
+  common mishearings ("Czech" → check, "Indy" → Hindi), tested on 74 utterances (`content/voice/`).
 - **Phone (SwiftUI):** picks lessons, starts sessions, shows progress and scores, and falls back to the phone
   camera (Demo Mode). Handoff runs through one shared session on the laptop, so whatever the phone picks the
   glasses show, and vice versa.
@@ -68,7 +77,7 @@ for debugging, and can be deleted at any time.
 
 ## Tech stack
 
-SwiftUI (iOS 17) · FastAPI + Uvicorn (Python 3.12) · OpenCV · Ollama with Qwen2.5-VL 7B, Qwen2.5 14B and
+Android (glasses app) · SwiftUI (iOS 17) · FastAPI + Uvicorn (Python 3.12) · OpenCV · Ollama with Qwen2.5-VL 7B, Qwen2.5 14B and
 Qwen2.5 7B · plain HTML/JS/SVG (stroke renderer, confetti, Web Audio) · macOS voices for pronunciation audio ·
 Python-synthesized sound effects · MicroLumin M6 glasses.
 
