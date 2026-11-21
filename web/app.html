@@ -500,6 +500,7 @@
   window.addEventListener("scroll", function () { $("top").classList.toggle("scrolled", scrollY > 6); }, { passive: true });
 
   // ---------------------------------------------------------------- voice (POST /voice; the backend turns speech into an intent)
+  var sayAudio = new Audio();
   var curView = "home", SCREEN = { home: "home", lang: "words", practice: "lesson", compose: "compose", name: "name", daily: "daily5", help: "howto" };
   var NAVS = { home: "#/", learn: "#/", words: null, lesson: "#/practice", practice: "#/practice", compose: "#/compose", help_me_write: "#/compose",
                name: "#/name", write_my_name: "#/name", daily: "#/daily", daily5: "#/daily", daily_five: "#/daily", help: "#/help", howto: "#/help",
@@ -541,11 +542,15 @@
   }
   function act(v) {
     v.say = fillSay(v.say);
+    if (v.say_url && v.say && v.say.indexOf("{") < 0) { sayAudio.src = url(v.say_url); var pp = sayAudio.play(); if (pp && pp.catch) pp.catch(function () { WornVoice.say(v.say); }); v._spoken = true; }
     var it = v.intent || "", a = Object.assign({}, v.args || {}), s = live && live.session;
     a.lang = a.lang || a.language; a.target = a.target || a.screen; a.word = a.word || a.text; // C's matcher names them language/screen/text
     var onP = curView === "practice";
-    WornVoice.say(v.say);
+    if (!v._spoken) WornVoice.say(v.say);
     bubble(v.heard ? "“" + v.heard + "”" : "", v.say || "", it && it !== "unknown" && it !== "none" ? it.replace(/_/g, " ") : "");
+    if (v.session && v.session.char && /how_write|word|compose|learn_word|start/.test(it)) {
+      applySession(v.session); return go("#/practice"); // the backend already started this lesson: just follow it
+    }
     switch (it) {
       case "home": return go("#/");
       case "back": return history.length > 1 ? history.back() : go("#/");

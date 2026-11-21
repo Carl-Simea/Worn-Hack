@@ -22,6 +22,14 @@ loop, follow-the-glasses sync, static partial and word-gap helpers), `worn-confe
 Fonts: Inter and Newsreader are self-hosted in `web/fonts/` (`fonts.css`), so the brand survives a venue network
 without internet. The Noto script faces come from Google Fonts and fall back to the system's fonts offline.
 
+**Voice-first (`/voice`, `/app-state`):** `/live` has a voice bar under the header. It shows where the wearer is
+(breadcrumb), what they said, the command Worn understood, its reply (with latency) and the "Say …" hint, read from
+`GET /app-state` every 500 ms. It stays hidden on a backend without that endpoint. `/app` has a mic button on every screen
+with that screen's hint: it records 16 kHz WAV locally and sends it to `POST /voice`, then acts on the reply (navigate,
+next/previous/repeat, start a word, help me write, write my name) and plays `say_url`. `/app#/help` is the "What can I say"
+page: tap a command or type one (sent as `text`). `worn-voice.js` holds the recorder and the command list. In the console,
+`wornSay("learn Greek")` runs the same path.
+
 **Real glasses mirror on `/live`:** with the M6 plugged into the laptop over USB, the left panel switches to
 "LIVE: what the wearer sees", an MJPEG stream of the actual display (`GET /glasses/screen.mjpg`, `adb exec-out screencap`,
 about 4–5 fps; `/glasses/screen/status` says whether it's real). Unplugged, it falls back to the drawn view within 3 s.

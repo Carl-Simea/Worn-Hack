@@ -6,6 +6,11 @@
   and rainbow confetti on a pass or a confetti event. Below that: the agent's steps (tool, model, ms), a timeline that reads
   every iOS event, latency chips INK/STROKE/VISION/TUTOR, a listening pill with the last thing heard, the glasses dot, a
   demo-mode tag and a milestone banner. It polls every 500 ms with `?since=` and only re-renders on change.
+- **Voice-first web side**: the `/live` voice bar (breadcrumb, heard → intent → reply + ms, "Say …" hint, mic state), plus
+  push-to-talk on every `/app` screen and a "What can I say" page. Tested against A's real `/voice` and `/app-state` (private copy
+  on :8093): learn Greek → hello → what does this mean → back → home, help me write, write my name and Daily 5 all navigate
+  correctly with 0 console errors. The mic path was tested with Chrome's fake microphone. e2e_app.py still 9/9. The glasses
+  screens themselves are D's (APK); `/live` mirrors them over adb.
 - **Real glasses mirror**: `/live` shows the actual M6 display ("LIVE: what the wearer sees") when the glasses are on USB:
   `GET /glasses/screen.mjpg` (backend/worn/screen.py) streams `adb screencap` at about 4 fps (each capture takes ~0.26 s). One shared
   grabber serves all viewers, and unplugged it sends "not connected" frames instead of erroring. The middle panel is

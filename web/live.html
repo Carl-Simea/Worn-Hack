@@ -57,7 +57,7 @@
 
   /* ---------- voice bar: where the wearer is, what they said, what Worn answered, what to say next */
   .app.hasVoice { --sq: min(calc((100vw - 2 * var(--pad) - 2 * var(--gap)) / 3), 47vh); }
-  #voice { display: none; grid-template-columns: auto minmax(0, 1.1fr) minmax(0, 1.5fr) minmax(0, 1.25fr); align-items: center; gap: 1em;
+  #voice { display: none; grid-template-columns: auto minmax(0, .8fr) minmax(0, 1.7fr) minmax(0, 1.4fr); align-items: center; gap: 1em;
     background: var(--card); border: 1px solid var(--rule); border-radius: 999px; padding: .5em 1.3em .5em .5em; min-height: 3.2em; }
   .app.hasVoice #voice { display: grid; }
   #mic { width: 2.3em; height: 2.3em; border-radius: 50%; display: grid; place-items: center; background: var(--paper-2); color: var(--ink-3);
@@ -70,18 +70,18 @@
   #crumbs { display: flex; align-items: baseline; gap: .35em; min-width: 0; white-space: nowrap; overflow: hidden; font-size: .86em; color: var(--ink-3); }
   #crumbs b { color: var(--ink); font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
   #crumbs .sep { opacity: .55; }
-  #said { display: flex; align-items: baseline; gap: .6em; min-width: 0; white-space: nowrap; }
-  #said .q { font-family: var(--display); font-style: italic; font-size: 1.18em; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  #said { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .6em; row-gap: .15em; min-width: 0; white-space: nowrap; }
+  #said .q { font-family: var(--display); font-style: italic; font-size: 1.12em; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 72%; }
   #said .intent { flex: none; font: 700 .58em/1 var(--ui); letter-spacing: .1em; text-transform: uppercase; color: var(--accent);
     background: var(--accent-soft); padding: .45em .6em; border-radius: 6px; }
-  #said .reply { color: var(--ink-2); font-size: .8em; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  #said .reply { flex: 1 0 100%; order: 9; color: var(--ink-2); font-size: .76em; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   #said .ms { flex: none; font: 600 .62em/1 var(--mono); color: var(--ink-3); }
   #said.fresh { animation: saidIn .5s var(--ease); }
   @keyframes saidIn { from { opacity: 0; transform: translateY(.35em); } to { opacity: 1; transform: none; } }
   #hint { display: flex; align-items: center; justify-content: flex-end; gap: .55em; min-width: 0; overflow: hidden; }
   .app.hasVoice #listen { display: none; } /* the voice bar already shows what was heard */
   #hint small { flex: none; font: 700 .58em/1 var(--ui); letter-spacing: .14em; color: var(--ink-3); }
-  #hint span { font-weight: 600; color: var(--accent); min-width: 0; line-height: 1.2; text-align: right; font-size: .92em;
+  #hint span { font-weight: 600; color: var(--accent); min-width: 0; line-height: 1.2; text-align: right; font-size: .82em;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
   /* ---------- three panels */
@@ -659,11 +659,24 @@
   // ---------------------------------------------------------------- voice layer (GET /app-state; also accepts st.app from /live/state)
   var VOICE_ICON = { learn: "Learn", open: "Open", how_write: "How to write", write_name: "Name", show_again: "Show again", check: "Check" };
   var lastVoiceId = null, appOk = true, liveListening = false;
+  var TITLES = { home: "Home", learn: "Learn", name: "Write my name", compose: "Help me write", daily5: "Daily 5", daily: "Daily 5",
+                 journal: "Journal", howto: "How to use", help: "How to use" };
+  function crumbName(c, lang, sess) {
+    if (c === "words") return langLabel(lang) || "Words";
+    if (c === "lesson") return (sess.item && sess.item.text) || sess.char || "Lesson";
+    return TITLES[c] || c;
+  }
+  function langLabel(l) {
+    var c = window.__wornLangs && window.__wornLangs[l];
+    return c ? c.name : l ? l.charAt(0).toUpperCase() + l.slice(1) : "";
+  }
   function renderApp(a) {
     if (!a || (!a.screen && !a.last_voice && !a.hint)) return;
     $("app").classList.add("hasVoice");
     if (!appSeen) { appSeen = true; $("idle").classList.add("hide"); } // the wearer's menus are the show now, even before a lesson
     var bc = Array.isArray(a.breadcrumb) ? a.breadcrumb : a.breadcrumb ? String(a.breadcrumb).split(/\s*[›>\/]\s*/) : [a.screen];
+    var sess = a.session || (last && last.session) || {}, lang = a.lang || sess.lang;
+    bc = bc.map(function (c) { return crumbName(String(c), lang, sess); });
     var html = bc.filter(Boolean).map(function (c, i, arr) {
       return (i ? '<span class="sep">›</span>' : "") + (i === arr.length - 1 ? "<b>" + esc(iso(c)) + "</b>" : "<span>" + esc(iso(c)) + "</span>");
     }).join("");
@@ -678,8 +691,9 @@
       if (id !== lastVoiceId) {
         lastVoiceId = id;
         var intent = v.intent && v.intent !== "unknown" && v.intent !== "none" ? (VOICE_ICON[v.intent] || String(v.intent).replace(/_/g, " ")) : "";
-        var A = v.args || {}, arg = A.language || A.lang || A.screen || A.target || A.name || A.text || A.word;
-        if (arg && (A.language || A.lang) && (A.text || A.word)) arg = (A.text || A.word) + " · " + (A.language || A.lang);
+        var A = v.args || {}, arg = langLabel(A.language || A.lang) || TITLES[A.screen || A.target] || A.screen || A.target || A.name || A.text || A.word;
+        if (arg && (A.language || A.lang) && (A.text || A.word)) arg = (A.text || A.word) + " · " + langLabel(A.language || A.lang);
+        if (typeof arg !== "string") arg = "";
         var el = $("said");
         el.innerHTML = (v.heard ? '<span class="q">“' + esc(iso(v.heard)) + '”</span>' : "") +
           (intent ? '<span class="intent">' + esc(intent + (arg ? " · " + arg : "")) + "</span>" : "") +
@@ -722,6 +736,7 @@
     var m = {};
     ((c && c.langs) || []).forEach(function (l) { (l.items || l.phrases || []).forEach(function (p) { if (p.chars) m[l.lang + "/" + p.id] = p.chars; }); });
     window.__wornChars = m;
+    window.__wornLangs = {}; ((c && c.langs) || []).forEach(function (l) { window.__wornLangs[l.lang] = l; });
   }).catch(function () {}).then(poll);
 })();
 </script>
