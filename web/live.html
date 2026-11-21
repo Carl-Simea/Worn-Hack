@@ -1007,7 +1007,7 @@
       case "handoff": return "Handoff: lesson picked up on another device";
       case "audio.play": return "Played the pronunciation";
       case "compose": case "compose.start": return "Help me write: “" + (d.text || "") + "”";
-      case "name": return "Write your name: " + (d.name || "");
+      case "name": return "How do I write my name: " + (d.name || "");
       case "again": return "Trying " + (d.char || "it") + " again";
       case "slower": return "Slowed the animation down";
       case "speak": return "Said: “" + (d.text || "") + "”";
@@ -1075,7 +1075,7 @@
   // ---------------------------------------------------------------- voice layer (GET /app-state; also accepts st.app from /live/state)
   var VOICE_ICON = { learn: "Learn", open: "Open", how_write: "How to write", write_name: "Name", show_again: "Show again", check: "Check" };
   var lastVoiceId = null, appOk = true, liveListening = false;
-  var TITLES = { home: "Home", learn: "Learn", name: "Write my name", compose: "Help me write", daily5: "Daily 5", daily: "Daily 5",
+  var TITLES = { home: "Home", learn: "Learn", name: "How do I write my name", compose: "Help me write", daily5: "Daily 5", daily: "Daily 5",
                  journal: "Journal", howto: "How to use", help: "How to use" };
   function crumbName(c, lang, sess) {
     if (c === "words") return langLabel(lang) || "Words";
