@@ -55,6 +55,11 @@ Each entry names its owner. Fix it in your area, then strike it through here.
    in content before the LLM (like /name does with examples.json) would make the obvious phrases never fail. The web page
    shows the message and offers one-tap example messages, so the demo isn't blocked.
 
+10. **`GET /name?text=Maya` returns 503** ("I couldn't spell that name right now") three times in a row on a fresh
+   backend while the models were loaded; names in `content/names/examples.json` (Anna, David, ...) always work.
+   Repro: `curl -s 'localhost:8000/name?text=Maya'`. The web page retries once on 503 and offers the hand-checked
+   names as one-tap examples, so the demo can avoid it.
+
 ## Machine / setup (whoever is at the laptop)
 
 8. ~~**The Xcode license isn't accepted on this Mac,**~~ **Fixed:** the license was accepted on 11/21, and normal git and the Simulator work. so `/usr/bin/git` fails ("You have not agreed to the Xcode

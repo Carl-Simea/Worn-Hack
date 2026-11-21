@@ -77,7 +77,7 @@ with sync_playwright() as p:
 
     def compose():
         pg.goto(base + "/app#/compose")
-        pg.fill("#cText", "thank you")
+        pg.fill("#cText", "good morning")
         pg.locator("#cLangs .chip", has_text="Hebrew").click()
         pg.locator("#cGo").click()
         expect(pg.locator("#cWrite")).to_be_enabled(timeout=60000)
@@ -90,7 +90,7 @@ with sync_playwright() as p:
 
     def name():
         pg.goto(base + "/app#/name")
-        pg.fill("#nText", "Maya")
+        pg.fill("#nText", "Anna")
         pg.locator("#nGo").click()
         expect(pg.locator(".ncard .n").first).to_be_visible(timeout=60000)
         n = pg.locator(".ncard .n").count()
