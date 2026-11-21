@@ -103,6 +103,22 @@ check(!tr.feed(strokeAdded: true, unusable: false) && !tr.feed(strokeAdded: fals
 check(!tr.feed(strokeAdded: false, unusable: true) && !tr.feed(strokeAdded: false, unusable: false), "tracker: a hand in view resets the wait")
 check(tr.feed(strokeAdded: false, unusable: false) && tr.state == .watching, "tracker: finished after two quiet usable frames")
 
+// InkSplit: two dark blobs -> two clusters; newest = right (LTR) / left (RTL)
+do {
+    let W = 300, H = 200
+    var buf = [UInt8](repeating: 230, count: W * H)
+    func blob(_ x0: Int, _ x1: Int) { for y in 60..<140 { for x in x0..<x1 { buf[y * W + x] = 30 } } }
+    blob(40, 70); blob(160, 200)
+    let ctx = CGContext(data: &buf, width: W, height: H, bitsPerComponent: 8, bytesPerRow: W, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue)!
+    let img = ctx.makeImage()!
+    let c = InkSplit.clusters(in: img)
+    check(c.count == 2, "InkSplit finds two clusters (got \(c.count))")
+    if c.count == 2 {
+        check(InkSplit.newest(in: img, rtl: false)!.lowerBound > 0.4, "newest LTR is right cluster")
+        check(InkSplit.newest(in: img, rtl: true)!.upperBound < 0.4, "newest RTL is left cluster")
+    }
+}
+
 print(fails == 0 ? "ALL PASS" : "\(fails) FAILED"); exit(fails == 0 ? 0 : 1)
 
 enum ScriptInfo { static func isRTL(_ l: String) -> Bool { l == "arabic" || l == "hebrew" } }

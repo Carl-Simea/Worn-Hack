@@ -201,6 +201,19 @@ final class PracticeEngine {
         return PhoneCamera.jpeg(c, quality: 0.9)
     }
 
+    /// Crops a photo of a written word to its newest letter (right end, or left end for right-to-left scripts).
+    /// Returns nil when only one cluster of ink is found, so the photo is used as it is.
+    private static func isolateNewest(_ jpeg: Data, rtl: Bool) -> Data? {
+        guard let img = decode(jpeg) else { return nil }
+        let all = InkSplit.clusters(in: img)
+        guard all.count >= 2, let r = rtl ? all.first : all.last else { return nil }
+        let pad = max(0.04, r.upperBound - r.lowerBound) * 0.35
+        let x0 = max(0, r.lowerBound - pad), x1 = min(1, r.upperBound + pad)
+        let w = CGFloat(img.width), h = CGFloat(img.height)
+        guard let c = img.cropping(to: CGRect(x: x0 * w, y: 0, width: (x1 - x0) * w, height: h).integral) else { return nil }
+        return PhoneCamera.jpeg(c, quality: 0.9)
+    }
+
     private func resetPacer(speed: Double) {
         let count = mode == .dictation ? 1 : max(1, strokes?.count ?? 1)
         pacer = Pacer(strokeCount: count, now: Date(), speed: speed)
@@ -535,6 +548,11 @@ final class PracticeEngine {
         }
         if jpeg == nil { jpeg = app.camera.jpeg() ?? lastPhoto.flatMap { PhoneCamera.jpeg($0) } }
         if holdMode { app.camera.stop() }
+        // Later letters of a word: the earlier letters are still on the page. Grade only the newest one.
+        if item.charIndex > 0, let j = jpeg, let only = Self.isolateNewest(j, rtl: ScriptInfo.isRTL(item.lang)) {
+            app.report("grade.isolated", ["char": .string(item.char), "index": .int(item.charIndex)])
+            jpeg = only
+        }
         guard let jpeg, let api = app.api else {
             phase = .failed("No photo to check. Is the camera pointed at the page?")
             return
