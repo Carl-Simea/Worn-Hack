@@ -26,7 +26,16 @@ Done, verified on the glasses with screenshots in `screenshots/glasses-*.png`:
   - The backend is tried over Wi-Fi first, with USB as the fallback.
 - **Button (backup):** press = next, hold = check, double tap = back.
 
-Run: `glasses-android/scripts/run.sh usb`. Test without speaking: see `glasses-android/README.md`.
+Since then, also on the real glasses (11/21 ~10:25):
+- **Voice tools:** any `/voice` reply's actions, nav, session and say are applied in order, including multi-step replies.
+- **Idle:** after "goodbye" Worn goes idle, and "Hey Scribi" wakes it (with any command after it).
+- **Grading UI:** the accuracy ring with per-stroke pops, the scanning checklist that follows the backend's real steps, and the count-up dial.
+- **Hands-free auto-grade:** using A's `/app-state.grading`. Tested: the lesson for 水 went stroke scored → analyzing → full-res still → 70 → confetti, with nobody saying "check".
+- **Live camera:** the stream goes to A's `/ws/camera?role=pub` at 640×480, JPEG q50, 12–14 fps, about 17 ms from capture to the backend (clock-corrected; the glasses clock is about 13 h off). A standalone relay is in `tools/camera_relay.py`.
+- **Launcher and demo mode:** Worn is the glasses' home app and auto-starts on boot (checked with `adb reboot`). Hold Back for 3 s for the stock launcher.
+- **One command:** `glasses-android/install.sh`. After any reboot of the glasses, run `NOBUILD=1 ./install.sh` to restore the USB tunnels.
+
+Run: `glasses-android/install.sh` (or `glasses-android/scripts/run.sh usb` without changing the home app). Test without speaking: see `glasses-android/README.md`.
 
 Not verified:
 - **A real wearer's voice in the demo room.** Tune the loudness gate live with `--ei loud N` if needed (default
