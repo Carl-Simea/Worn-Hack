@@ -173,7 +173,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Worn-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Worn;
+				INFOPLIST_KEY_CFBundleDisplayName = Scribi;
 				INFOPLIST_KEY_NSCameraUsageDescription = "In Demo Mode the camera watches your page so the next stroke follows your pen.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Say next, again, slower or check to practice hands-free.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Voice commands are recognized on this iPhone so you can practice hands-free.";
@@ -204,7 +204,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Worn-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Worn;
+				INFOPLIST_KEY_CFBundleDisplayName = Scribi;
 				INFOPLIST_KEY_NSCameraUsageDescription = "In Demo Mode the camera watches your page so the next stroke follows your pen.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Say next, again, slower or check to practice hands-free.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Voice commands are recognized on this iPhone so you can practice hands-free.";

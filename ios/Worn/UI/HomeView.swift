@@ -65,7 +65,7 @@ struct HomeView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Worn").font(Theme.display(44, weight: .medium)).foregroundStyle(Theme.ink)
+                Text("Scribi").font(Theme.display(44, weight: .medium)).foregroundStyle(Theme.ink)
                 Circle().fill(Theme.accent).frame(width: 9, height: 9).offset(y: -4)
                 Spacer()
                 NavigationLink(value: Route.connect) { StatusPill() }
@@ -223,7 +223,7 @@ struct ServerCard: View {
                 .font(Theme.display(24))
             Text(app.hasServer
                  ? "Tried \(app.serverAddress). Is the backend running, and is this phone on the same Wi-Fi?"
-                 : "Worn's lessons and grading run on the laptop. Enter its address once; it's remembered.")
+                 : "Scribi's lessons and grading run on the laptop. Enter its address once; it's remembered.")
                 .font(Theme.sans(14)).foregroundStyle(Theme.inkSoft)
             if case .down(let msg) = app.link { Text(msg).font(Theme.sans(12)).foregroundStyle(Theme.inkSoft.opacity(0.8)) }
             Button(app.hasServer ? "Change address" : "Enter address") { showSettings = true }

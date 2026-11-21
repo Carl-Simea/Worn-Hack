@@ -19,7 +19,7 @@ struct ComposeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 Text("Help me write…").font(Theme.display(30, weight: .medium))
-                Text("Type or say a short message. Worn translates it, puts it on your glasses, and guides you stroke by stroke.")
+                Text("Type or say a short message. Scribi translates it, puts it on your glasses, and guides you stroke by stroke.")
                     .font(Theme.sans(14)).foregroundStyle(Theme.inkSoft)
 
                 TextField("happy birthday", text: $text, axis: .vertical)

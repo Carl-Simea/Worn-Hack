@@ -32,7 +32,7 @@ rsync -a --delete "$ios/Worn/" "$out/MLDemo/Worn/" || exit 1
 # 4. SwiftUI lifecycle + Worn's permission strings and name.
 plist="$out/MLDemo/Info.plist"
 plutil -remove UIApplicationSceneManifest.UISceneConfigurations "$plist" 2>/dev/null
-plutil -replace CFBundleDisplayName -string "Worn" "$plist" \
+plutil -replace CFBundleDisplayName -string "Scribi" "$plist" \
  && plutil -replace NSSpeechRecognitionUsageDescription -string "Voice commands are recognized on this iPhone so you can practice hands-free." "$plist" \
  && plutil -replace NSMicrophoneUsageDescription -string "Say next, again, slower or check to practice hands-free." "$plist" \
  && plutil -replace NSCameraUsageDescription -string "In Demo Mode the camera watches your page so the next stroke follows your pen." "$plist" \
