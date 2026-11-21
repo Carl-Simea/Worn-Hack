@@ -51,7 +51,7 @@ slanted/tilted/shadowed paper), with no harsh feedback (`backend/test_data/eval_
 
 - **Glasses app (Android, on the MicroLumin M6):** every screen, the microphone (sent to `POST /voice`), the
   camera (to `/grade`) and the button. Voice commands are fuzzy-matched against a hand-written command set with
-  common mishearings ("Czech" → check, "Indy" → Hindi), tested on 74 utterances (`content/voice/`).
+  common mishearings ("Czech" → check, "Indy" → Hindi), tested on 88 utterances (`content/voice/`).
 - **Phone (SwiftUI):** picks lessons, starts sessions, shows progress and scores, and falls back to the phone
   camera (Demo Mode). Handoff runs through one shared session on the laptop, so whatever the phone picks the
   glasses show, and vice versa.

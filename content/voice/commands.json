@@ -86,8 +86,7 @@
    "hebrew": [
     "hebrew",
     "he brew",
-    "hebrews",
-    "ivrit"
+    "hebrews"
    ],
    "greek": [
     "greek",
@@ -173,8 +172,7 @@
     "home",
     "home screen",
     "main menu",
-    "menu",
-    "start"
+    "menu"
    ],
    "learn": [
     "learn",
@@ -223,6 +221,58 @@
     "help",
     "help screen",
     "how it works"
+   ]
+  },
+  "ordinal": {
+   "1": [
+    "first",
+    "the first",
+    "the first one",
+    "first one",
+    "top one",
+    "the top one"
+   ],
+   "2": [
+    "second",
+    "the second",
+    "the second one",
+    "second one",
+    "number two",
+    "two"
+   ],
+   "3": [
+    "third",
+    "the third",
+    "the third one",
+    "third one",
+    "number three",
+    "three"
+   ],
+   "4": [
+    "fourth",
+    "the fourth",
+    "the fourth one",
+    "fourth one",
+    "number four",
+    "four"
+   ],
+   "5": [
+    "fifth",
+    "the fifth",
+    "the fifth one",
+    "fifth one",
+    "number five",
+    "five",
+    "last",
+    "the last one"
+   ],
+   "6": [
+    "sixth",
+    "the sixth",
+    "the sixth one",
+    "sixth one",
+    "number six",
+    "six"
    ]
   }
  },
@@ -329,6 +379,44 @@
     "daily5"
    ],
    "say": "Checking."
+  },
+  {
+   "id": "start",
+   "phrases": [
+    "start",
+    "begin",
+    "let's go",
+    "lets go",
+    "go",
+    "ready",
+    "i'm ready",
+    "im ready",
+    "let's start",
+    "lets start",
+    "start writing",
+    "practice it",
+    "practice this",
+    "write it",
+    "let me write it",
+    "i'll write it",
+    "ill write it",
+    "let's write it",
+    "lets write it",
+    "let's practice",
+    "lets practice",
+    "start practice",
+    "start daily five",
+    "start the daily five",
+    "let's do it",
+    "lets do it"
+   ],
+   "screens": [
+    "daily5",
+    "compose",
+    "name",
+    "lesson"
+   ],
+   "say": "Your turn."
   },
   {
    "id": "next",
@@ -526,9 +614,24 @@
     "how do you say {text} in {language}",
     "what is {text} in {language}",
     "whats {text} in {language}",
+    "how would you say {text} in {language}",
+    "how would i say {text} in {language}",
+    "how would you write {text} in {language}",
+    "how would i write {text} in {language}",
+    "how do you spell {text} in {language}",
+    "say {text} in {language}",
+    "translate {text} into {language}",
+    "translate {text} to {language}",
+    "translate {text} in {language}",
+    "what's the word for {text} in {language}",
+    "whats the word for {text} in {language}",
     "how do i write {text}",
     "help me write {text}",
-    "how do you write {text}"
+    "how do you write {text}",
+    "how would you say {text}",
+    "how would i say {text}",
+    "how do you say {text}",
+    "translate {text}"
    ],
    "nav": "compose",
    "say": "Here's {text} in {language}."
@@ -578,6 +681,37 @@
    ],
    "nav": "lesson",
    "say": "{word}."
+  },
+  {
+   "id": "how_write",
+   "templates": [
+    "{text} in {language}"
+   ],
+   "nav": "compose",
+   "say": "Here's {text} in {language}."
+  },
+  {
+   "id": "pick",
+   "templates": [
+    "{ordinal}",
+    "pick {ordinal}",
+    "open {ordinal}",
+    "choose {ordinal}",
+    "select {ordinal}",
+    "go to {ordinal}",
+    "i'll take {ordinal}",
+    "give me {ordinal}",
+    "let's do {ordinal}",
+    "do {ordinal}"
+   ],
+   "screens": [
+    "learn",
+    "words",
+    "home",
+    "journal",
+    "howto"
+   ],
+   "say": ""
   },
   {
    "id": "open",

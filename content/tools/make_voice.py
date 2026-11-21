@@ -28,7 +28,7 @@ LANGUAGE = {
     "hindi": ["hindi", "indy", "hindu", "hindy", "devanagari"],
     "arabic": ["arabic", "arabian", "arabick"],
     "russian": ["russian", "cyrillic", "russia"],
-    "hebrew": ["hebrew", "he brew", "hebrews", "ivrit"],
+    "hebrew": ["hebrew", "he brew", "hebrews"],
     "greek": ["greek", "greece", "greek language"],
 }
 
@@ -41,13 +41,22 @@ WORD_EN = {
 }
 
 SCREEN = {
-    "home": ["home", "home screen", "main menu", "menu", "start"],
+    "home": ["home", "home screen", "main menu", "menu"],
     "learn": ["learn", "lessons", "languages", "learn a language", "scripts", "learning"],
     "name": ["write my name", "my name", "name", "names", "write your name"],
     "compose": ["help me write", "help me right", "write a message", "a message", "phrasebook", "phrases"],
     "daily5": ["daily five", "daily", "daily review", "review", "five a day", "my daily five"],
     "journal": ["journal", "my journal", "history", "progress", "my writing"],
     "howto": ["how to use", "how to", "tutorial", "instructions", "guide", "help", "help screen", "how it works"],
+}
+# Position in a list ("the second one" on the word list = thank you). "number one"/"one" stay the word "one".
+ORDINAL = {
+    "1": ["first", "the first", "the first one", "first one", "top one", "the top one"],
+    "2": ["second", "the second", "the second one", "second one", "number two", "two"],
+    "3": ["third", "the third", "the third one", "third one", "number three", "three"],
+    "4": ["fourth", "the fourth", "the fourth one", "fourth one", "number four", "four"],
+    "5": ["fifth", "the fifth", "the fifth one", "fifth one", "number five", "five", "last", "the last one"],
+    "6": ["sixth", "the sixth", "the sixth one", "sixth one", "number six", "six"],
 }
 SCREEN_TITLE = {"home": "Home", "learn": "Learn", "words": "Words", "lesson": "Lesson", "name": "Write my name",
                 "compose": "Help me write", "daily5": "Daily 5", "journal": "Journal", "howto": "How to use"}
@@ -73,6 +82,12 @@ INTENTS = [
                                 "im finished", "grade", "grade it", "grade me", "how did i do", "all done",
                                 "that's it", "thats it", "look", "look at this", "is this right", "did i get it"],
      "screens": ["lesson", "name", "compose", "daily5"], "say": "Checking."},
+    {"id": "start", "phrases": ["start", "begin", "let's go", "lets go", "go", "ready", "i'm ready", "im ready",
+                                "let's start", "lets start", "start writing", "practice it", "practice this",
+                                "write it", "let me write it", "i'll write it", "ill write it", "let's write it",
+                                "lets write it", "let's practice", "lets practice", "start practice", "start daily five",
+                                "start the daily five", "let's do it", "lets do it"],
+     "screens": ["daily5", "compose", "name", "lesson"], "say": "Your turn."},
     {"id": "next", "phrases": ["next", "next one", "next stroke", "go on", "continue", "keep going", "carry on",
                                "move on", "necks", "nxt", "forward", "next please", "ok next", "got it"],
      "say": ""},
@@ -111,7 +126,15 @@ INTENTS = [
                                       "help me right {text} in {language}", "write {text} in {language}",
                                       "how do i say {text} in {language}", "how do you say {text} in {language}",
                                       "what is {text} in {language}", "whats {text} in {language}",
-                                      "how do i write {text}", "help me write {text}", "how do you write {text}"],
+                                      "how would you say {text} in {language}", "how would i say {text} in {language}",
+                                      "how would you write {text} in {language}", "how would i write {text} in {language}",
+                                      "how do you spell {text} in {language}", "say {text} in {language}",
+                                      "translate {text} into {language}", "translate {text} to {language}",
+                                      "translate {text} in {language}", "what's the word for {text} in {language}",
+                                      "whats the word for {text} in {language}",
+                                      "how do i write {text}", "help me write {text}", "how do you write {text}",
+                                      "how would you say {text}", "how would i say {text}", "how do you say {text}",
+                                      "translate {text}"],
      "nav": "compose", "say": "Here's {text} in {language}."},
     {"id": "learn", "templates": ["learn {language}", "teach me {language}", "open {language}", "switch to {language}",
                                   "change to {language}", "go to {language}", "practice {language}",
@@ -122,6 +145,12 @@ INTENTS = [
                                  "do {word}", "the word {word}", "{word} please", "teach me {word}",
                                  "{word} in {language}", "learn {word} in {language}", "write {word} in {language}"],
      "screens": ["words", "lesson", "learn", "home"], "nav": "lesson", "say": "{word}."},
+    # Last resort for "good luck in Russian": after "word", so "hello in Hebrew" opens the lesson.
+    {"id": "how_write", "templates": ["{text} in {language}"], "nav": "compose", "say": "Here's {text} in {language}."},
+    {"id": "pick", "templates": ["{ordinal}", "pick {ordinal}", "open {ordinal}", "choose {ordinal}",
+                                 "select {ordinal}", "go to {ordinal}", "i'll take {ordinal}", "give me {ordinal}",
+                                 "let's do {ordinal}", "do {ordinal}"],
+     "screens": ["learn", "words", "home", "journal", "howto"], "say": ""},
     {"id": "open", "templates": ["open {screen}", "go to {screen}", "show {screen}", "show me {screen}",
                                  "take me to {screen}", "open the {screen}", "go to the {screen}", "{screen}",
                                  "start {screen}", "do {screen}", "let's do {screen}"],
@@ -254,6 +283,15 @@ TESTS = [
     ("name", "greek", "learn", {"language": "greek"}),
     ("lesson", "nxt", "next", {}), ("lesson", "chek", "check", {}), ("lesson", "show me agin", "show_again", {}),
     ("lesson", "", None, {}), ("lesson", "the", None, {}), ("lesson", "banana pancakes", None, {}),
+    ("words", "number two", "pick", {"ordinal": 2}), ("words", "the second one", "pick", {"ordinal": 2}),
+    ("learn", "the last one", "pick", {"ordinal": 5}), ("words", "number one", "word", {"word": "one"}),
+    ("compose", "how would you say thank you in Greek", "how_write", {"text": "thank you", "language": "greek"}),
+    ("compose", "translate good night into Hebrew", "how_write", {"text": "good night", "language": "hebrew"}),
+    ("compose", "good luck in Russian", "how_write", {"text": "good luck", "language": "russian"}),
+    ("home", "My name is Naila.", "write_name", {"name": "Naila"}),
+    ("daily5", "start", "start", {}), ("daily5", "I'm ready", "start", {}), ("compose", "practice it", "start", {}),
+    ("compose", "practice this", "start", {}), ("name", "let me write it", "start", {}),
+    ("lesson", "practice", "start", {}),
     ("home", "check", None, {}), ("home", "learn klingon", None, {}),
 ]
 
@@ -285,7 +323,7 @@ def main():
         "screen_titles": SCREEN_TITLE,
         "fillers": sorted(FILLERS, key=lambda s: (-len(s), s)),
         "numbers": {"0": "zero", "1": "one", "2": "two", "3": "three", "4": "four", "5": "five"},
-        "aliases": {"language": LANGUAGE, "word": word_aliases(), "screen": SCREEN},
+        "aliases": {"language": LANGUAGE, "word": word_aliases(), "screen": SCREEN, "ordinal": ORDINAL},
         "language_names": {l: langs[l]["name"].replace(" Chinese", "") for l in LANGS},
         "word_names": {"hello": "hello", "thank_you": "thank you", "water": "water", "friend": "friend", "one": "one"},
         "intents": INTENTS,

@@ -100,7 +100,7 @@ def _fuzzy_candidates():
             kind = slots[0]
             for k, v in al[kind].items():
                 for a in v:
-                    out.append((t.replace("{" + kind + "}", a), it, {kind: k}))
+                    out.append((t.replace("{" + kind + "}", a), it, {kind: int(k) if kind == "ordinal" else k}))
     return out
 
 
@@ -157,6 +157,8 @@ def match(heard, screen=None):
             for slot, val in zip(slots, m.groups()):
                 if slot in c["aliases"]:
                     args[slot] = _resolve(slot, val)
+                    if slot == "ordinal":
+                        args[slot] = int(args[slot])
                 elif slot == "name":
                     args[slot] = val.title()
                 else:

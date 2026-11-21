@@ -516,6 +516,109 @@
    "args": {}
   },
   {
+   "screen": "words",
+   "heard": "number two",
+   "intent": "pick",
+   "args": {
+    "ordinal": 2
+   }
+  },
+  {
+   "screen": "words",
+   "heard": "the second one",
+   "intent": "pick",
+   "args": {
+    "ordinal": 2
+   }
+  },
+  {
+   "screen": "learn",
+   "heard": "the last one",
+   "intent": "pick",
+   "args": {
+    "ordinal": 5
+   }
+  },
+  {
+   "screen": "words",
+   "heard": "number one",
+   "intent": "word",
+   "args": {
+    "word": "one"
+   }
+  },
+  {
+   "screen": "compose",
+   "heard": "how would you say thank you in Greek",
+   "intent": "how_write",
+   "args": {
+    "text": "thank you",
+    "language": "greek"
+   }
+  },
+  {
+   "screen": "compose",
+   "heard": "translate good night into Hebrew",
+   "intent": "how_write",
+   "args": {
+    "text": "good night",
+    "language": "hebrew"
+   }
+  },
+  {
+   "screen": "compose",
+   "heard": "good luck in Russian",
+   "intent": "how_write",
+   "args": {
+    "text": "good luck",
+    "language": "russian"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "My name is Naila.",
+   "intent": "write_name",
+   "args": {
+    "name": "Naila"
+   }
+  },
+  {
+   "screen": "daily5",
+   "heard": "start",
+   "intent": "start",
+   "args": {}
+  },
+  {
+   "screen": "daily5",
+   "heard": "I'm ready",
+   "intent": "start",
+   "args": {}
+  },
+  {
+   "screen": "compose",
+   "heard": "practice it",
+   "intent": "start",
+   "args": {}
+  },
+  {
+   "screen": "compose",
+   "heard": "practice this",
+   "intent": "start",
+   "args": {}
+  },
+  {
+   "screen": "name",
+   "heard": "let me write it",
+   "intent": "start",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "practice",
+   "intent": "start",
+   "args": {}
+  },
+  {
    "screen": "home",
    "heard": "check",
    "intent": null,
