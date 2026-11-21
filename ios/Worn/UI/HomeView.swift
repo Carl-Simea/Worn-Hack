@@ -10,47 +10,52 @@ struct HomeView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                header
+            VStack(alignment: .leading, spacing: 28) {
                 if !app.hasServer || (app.lessons.isEmpty && app.link != .unknown) {
                     ServerCard(showSettings: $showSettings)
                 } else if app.lessons.isEmpty {
                     LoadingCards()
                 } else {
-                    Eyebrow(text: "Choose a script")
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
-                        ForEach(lessons) { l in
-                            NavigationLink(value: Route.lesson(l.lang)) { LanguageCard(lesson: l) }
+                    today
+                    section("Learn") {
+                        VStack(spacing: 0) {
+                            ForEach(Array(lessons.enumerated()), id: \.element.id) { i, l in
+                                NavigationLink(value: Route.lesson(l.lang)) { LessonRow(lesson: l) }
+                                    .buttonStyle(PressableStyle())
+                                if i < lessons.count - 1 { Divider().overlay(Theme.hairline).padding(.leading, 76) }
+                            }
+                        }
+                        .card(padding: 6)
+                    }
+                    section("Create") {
+                        VStack(spacing: 0) {
+                            NavigationLink(value: Route.name) { ToolRow(symbol: "signature", title: "Write your name") }
+                                .buttonStyle(PressableStyle())
+                            Divider().overlay(Theme.hairline).padding(.leading, 62)
+                            NavigationLink(value: Route.compose) { ToolRow(symbol: "text.bubble", title: "Help me write") }
                                 .buttonStyle(PressableStyle())
                         }
+                        .card(padding: 6)
                     }
-                    Eyebrow(text: "Make it yours").padding(.top, 6)
-                    HStack(spacing: 14) {
-                        NavigationLink(value: Route.name) {
-                            FeatureCard(symbol: "signature", title: "Write your name", detail: "In every script")
-                        }.buttonStyle(PressableStyle())
-                        NavigationLink(value: Route.daily) {
-                            FeatureCard(symbol: "sparkles", title: "Daily 5", detail: "Five picked for today")
-                        }.buttonStyle(PressableStyle())
-                    }
-                    NavigationLink(value: Route.compose) {
-                        HStack(spacing: 14) {
-                            Image(systemName: "text.bubble").font(.system(size: 22)).foregroundStyle(Theme.accent)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Help me write…").font(Theme.display(19))
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right").foregroundStyle(Theme.inkSoft)
-                        }
-                        .card()
-                    }.buttonStyle(PressableStyle())
                 }
             }
             .padding(.horizontal, 18)
+            .padding(.top, 8)
             .padding(.bottom, 40)
         }
         .background(Theme.paper.ignoresSafeArea())
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                HStack(spacing: 8) {
+                    ScribiMark().fill(Theme.ink).frame(width: 30, height: 11)
+                    Text("Scribi").font(Theme.display(22, weight: .medium)).foregroundStyle(Theme.ink)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Scribi")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: Route.connect) { StatusPill() }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showSettings = true } label: { Image(systemName: "slider.horizontal.3") }
                     .accessibilityLabel("Settings")
@@ -60,26 +65,75 @@ struct HomeView: View {
         .sheet(isPresented: $showSettings) { SettingsView() }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                ScribiMark().fill(Theme.ink).frame(width: 44, height: 16).alignmentGuide(.firstTextBaseline) { d in d[.bottom] - 2 }
-                Text("Scribi").font(Theme.display(40, weight: .medium)).foregroundStyle(Theme.ink)
-                Spacer()
-                NavigationLink(value: Route.connect) { StatusPill() }
-            }
-            let streak = app.progress.streak()
-            let mastered = app.progress.count(.mastered)
-            if streak > 0 || mastered > 0 {
-                HStack(spacing: 16) {
-                    Label("\(streak)-day streak", systemImage: "flame.fill").foregroundStyle(Theme.accent)
-                    Label("\(mastered) mastered", systemImage: "checkmark.seal").foregroundStyle(Theme.inkSoft)
+    /// Today: the one thing to do next (Daily 5) plus streak and mastered at a glance.
+    private var today: some View {
+        NavigationLink(value: Route.daily) {
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Daily 5").font(Theme.display(26, weight: .medium)).foregroundStyle(.white)
+                    HStack(spacing: 14) {
+                        Label("\(app.progress.streak())", systemImage: "flame.fill")
+                        Label("\(app.progress.count(.mastered))", systemImage: "checkmark.seal.fill")
+                    }
+                    .font(Theme.sans(16, weight: .semibold)).foregroundStyle(.white.opacity(0.9))
                 }
-                .font(Theme.sans(13, weight: .medium))
-                .transition(.opacity)
+                Spacer()
+                Image(systemName: "play.fill").font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 52, height: 52)
+                    .background(.white, in: Circle())
             }
+            .padding(20)
+            .background(Theme.accent, in: RoundedRectangle(cornerRadius: Theme.corner, style: .continuous))
         }
-        .padding(.top, 6)
+        .buttonStyle(PressableStyle())
+        .accessibilityLabel("Start Daily 5")
+    }
+
+    private func section<C: View>(_ title: String, @ViewBuilder content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title).font(Theme.display(22, weight: .medium)).foregroundStyle(Theme.ink)
+            content()
+        }
+    }
+}
+
+/// One script in the Learn list: big sample, name, progress ring.
+struct LessonRow: View {
+    @Environment(AppModel.self) private var app
+    let lesson: Lesson
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Text(ScriptInfo.hero(lesson.lang).isEmpty ? (lesson.phrases.first?.text ?? "") : ScriptInfo.hero(lesson.lang))
+                .font(Theme.script(lesson.lang, size: 26))
+                .foregroundStyle(Theme.ink)
+                .lineLimit(1).minimumScaleFactor(0.4)
+                .frame(width: 58, height: 44)
+            Text(lesson.name).font(Theme.sans(18, weight: .medium)).foregroundStyle(Theme.ink)
+            Spacer()
+            Ring(value: app.progress.ring(for: lesson), lineWidth: 3.5).frame(width: 24, height: 24)
+            Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.inkSoft)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct ToolRow: View {
+    let symbol: String
+    let title: String
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: symbol).font(.system(size: 20)).foregroundStyle(Theme.accent).frame(width: 36)
+            Text(title).font(Theme.sans(18, weight: .medium)).foregroundStyle(Theme.ink)
+            Spacer()
+            Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.inkSoft)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 16)
+        .contentShape(Rectangle())
     }
 }
 
@@ -212,7 +266,7 @@ struct ServerCard: View {
                  ? "Tried \(app.serverAddress). Is the backend running, and is this phone on the same Wi-Fi?"
                  : "Scribi's lessons and grading run on the laptop. Enter its address once; it's remembered.")
                 .font(Theme.sans(14)).foregroundStyle(Theme.inkSoft)
-            if case .down(let msg) = app.link { Text(msg).font(Theme.sans(12)).foregroundStyle(Theme.inkSoft.opacity(0.8)) }
+            if case .down(let msg) = app.link, !msg.contains("<") { Text(msg).font(Theme.sans(12)).foregroundStyle(Theme.inkSoft.opacity(0.8)) }
             Button(app.hasServer ? "Change address" : "Enter address") { showSettings = true }
                 .buttonStyle(PrimaryButtonStyle())
                 .padding(.top, 4)
