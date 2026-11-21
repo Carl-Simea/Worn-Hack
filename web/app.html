@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f6f2ea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0e" media="(prefers-color-scheme: dark)">
+<title>Worn</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231b1a17'/%3E%3Cpath d='M14 22c6 18 9 24 12 24s5-14 6-14 3 14 6 14 6-8 12-24' fill='none' stroke='%23f6f2ea' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Noto+Serif+SC:wght@500&family=Noto+Serif+Devanagari:wght@500&family=Noto+Naskh+Arabic:wght@500&family=Noto+Serif+Hebrew:wght@500&family=Noto+Serif:wght@500&display=swap">
+<link rel="stylesheet" href="/static/web/worn.css">
+<!-- The learner app on the web (owner: agent B). Served at GET /app. Same flow as the iPhone app:
+     pick a script, practice with the stroke animation and sound (the glasses show the same lesson),
+     dictation, help me write, write your name, Daily 5. The lesson lives on the backend, so the
+     phone, this page and the glasses always show the same thing (seamless handoff). -->
+<style>
+  body { min-height: 100vh; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 max(18px, env(safe-area-inset-right)) 0 max(18px, env(safe-area-inset-left)); }
+  .top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 88%, transparent);
+    -webkit-backdrop-filter: saturate(1.4) blur(14px); backdrop-filter: saturate(1.4) blur(14px); border-bottom: 1px solid transparent; transition: border-color .3s; }
+  .top.scrolled { border-bottom-color: var(--rule); }
+  .top .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; padding-top: env(safe-area-inset-top); }
+  .top .wordmark { font-size: 28px; text-decoration: none; }
+  .top nav { display: flex; gap: 6px; align-items: center; }
+  .gl { display: inline-flex; align-items: center; gap: 8px; font: 600 13px/1 var(--ui); color: var(--ink-2); padding: 0 12px; height: 34px; border-radius: 999px; border: 1px solid var(--rule); background: var(--card); white-space: nowrap; }
+  .gl .dot { width: 8px; height: 8px; }
+
+  .view { display: none; padding: 22px 0 80px; }
+  .view.on { display: block; animation: wfade .4s var(--ease) both; }
+  .back { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font: 600 14px/1 var(--ui); text-decoration: none; padding: 8px 0; margin-bottom: 10px; }
+  .back:hover { color: var(--ink); }
+  h1.display { font-size: clamp(40px, 6.4vw, 76px); margin: 6px 0 12px; }
+  h2.display { font-size: clamp(28px, 3.6vw, 40px); margin: 0 0 6px; }
+  .lede { font-size: clamp(17px, 1.6vw, 20px); color: var(--ink-2); max-width: 36em; margin: 0; }
+  .section-h { display: flex; align-items: baseline; justify-content: space-between; margin: 40px 0 14px; gap: 12px; }
+
+  /* home */
+  .hero { padding: 26px 0 8px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px; align-items: end; }
+  .hero h1 em { font-style: italic; color: var(--accent); }
+  .actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 30px; }
+  .tile { padding: 18px 18px 16px; text-decoration: none; display: flex; flex-direction: column; gap: 8px; min-height: 142px; cursor: pointer;
+    transition: transform .25s var(--ease), box-shadow .25s; position: relative; overflow: hidden; }
+  .tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+  .tile .ic { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+  .tile .ic svg { width: 20px; height: 20px; }
+  .tile b { font: 600 17px/1.2 var(--ui); }
+  .tile span { font-size: 14px; color: var(--ink-2); line-height: 1.35; }
+  .tile.daily { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .tile.daily span { color: color-mix(in srgb, var(--paper) 70%, transparent); }
+  .tile.daily .ic { background: rgba(255, 255, 255, .12); color: var(--paper); }
+  .tile.daily .peek { position: absolute; right: 14px; top: 12px; font-size: 26px; letter-spacing: .08em; opacity: .55; white-space: nowrap; }
+
+  .langs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .lang { padding: 22px 22px 18px; text-decoration: none; display: flex; flex-direction: column; min-height: 220px; cursor: pointer;
+    transition: transform .3s var(--ease), box-shadow .3s; }
+  .lang:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); }
+  .lang .hero-script { font-size: clamp(46px, 5.2vw, 64px); line-height: 1.2; margin: 2px 0 auto; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lang .name { font: 600 18px/1.2 var(--ui); margin-top: 18px; }
+  .lang .kind { font-size: 13.5px; color: var(--ink-2); margin-top: 3px; }
+  .meter { height: 4px; border-radius: 4px; background: var(--paper-2); margin-top: 14px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--accent); border-radius: 4px; transition: width .6s var(--ease); }
+  .lang .count { display: flex; justify-content: space-between; font: 500 12.5px/1 var(--ui); color: var(--ink-3); margin-top: 8px; }
+
+  .handoff { position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translate(-50%, 140%); z-index: 30;
+    display: flex; align-items: center; gap: 14px; padding: 10px 10px 10px 18px; border-radius: 999px; background: var(--ink); color: var(--paper);
+    box-shadow: var(--shadow-lift); transition: transform .5s var(--ease); max-width: calc(100vw - 32px); }
+  .handoff.on { transform: translate(-50%, 0); }
+  .handoff .script { font-size: 26px; }
+  .handoff small { display: block; font-size: 12px; opacity: .7; }
+  .handoff .btn { background: var(--paper); color: var(--ink); border-color: var(--paper); min-height: 38px; }
+
+  /* lang page */
+  .lhead { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 26px; align-items: center; margin: 6px 0 28px; }
+  .lhead .big { font-size: clamp(64px, 10vw, 116px); line-height: 1.1; }
+  .lhead p { margin: 6px 0 0; color: var(--ink-2); }
+  .seg { display: inline-flex; padding: 4px; border-radius: 999px; background: var(--paper-2); border: 1px solid var(--rule); gap: 2px; }
+  .seg button { border: 0; background: transparent; padding: 8px 14px; border-radius: 999px; font: 600 14px/1 var(--ui); color: var(--ink-2); cursor: pointer; }
+  .seg button.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+  .items { display: grid; gap: 10px; }
+  .item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 16px 18px; cursor: pointer; text-align: left;
+    transition: transform .2s var(--ease), box-shadow .2s, border-color .2s; width: 100%; }
+  .item:hover { border-color: var(--rule-2); box-shadow: var(--shadow-lift); transform: translateY(-1px); }
+  .item .w { font-size: clamp(30px, 3.6vw, 40px); line-height: 1.25; }
+  .item .r { font: 500 15px/1.3 var(--ui); color: var(--ink-2); margin-top: 2px; }
+  .item .r b { color: var(--ink); font-weight: 600; }
+  .item .go { display: flex; align-items: center; gap: 10px; color: var(--ink-3); font: 600 13px/1 var(--ui); white-space: nowrap; }
+  .pips { display: flex; gap: 4px; }
+  .pips i { width: 7px; height: 7px; border-radius: 50%; background: var(--rule-2); }
+  .pips i.on { background: var(--accent); }
+  .lfoot { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+
+  /* practice */
+  .ptop { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .ptop .tags { display: flex; gap: 8px; flex-wrap: wrap; }
+  .practice { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+  .stage { position: relative; aspect-ratio: 1; padding: 0; overflow: hidden; }
+  .stage .field-grid { position: absolute; inset: 7%; border-radius: 10px; }
+  .stage #pInk { position: absolute; inset: 11%; transition: opacity .3s; }
+  .stage .lbl { position: absolute; left: 0; right: 0; bottom: 2.4%; text-align: center; font: 600 13px/1 var(--ui); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .stage .mirror-tag { position: absolute; left: 4%; top: 3%; font: 600 11px/1 var(--ui); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); display: flex; gap: 6px; align-items: center; }
+  .stage .dict { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; padding: 12%; }
+  .stage.dictation .dict { display: flex; }
+  .stage.dictation #pInk { opacity: 0; }
+  .stage.dictation.reveal #pInk { opacity: .9; }
+  .stage.dictation.reveal .dict { display: none; }
+  .bigplay { width: 96px; height: 96px; border-radius: 50%; border: 0; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; cursor: pointer;
+    box-shadow: 0 14px 30px -12px var(--accent); transition: transform .2s var(--ease); }
+  .bigplay:active { transform: scale(.95); }
+  .bigplay svg { width: 38px; height: 38px; }
+
+  .pinfo { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .word { font-size: clamp(34px, 4.6vw, 54px); line-height: 1.3; display: flex; flex-wrap: wrap; gap: .06em .1em; }
+  .word span { color: var(--ink-3); border-bottom: 3px solid transparent; transition: color .3s, border-color .3s; padding: 0 .04em; }
+  .word span.done { color: var(--ink); }
+  .word span.cur { color: var(--accent); border-bottom-color: var(--accent); }
+  .roman { font-family: var(--display); font-size: clamp(26px, 2.8vw, 34px); line-height: 1.1; }
+  .roman small { font-family: var(--ui); font-size: 15px; color: var(--ink-2); margin-left: 10px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .note { font-size: 14px; color: var(--ink-2); background: var(--paper-2); border-radius: 12px; padding: 10px 14px; }
+  .result { padding: 18px 20px; min-height: 150px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: start; position: relative; }
+  .result .sc { font-family: var(--display); font-size: 64px; line-height: .95; font-variant-numeric: tabular-nums; }
+  .result .sc small { font: 500 15px/1 var(--ui); color: var(--ink-3); margin-left: 4px; }
+  .result .fb { grid-column: 1 / -1; font-family: var(--display); font-size: 22px; line-height: 1.25; }
+  .result .rx { grid-column: 1 / -1; font-size: 14.5px; color: var(--ink-2); display: flex; gap: 8px; align-items: center; min-height: 22px; }
+  .result.wait .sc { color: var(--ink-ghost); }
+  .result .badge { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; transform: scale(0); transition: transform .45s cubic-bezier(.3, 1.6, .5, 1); }
+  .result .badge svg { width: 28px; height: 28px; }
+  .result.ok .badge { background: var(--accent); color: var(--on-accent); transform: scale(1); }
+  .result.no .badge { background: var(--warn); color: #fff; transform: scale(1); }
+  .result.busy .fb::after { content: ""; display: inline-block; width: 1em; animation: dots 1.2s steps(4) infinite; overflow: hidden; vertical-align: bottom; }
+  @keyframes dots { 0% { width: 0; } 100% { width: 1.1em; } }
+  .result.pop { animation: pop .6s cubic-bezier(.3, 1.6, .5, 1); }
+  @keyframes pop { 40% { transform: scale(1.02); } }
+  .pcontrols { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pcontrols .grow { flex: 1; }
+  .status { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); }
+  .daily-pill { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  /* compose / name */
+  .panel { padding: 22px; }
+  textarea, input[type=text] { width: 100%; border: 1px solid var(--rule-2); background: var(--card); border-radius: 14px; padding: 14px 16px; font-size: 18px; resize: vertical; outline: none; transition: border-color .2s, box-shadow .2s; }
+  textarea:focus, input[type=text]:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  textarea { min-height: 96px; font-family: var(--display); font-size: 22px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { cursor: pointer; height: 36px; font-size: 14px; }
+  .out { margin-top: 18px; }
+  .out .native { font-size: clamp(40px, 6vw, 68px); line-height: 1.3; margin: 4px 0; word-break: break-word; }
+  .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+  .skeleton { border-radius: 10px; background: linear-gradient(90deg, var(--paper-2), var(--rule), var(--paper-2)); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  .names { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 18px; }
+  .ncard { padding: 18px; display: flex; flex-direction: column; gap: 6px; }
+  .ncard .n { font-size: 42px; line-height: 1.35; word-break: break-word; }
+  .ncard .ink-box { aspect-ratio: 2.4; position: relative; display: none; }
+  .ncard.tracing .ink-box { display: block; }
+  .err { color: var(--bad); font-size: 15px; margin-top: 12px; min-height: 1.4em; }
+
+  /* daily */
+  .dlist { display: grid; gap: 10px; margin-top: 18px; }
+  .ditem { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 14px 18px; }
+  .ditem .c { font-size: 44px; text-align: center; line-height: 1.2; }
+  .ditem.done { opacity: .55; }
+  .ditem .ok { color: var(--accent); font-weight: 700; }
+  .done-card { text-align: center; padding: 48px 20px; }
+  .done-card .display { font-size: 56px; }
+
+  .toast { position: fixed; left: 50%; top: 74px; transform: translate(-50%, -20px); opacity: 0; transition: all .35s var(--ease); z-index: 40;
+    background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 12px; font-size: 14px; pointer-events: none; max-width: calc(100vw - 32px); }
+  .toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+  footer { color: var(--ink-3); font-size: 13px; padding: 30px 0 50px; border-top: 1px solid var(--rule); margin-top: 40px; }
+
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; gap: 10px; }
+    .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .langs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .practice, .two { grid-template-columns: 1fr; }
+    .stage { max-width: 560px; width: 100%; margin: 0 auto; }
+  }
+  @media (max-width: 520px) {
+    .langs { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .lang { min-height: 170px; padding: 16px; }
+    .lang .hero-script { font-size: 40px; }
+    .lang .kind { display: none; }
+    .tile { min-height: 124px; padding: 14px; }
+    .tile .peek { display: none; }
+    .lhead { grid-template-columns: 1fr; gap: 4px; }
+    .top .gl span.t { display: none; }
+    .result .sc { font-size: 52px; }
+  }
+</style>
+</head>
+<body>
+<header class="top" id="top"><div class="wrap">
+  <a class="wordmark" href="#/">Worn</a>
+  <nav>
+    <a class="btn ghost" href="/app/journal">Journal</a>
+    <span class="gl" id="gl" title="Glasses"><span class="dot" id="glDot"></span><span class="t" id="glText">Glasses</span></span>
+  </nav>
+</div></header>
+
+<main class="wrap">
+  <!-- HOME -->
+  <section class="view" id="v-home">
+    <div class="hero">
+      <div>
+        <div class="eyebrow" id="hello">Good evening</div>
+        <h1 class="display">Write it <em>by hand</em>.</h1>
+        <p class="lede">Pick a script. Your glasses show every stroke while your pen does the rest, on real paper.</p>
+      </div>
+      <p class="lede" style="font-size:15px">Six scripts, five words each. Watch the stroke order, write it on paper, hear how it sounds and get a kind, specific check after every character.</p>
+    </div>
+    <div class="actions">
+      <a class="card tile daily" href="#/daily"><span class="peek script" id="dailyPeek"></span>
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+        <b>Daily 5</b><span id="dailySub">Five quick characters to keep them fresh</span></a>
+      <a class="card tile" href="#/compose">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></svg></span>
+        <b>Help me write</b><span>Your own message, in any of the six scripts</span></a>
+      <a class="card tile" href="#/name">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span>
+        <b>Write your name</b><span>See it in five scripts, by sound</span></a>
+      <a class="card tile" href="/app/journal">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg></span>
+        <b>Journal</b><span id="journalSub">Your handwriting, day one to today</span></a>
+    </div>
+    <div class="section-h"><h2 class="display" style="font-size:30px">Scripts</h2><span class="eyebrow">Tap one to begin</span></div>
+    <div class="langs" id="langs"></div>
+    <footer>Worn · Stroke data: hanzi-writer-data (Make Me a Hanzi, Arphic), hand-authored suggested order for the alphabets. Fonts: Noto, Newsreader, Inter. Grading runs locally on the laptop.</footer>
+  </section>
+
+  <!-- LANGUAGE -->
+  <section class="view" id="v-lang">
+    <a class="back" href="#/">← All scripts</a>
+    <div class="lhead"><div class="big script" id="lBig"></div>
+      <div><h2 class="display" id="lName"></h2><div class="eyebrow" id="lScript"></div><p id="lKind"></p></div></div>
+    <div class="row" style="justify-content:space-between;margin-bottom:14px">
+      <div class="seg" id="modeSeg"><button data-m="write" class="on">Watch &amp; write</button><button data-m="dictation">Dictation</button></div>
+      <span class="faint" id="modeHint" style="font-size:14px">The glasses show each stroke</span>
+    </div>
+    <div class="items" id="items"></div>
+    <div class="lfoot"><a class="btn" id="printLink" href="#">Print a practice sheet</a></div>
+  </section>
+
+  <!-- PRACTICE (follows the live session) -->
+  <section class="view" id="v-practice">
+    <div class="ptop">
+      <a class="back" id="pBack" href="#/">← Back</a>
+      <div class="tags"><span class="chip daily-pill" id="pDaily" hidden></span><span class="chip" id="pMode">Watch &amp; write</span><span class="chip" id="pCount"></span></div>
+    </div>
+    <div class="practice" id="pBody">
+      <div class="card stage" id="stage">
+        <div class="field-grid"></div>
+        <div id="pInk"></div>
+        <div class="mirror-tag"><span class="dot" id="pDot"></span><span id="pMirror">Same as the glasses</span></div>
+        <div class="dict"><button class="bigplay" id="dictPlay" aria-label="Play the word"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+          <div class="display" style="font-size:24px">Listen, then write what you hear</div>
+          <button class="btn ghost" id="reveal">Show me</button></div>
+        <div class="lbl" id="pLabel"></div>
+      </div>
+      <div class="pinfo">
+        <div><div class="eyebrow" id="pLang"></div><div class="word script" id="pWord"></div></div>
+        <div class="roman" id="pRoman"></div>
+        <div class="row">
+          <button class="btn" id="hear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>Hear it</button>
+          <button class="btn" id="replay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v5h5"/></svg>Replay strokes</button>
+        </div>
+        <div class="note" id="pNote" hidden></div>
+        <div class="card result wait" id="res">
+          <div class="sc" id="resSc">–</div>
+          <div class="badge" id="resBadge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path id="resIcon" d="M5 12.5l4.5 4.5L19 7"/></svg></div>
+          <div class="fb" id="resFb">Write it on paper. The glasses follow your pen.</div>
+          <div class="rx" id="resRx"></div>
+        </div>
+        <div class="pcontrols">
+          <label class="btn primary grow" id="camBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg>Check with phone camera
+            <input type="file" accept="image/*" capture="environment" id="cam" hidden></label>
+          <button class="btn" id="prev" aria-label="Previous character">←</button>
+          <button class="btn" id="next">Next →</button>
+        </div>
+        <div class="status"><span class="dot" id="sDot"></span><span id="sText">Connecting…</span></div>
+      </div>
+    </div>
+    <div class="done-card card" id="pEmpty" hidden>
+      <div class="display" style="font-size:40px">Nothing on the glasses yet</div>
+      <p class="muted">Pick a word and it shows up here, on the phone and on the glasses at the same time.</p>
+      <a class="btn primary" href="#/">Choose a script</a>
+    </div>
+  </section>
+
+  <!-- COMPOSE -->
+  <section class="view" id="v-compose">
+    <a class="back" href="#/">← Home</a>
+    <h1 class="display" style="font-size:clamp(36px,5vw,56px)">Help me write</h1>
+    <p class="lede">Type a short message in English. The tutor writes it in the script you pick, then teaches it to you character by character.</p>
+    <div class="two" style="margin-top:22px">
+      <div class="card panel">
+        <textarea id="cText" maxlength="120" placeholder="Happy birthday, my friend"></textarea>
+        <div class="eyebrow" style="margin:16px 0 8px">Write it in</div>
+        <div class="chips" id="cLangs"></div>
+        <div class="row" style="margin-top:18px"><button class="btn primary" id="cGo">Show me how</button><span class="faint" style="font-size:13px">Runs on the laptop. Takes a few seconds.</span></div>
+        <div class="err" id="cErr"></div>
+      </div>
+      <div class="card panel" id="cOut">
+        <div class="eyebrow">Your message</div>
+        <div class="native script faint" id="cNative" style="font-size:34px">It appears here</div>
+        <div class="roman" id="cRoman"></div>
+        <p class="muted" id="cBack"></p>
+        <div class="note" id="cNote" hidden></div>
+        <div class="row" style="margin-top:14px"><button class="btn primary" id="cWrite" disabled>Write it with the glasses →</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NAME -->
+  <section class="view" id="v-name">
+    <a class="back" href="#/">← Home</a>
+    <h1 class="display" style="font-size:clamp(36px,5vw,56px)">Write your name</h1>
+    <p class="lede">Names are written by sound, so these spellings are close but approximate. Tap one to trace it.</p>
+    <div class="card panel" style="margin-top:22px">
+      <div class="row"><input type="text" id="nText" maxlength="40" placeholder="Your first name" autocomplete="given-name" style="flex:1;min-width:200px"><button class="btn primary" id="nGo">Spell it</button></div>
+      <div class="err" id="nErr"></div>
+    </div>
+    <div class="names" id="names"></div>
+    <p class="faint" id="nNote" style="font-size:14px"></p>
+  </section>
+
+  <!-- DAILY 5 -->
+  <section class="view" id="v-daily">
+    <a class="back" href="#/">← Home</a>
+    <h1 class="display" style="font-size:clamp(36px,5vw,56px)">Daily 5</h1>
+    <p class="lede" id="dMsg">Five quick characters to keep them fresh.</p>
+    <div class="dlist" id="dList"></div>
+    <div class="row" style="margin-top:18px"><button class="btn primary" id="dStart">Start</button></div>
+    <div class="card done-card" id="dDone" hidden>
+      <div class="display">All five, done.</div>
+      <p class="muted">Come back tomorrow for a new five.</p>
+      <a class="btn" href="#/">Home</a>
+    </div>
+  </section>
+</main>
+
+<div class="handoff" id="handoff"><span class="script" id="hoChar"></span><div><b id="hoTitle">Lesson in progress</b><small id="hoSub">Started on another device</small></div><a class="btn" href="#/practice">Continue here</a></div>
+<div class="toast" id="toast"></div>
+
+<script src="/static/web/worn-ink.js"></script>
+<script src="/static/web/worn-confetti.js"></script>
+<script src="/static/web/worn-sfx.js"></script>
+<script>
+(function () {
+  "use strict";
+  var qs = new URLSearchParams(location.search);
+  var API = (qs.get("api") || "").replace(/\/$/, "");
+  var $ = function (id) { return document.getElementById(id); };
+  WornSfx.init(API);
+
+  var ORDER = ["mandarin", "hindi", "arabic", "russian", "hebrew", "greek"];
+  var HERO = { mandarin: "你好", hindi: "नमस्ते", arabic: "مرحبا", russian: "Привет", hebrew: "שלום", greek: "Γεια σου" };
+  var SCRIPT = { mandarin: "Simplified Chinese characters", hindi: "Devanagari", arabic: "Arabic script", russian: "Cyrillic",
+                 hebrew: "Hebrew alphabet", greek: "Greek alphabet" };
+  var KIND = {
+    mandarin: "Logographic. Each character is a word or syllable. Pinyin shows the tones.",
+    hindi: "An abugida: consonants carry a vowel. The top line is usually drawn last.",
+    arabic: "Right to left. Letters join; we start with them isolated. Dots come after the main stroke.",
+    russian: "Printed Cyrillic. Some letters look Latin but sound different. Handwritten cursive looks different again.",
+    hebrew: "Right to left, 22 letters, no vowels in everyday writing. We learn block print; everyday handwriting uses a cursive style.",
+    greek: "Left to right. Some letters look familiar but sound different."
+  };
+  var NAME_KEYS = [["devanagari", "hindi", "Devanagari"], ["arabic", "arabic", "Arabic"], ["cyrillic", "russian", "Cyrillic"],
+                   ["hebrew", "hebrew", "Hebrew"], ["greek", "greek", "Greek"]];
+
+  var LANGS = {}, JOURNAL = [], live = null, version = null, mode = "write", composed = null;
+  var daily = null;
+  try { daily = JSON.parse(sessionStorage.getItem("worn.daily") || "null"); } catch (e) {}
+
+  // ---------------------------------------------------------------- helpers
+  function url(p) { return !p ? p : /^(https?:|data:|blob:)/.test(p) ? p : API + p; }
+  function req(method, p, body, isForm) {
+    var o = { method: method, cache: "no-store", headers: {} };
+    if (body !== undefined) { if (isForm) o.body = body; else { o.body = JSON.stringify(body); o.headers["Content-Type"] = "application/json"; } }
+    return fetch(url(p), o).then(function (r) {
+      return r.text().then(function (t) {
+        var j = null; try { j = t ? JSON.parse(t) : null; } catch (e) {}
+        if (!r.ok) { var err = new Error((j && (j.detail || j.error)) || ("HTTP " + r.status)); err.status = r.status; throw err; }
+        return j;
+      });
+    });
+  }
+  function get(p) { return req("GET", p).catch(function (e) { if (e.status === 404) return null; throw e; }); }
+  function esc(t) { return String(t === undefined || t === null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function setText(el, t) { if (el.textContent !== t) el.textContent = t; }
+  var toastT = null;
+  function toast(t) { var el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(function () { el.classList.remove("on"); }, 2600); }
+  function langName(l) { return (LANGS[l] && LANGS[l].name) || l; }
+  function scriptName(l) { return (LANGS[l] && LANGS[l].script) || SCRIPT[l] || ""; }
+  function items(l) { return (LANGS[l] && (LANGS[l].items || LANGS[l].phrases)) || []; }
+  function scriptSpan(l, text, cls) { return '<span class="script ' + (cls || "") + '" data-lang="' + l + '" dir="' + (LANGS[l] && LANGS[l].rtl ? "rtl" : "ltr") + '">' + esc(text) + "</span>"; }
+  function learnedSet(l) {
+    var s = {};
+    JOURNAL.forEach(function (e) { if (e.lang === l && e.correct) s[e.char] = 1; });
+    return s;
+  }
+
+  // ---------------------------------------------------------------- router
+  var views = ["home", "lang", "practice", "compose", "name", "daily"];
+  function route() {
+    var h = location.hash.replace(/^#\/?/, "").split("/");
+    var v = h[0] || "home";
+    if (views.indexOf(v) < 0) v = "home";
+    views.forEach(function (x) { $("v-" + x).classList.toggle("on", x === v); });
+    window.scrollTo(0, 0);
+    if (v === "home") renderHome();
+    if (v === "lang") renderLang(h[1]);
+    if (v === "practice") { renderPractice(true); }
+    if (v === "compose") renderCompose();
+    if (v === "daily") renderDaily();
+    if (v !== "practice") pinkStop();
+    updateHandoff();
+  }
+  window.addEventListener("hashchange", route);
+  window.addEventListener("scroll", function () { $("top").classList.toggle("scrolled", scrollY > 6); }, { passive: true });
+
+  // ---------------------------------------------------------------- home
+  function renderHome() {
+    var h = new Date().getHours();
+    $("hello").textContent = h < 5 ? "Up late" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+    var box = $("langs");
+    box.innerHTML = "";
+    ORDER.filter(function (l) { return LANGS[l]; }).forEach(function (l) {
+      var all = {}; items(l).forEach(function (it) { (it.chars || []).forEach(function (c) { all[c] = 1; }); });
+      var total = Object.keys(all).length, got = learnedSet(l), n = Object.keys(all).filter(function (c) { return got[c]; }).length;
+      var a = document.createElement("a");
+      a.className = "card lang"; a.href = "#/lang/" + l; a.setAttribute("data-lang", l);
+      a.innerHTML = '<div class="hero-script script" dir="' + (LANGS[l].rtl ? "rtl" : "ltr") + '">' + esc(HERO[l] || items(l)[0].text) + "</div>" +
+        '<div class="name">' + esc(langName(l)) + '</div><div class="kind">' + esc(scriptName(l)) + "</div>" +
+        '<div class="meter"><i style="width:' + (total ? Math.round(100 * n / total) : 0) + '%"></i></div>' +
+        '<div class="count"><span>' + items(l).length + " words</span><span>" + n + " of " + total + " learned</span></div>";
+      box.appendChild(a);
+    });
+    get("/review").then(function (r) {
+      if (!r || !r.items || !r.items.length) return;
+      $("dailyPeek").innerHTML = r.items.map(function (it) { return esc(it.char); }).join(" ");
+      $("dailySub").textContent = r.message || "Five quick characters";
+    }).catch(function () {});
+    $("journalSub").textContent = JOURNAL.length ? JOURNAL.length + " photos of your handwriting" : "Your handwriting, day one to today";
+  }
+
+  // ---------------------------------------------------------------- language
+  var curLang = null;
+  function renderLang(l) {
+    if (!LANGS[l]) { location.hash = "#/"; return; }
+    curLang = l;
+    document.body.setAttribute("data-lang", l);
+    $("lBig").innerHTML = scriptSpan(l, HERO[l]);
+    $("lName").textContent = langName(l);
+    $("lScript").textContent = scriptName(l);
+    $("lKind").textContent = KIND[l] || "";
+    $("printLink").href = "/print/" + l;
+    var got = learnedSet(l), box = $("items");
+    box.innerHTML = "";
+    items(l).forEach(function (it) {
+      var b = document.createElement("button");
+      b.className = "card item"; b.setAttribute("data-lang", l);
+      var pips = (it.chars || []).map(function (c) { return '<i class="' + (got[c] ? "on" : "") + '"></i>'; }).join("");
+      b.innerHTML = "<div><div class=\"w script\" dir=\"" + (LANGS[l].rtl ? "rtl" : "ltr") + "\">" + esc(it.text) + "</div>" +
+        '<div class="r"><b>' + esc(it.romanization || "") + "</b> · " + esc(it.meaning || "") + "</div></div>" +
+        '<div class="go"><span class="pips">' + pips + "</span><span>" + (it.chars || []).length + " to write</span> →</div>";
+      b.onclick = function () { start({ lang: l, item_id: it.id, char_index: 0, mode: mode }); };
+      box.appendChild(b);
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("#modeSeg button"), function (b) {
+    b.onclick = function () {
+      mode = b.getAttribute("data-m");
+      Array.prototype.forEach.call(document.querySelectorAll("#modeSeg button"), function (x) { x.classList.toggle("on", x === b); });
+      $("modeHint").textContent = mode === "dictation" ? "Hear it, write it, no animation" : "The glasses show each stroke";
+    };
+  });
+
+  // ---------------------------------------------------------------- sessions
+  function start(body, keepDaily) {
+    if (!keepDaily) { daily = null; sessionStorage.removeItem("worn.daily"); }
+    return req("POST", "/session", body).then(function (s) {
+      applySession(s);
+      if (location.hash !== "#/practice") location.hash = "#/practice"; else renderPractice(true);
+      return s;
+    }).catch(function (e) { toast(e.message || "Couldn't start that lesson"); throw e; });
+  }
+  function applySession(s) {
+    if (!live) live = {};
+    live.session = s; live.last_result = null; live.glasses = live.glasses || {};
+    live.glasses.phase = "watch"; live.glasses.stroke = 0;
+  }
+
+  // ---------------------------------------------------------------- practice
+  var pink = WornInk.create($("pInk"), { theme: "paper", label: $("pLabel"), api: API });
+  var pKey = "", pReady = false, pSync = "", lastResultTs = null, resultKey = "", advanceT = null, audio = new Audio(), quietOnce = false;
+  function pinkStop() { pink.stop(); pKey = ""; }
+
+  function renderPractice(force) {
+    var s = live && live.session;
+    $("pBody").hidden = !s; $("pEmpty").hidden = !!s;
+    if (!s) return;
+    var g = live.glasses || {};
+    var key = [s.version, s.lang, s.item_id || s.phrase_id, s.char_index, s.mode].join("|");
+    if (key !== pKey || force && !pReady) {
+      var fresh = key !== pKey;
+      pKey = key;
+      document.body.setAttribute("data-lang", s.lang);
+      $("pBack").href = daily ? "#/daily" : "#/lang/" + s.lang;
+      $("pBack").textContent = daily ? "← Daily 5" : "← " + (s.lang_name || langName(s.lang));
+      $("pDaily").hidden = !daily;
+      if (daily) $("pDaily").textContent = "Daily 5 · " + (daily.i + 1) + " of " + daily.items.length;
+      $("pMode").textContent = s.mode === "dictation" ? "Dictation" : s.mode === "compose" ? "Your message" : "Watch & write";
+      $("pCount").textContent = (s.char_index + 1) + " of " + s.total_chars;
+      $("pLang").textContent = (s.lang_name || langName(s.lang)) + " · " + (s.script || scriptName(s.lang));
+      var chars = (s.item && s.item.chars) || [s.char], w = $("pWord");
+      w.setAttribute("dir", s.rtl ? "rtl" : "ltr");
+      w.innerHTML = chars.map(function (c, i) {
+        var hide = s.show_char === false && i >= s.char_index;
+        return '<span class="' + (i < s.char_index ? "done" : i === s.char_index ? "cur" : "") + '">' + esc(hide ? "＿" : c) + "</span>";
+      }).join("");
+      $("pRoman").innerHTML = esc(s.romanization || "") + (s.meaning ? "<small>“" + esc(s.meaning) + "”</small>" : "");
+      var note = s.note || (s.back_translation ? "Means: " + s.back_translation : "");
+      $("pNote").hidden = !note; $("pNote").textContent = note || "";
+      var st = $("stage");
+      st.classList.toggle("dictation", s.show_char === false);
+      st.classList.remove("reveal");
+      $("replay").hidden = s.show_char === false;
+      $("hear").disabled = !s.audio_url;
+      $("prev").disabled = s.char_index === 0;
+      pReady = false; pSync = "";
+      pink.load(s).then(function () { pReady = true; pSync = ""; syncInk(); });
+      if (fresh) {
+        resultKey = ""; clearTimeout(advanceT);
+        lastResultTs = null; quietOnce = !!force; // a result that is already there shows without sound or confetti
+        showWaiting(s, g);
+        if (s.char_index === 0 && s.audio_url && document.visibilityState === "visible") setTimeout(hear, 350);
+      }
+    }
+    syncInk();
+    renderStatus(g);
+    var r = live.last_result;
+    var mine = r && (!r.char || r.char === s.char) && (!r.lang || r.lang === s.lang);
+    if (mine && r.ts !== lastResultTs) { lastResultTs = r.ts; showResult(r, s, quietOnce); }
+    else if (!mine) showWaiting(s, g);
+    quietOnce = false;
+  }
+  function syncInk() {
+    var s = live && live.session, g = (live && live.glasses) || {};
+    if (!s || !pReady) return;
+    var k = [g.phase, g.stroke].join("|");
+    if (k === pSync) return;
+    pSync = k;
+    if (g.phase === "write" || g.phase === "writing") pink.sync((g.stroke || 0) + 1, "write");
+    else if (g.phase === "checking" || g.phase === "result") pink.full();
+    else pink.loop();
+  }
+  function renderStatus(g) {
+    var c = g.connected, t;
+    var ph = { watch: "showing the animation", write: "following your pen", writing: "following your pen", checking: "checking your writing", result: "showing your result" }[g.phase];
+    if (c === true) t = "Glasses " + (ph || "connected");
+    else if (c === false) t = "Glasses not connected. Grade with the phone camera.";
+    else t = "Lesson is live";
+    $("sDot").className = "dot" + (c === true ? " on pulse" : c === false ? " off" : "");
+    setText($("sText"), t);
+    $("pDot").className = "dot" + (c === true ? " on" : "");
+    setText($("pMirror"), c === true ? "Same as the glasses" : "Stroke order");
+  }
+  function showWaiting(s, g) {
+    var phase = g.phase;
+    var key = "w|" + phase + "|" + (g.stroke || 0);
+    if (key === resultKey) return;
+    resultKey = key;
+    var el = $("res");
+    el.className = "card result wait" + (phase === "checking" ? " busy" : "");
+    $("resSc").innerHTML = "–";
+    var n = s.stroke_count || pink.count(), k = (g.stroke || 0) + 1;
+    setText($("resFb"), phase === "checking" ? "Checking your writing" :
+      s.show_char === false ? "Listen, then write what you hear." :
+      (phase === "write" && n > 1) ? "Stroke " + Math.min(k, n) + " of " + n + ". Keep going." :
+      "Write it on paper. The glasses follow your pen.");
+    $("resRx").innerHTML = "";
+  }
+  function showResult(r, s, quiet) {
+    resultKey = "r" + r.ts;
+    var el = $("res");
+    el.className = "card result " + (r.correct ? "ok" : "no");
+    void el.offsetWidth; el.classList.add("pop");
+    $("resSc").innerHTML = esc(r.score) + "<small>/100</small>";
+    $("resIcon").setAttribute("d", r.correct ? "M5 12.5l4.5 4.5L19 7" : "M12 6v8M12 18v.5");
+    $("resFb").textContent = r.feedback || (r.correct ? "Nice!" : "Try again");
+    var fx = WornSfx.forResult(r, { silent: !!quiet });
+    $("resRx").innerHTML = (r.emoji ? "<span>" + esc(r.emoji) + "</span>" : "") + (fx.line ? "<span>“" + esc(fx.line) + "”</span>" : "");
+    if (s.show_char === false) $("stage").classList.add("reveal");
+    if (r.correct && !quiet) {
+      var b = $("stage").getBoundingClientRect();
+      WornConfetti.burst({ x: (b.left + b.width / 2) / innerWidth, y: Math.max(.15, (b.top + b.height * .4) / innerHeight), count: 130 });
+      clearTimeout(advanceT);
+      var key = pKey;
+      advanceT = setTimeout(function () { if (pKey === key) advance(r); }, 2600);
+    }
+  }
+  function advance(r) {
+    var s = live.session;
+    if (daily) {
+      // Daily 5 moves through its own list, one character each
+      daily.done = daily.done || [];
+      daily.done[daily.i] = true;
+      daily.i++;
+      sessionStorage.setItem("worn.daily", JSON.stringify(daily));
+      if (daily.i >= daily.items.length) { finishDaily(); return; }
+      var it = daily.items[daily.i];
+      start({ lang: it.lang, item_id: it.item_id, char_index: it.char_index || 0, mode: "write" }, true);
+      return;
+    }
+    req("POST", "/session/next").then(function (n) { applySession(n); renderPractice(); })
+      .catch(function () { nextLocal(+1); });
+  }
+  function nextLocal(d) {
+    var s = live && live.session;
+    if (!s) return;
+    var ci = s.char_index + d;
+    var body = { lang: s.lang, item_id: s.item_id || s.phrase_id, char_index: ci, mode: s.mode === "compose" ? "write" : s.mode };
+    if (ci >= s.total_chars || ci < 0) {
+      var list = items(s.lang), k = list.map(function (x) { return x.id; }).indexOf(s.item_id || s.phrase_id);
+      if (d > 0) {
+        if (k < 0 || k + 1 >= list.length) { toast("That was the last word. Nice work!"); location.hash = "#/lang/" + s.lang; return; }
+        body.item_id = list[k + 1].id; body.char_index = 0;
+      } else return;
+    }
+    if (s.mode === "compose" && ci < s.total_chars && ci >= 0) { body.mode = "compose"; body.text = s.meaning; }
+    start(body, !!daily);
+  }
+  function hear() {
+    var s = live && live.session;
+    if (!s || !s.audio_url) return;
+    try { audio.src = url(s.audio_url); audio.currentTime = 0; var p = audio.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+  }
+  $("hear").onclick = hear;
+  $("dictPlay").onclick = hear;
+  $("reveal").onclick = function () { $("stage").classList.add("reveal"); pink.loop(); };
+  $("replay").onclick = function () { pSync = ""; pink.loop(); };
+  $("next").onclick = function () { clearTimeout(advanceT); if (daily) advance(null); else nextLocal(+1); };
+  $("prev").onclick = function () { clearTimeout(advanceT); nextLocal(-1); };
+  $("cam").onchange = function () {
+    var f = $("cam").files[0], s = live && live.session;
+    if (!f || !s) return;
+    var fd = new FormData();
+    fd.append("image", f); fd.append("char", s.char); fd.append("lang", s.lang);
+    var el = $("res");
+    el.className = "card result wait busy";
+    setText($("resFb"), "Checking your writing");
+    $("resRx").innerHTML = "";
+    resultKey = "busy";
+    req("POST", "/grade", fd, true).then(function (r) {
+      if (live) live.last_result = r;
+      lastResultTs = r.ts;
+      showResult(r, s);
+    }).catch(function (e) {
+      resultKey = "";
+      el.className = "card result no";
+      setText($("resFb"), e.message || "Couldn't check that photo. Try again.");
+    }).then(function () { $("cam").value = ""; });
+  };
+
+  // ---------------------------------------------------------------- compose
+  var cLang = "mandarin";
+  function renderCompose() {
+    var box = $("cLangs");
+    if (!box.children.length) {
+      ORDER.filter(function (l) { return LANGS[l]; }).forEach(function (l) {
+        var b = document.createElement("button");
+        b.className = "chip" + (l === cLang ? " on" : ""); b.textContent = langName(l);
+        b.onclick = function () { cLang = l; Array.prototype.forEach.call(box.children, function (x) { x.classList.toggle("on", x === b); }); };
+        box.appendChild(b);
+      });
+    }
+    setTimeout(function () { $("cText").focus(); }, 60);
+  }
+  $("cGo").onclick = function () {
+    var text = $("cText").value.trim();
+    if (!text) { $("cErr").textContent = "Type a short message first."; return; }
+    $("cErr").textContent = "";
+    $("cGo").disabled = true; $("cGo").textContent = "Writing it…";
+    $("cNative").className = "native script skeleton"; $("cNative").innerHTML = "&nbsp;";
+    $("cRoman").textContent = ""; $("cBack").textContent = ""; $("cNote").hidden = true; $("cWrite").disabled = true;
+    req("POST", "/compose", { text: text, lang: cLang }).then(function (c) {
+      composed = { text: text, lang: cLang, out: c };
+      $("cNative").className = "native script"; $("cNative").setAttribute("data-lang", cLang);
+      $("cNative").setAttribute("dir", LANGS[cLang] && LANGS[cLang].rtl ? "rtl" : "ltr");
+      $("cNative").textContent = c.native || c.text;
+      $("cRoman").textContent = c.romanization || "";
+      $("cBack").textContent = c.back_translation ? "Reads back as: “" + c.back_translation + "”" : "";
+      $("cNote").hidden = !c.note; $("cNote").textContent = c.note || "";
+      $("cWrite").disabled = false;
+    }).catch(function (e) {
+      $("cNative").className = "native script faint"; $("cNative").textContent = "It appears here";
+      $("cErr").textContent = e.status === 422 ? e.message : "The tutor is busy. Try again in a moment.";
+    }).then(function () { $("cGo").disabled = false; $("cGo").textContent = "Show me how"; });
+  };
+  $("cWrite").onclick = function () {
+    if (!composed) return;
+    $("cWrite").disabled = true;
+    start({ lang: composed.lang, mode: "compose", text: composed.text, char_index: 0 }).catch(function () {}).then(function () { $("cWrite").disabled = false; });
+  };
+
+  // ---------------------------------------------------------------- name
+  $("nText").addEventListener("keydown", function (e) { if (e.key === "Enter") $("nGo").click(); });
+  $("nGo").onclick = function () {
+    var t = $("nText").value.trim();
+    if (!t) { $("nErr").textContent = "Type your first name."; return; }
+    $("nErr").textContent = "";
+    var box = $("names");
+    box.innerHTML = NAME_KEYS.map(function () { return '<div class="card ncard"><div class="skeleton" style="height:14px;width:40%"></div><div class="skeleton" style="height:52px;margin-top:10px"></div></div>'; }).join("");
+    $("nGo").disabled = true;
+    get("/name?text=" + encodeURIComponent(t)).then(function (n) {
+      box.innerHTML = "";
+      NAME_KEYS.forEach(function (k) {
+        var v = n && n[k[0]];
+        if (!v) return;
+        var l = k[1], card = document.createElement("button");
+        card.className = "card ncard"; card.style.textAlign = "start"; card.setAttribute("data-lang", l);
+        card.innerHTML = '<span class="eyebrow">' + esc(k[2]) + (LANGS[l] ? " · " + esc(langName(l)) : "") + "</span>" +
+          '<div class="n script" dir="' + (l === "arabic" || l === "hebrew" ? "rtl" : "ltr") + '">' + esc(v) + "</div>" +
+          '<div class="ink-box"></div><span class="faint" style="font-size:13px">Tap to trace it</span>';
+        var ink = null;
+        card.onclick = function () {
+          card.classList.toggle("tracing");
+          if (!ink) ink = WornInk.create(card.querySelector(".ink-box"), { theme: "paper" });
+          if (card.classList.contains("tracing")) ink.load({ lang: l, char: v, rtl: l === "arabic" || l === "hebrew" }).then(function () { ink.loop(); });
+          else ink.stop();
+        };
+        box.appendChild(card);
+      });
+      $("nNote").textContent = (n && n.note) || "";
+      if (!box.children.length) $("nErr").textContent = "I couldn't spell that one. Try another name.";
+    }).catch(function (e) {
+      box.innerHTML = "";
+      $("nErr").textContent = e.status === 422 ? e.message : "The tutor is busy. Try again in a moment.";
+    }).then(function () { $("nGo").disabled = false; });
+  };
+
+  // ---------------------------------------------------------------- daily 5
+  var review = null;
+  function renderDaily() {
+    $("dDone").hidden = true;
+    get("/review").then(function (r) {
+      review = r;
+      var list = (r && r.items) || [];
+      $("dMsg").textContent = (r && r.message) || "Five quick characters to keep them fresh.";
+      var done = daily && daily.items && daily.items.length === list.length ? daily.done || [] : [];
+      $("dList").innerHTML = list.map(function (it, i) {
+        return '<div class="card ditem' + (done[i] ? " done" : "") + '" data-lang="' + esc(it.lang) + '"><div class="c script">' + esc(it.char) + "</div>" +
+          "<div><b>" + esc(langName(it.lang)) + "</b> · " + esc(it.romanization || "") + (it.meaning ? " · “" + esc(it.meaning) + "”" : "") +
+          '<div class="faint" style="font-size:13.5px">' + esc(it.reason || "") + "</div></div>" +
+          (done[i] ? '<span class="ok">✓</span>' : '<span class="faint">' + (i + 1) + "</span>") + "</div>";
+      }).join("");
+      $("dStart").hidden = !list.length;
+      $("dStart").textContent = done.some(Boolean) ? "Continue" : "Start";
+    }).catch(function () { $("dMsg").textContent = "Couldn't load today's five. Is the laptop server running?"; });
+  }
+  $("dStart").onclick = function () {
+    if (!review || !review.items || !review.items.length) return;
+    if (!daily || !daily.items || daily.items.length !== review.items.length) daily = { items: review.items, i: 0, done: [] };
+    sessionStorage.setItem("worn.daily", JSON.stringify(daily));
+    var it = daily.items[daily.i] || daily.items[0];
+    start({ lang: it.lang, item_id: it.item_id, char_index: it.char_index || 0, mode: "write" }, true);
+  };
+  function finishDaily() {
+    daily = null; sessionStorage.removeItem("worn.daily");
+    location.hash = "#/daily";
+    setTimeout(function () {
+      $("dDone").hidden = false; $("dStart").hidden = true;
+      WornSfx.play("tada");
+      WornConfetti.burst({ x: .5, y: .35, count: 200 });
+    }, 300);
+  }
+
+  // ---------------------------------------------------------------- live loop + handoff
+  var handoffSeen = null, failN = 0;
+  function updateHandoff() {
+    var s = live && live.session, onPractice = location.hash.indexOf("#/practice") === 0;
+    var show = s && !onPractice && handoffSeen !== null && handoffSeen !== s.version;
+    $("handoff").classList.toggle("on", !!show);
+    if (show) {
+      $("hoChar").innerHTML = scriptSpan(s.lang, s.char);
+      $("hoTitle").textContent = (s.lang_name || langName(s.lang)) + " · " + (s.meaning || s.text || "");
+      $("hoSub").textContent = "Live on the glasses. Pick up here.";
+    }
+  }
+  function poll() {
+    get("/live/state" + (version !== null ? "?since=" + version : "")).then(function (st) {
+      failN = 0;
+      if (st && !st.unchanged) {
+        version = st.version;
+        var prevVer = live && live.session ? live.session.version : null;
+        live = st;
+        if (handoffSeen === null) handoffSeen = st.session ? st.session.version : -1;
+        var g = st.glasses || {};
+        $("glDot").className = "dot" + (g.connected === true ? " on" : g.connected === false ? " off" : "");
+        setText($("glText"), g.connected === true ? "Glasses on" : g.connected === false ? "Glasses off" : "Glasses");
+        if (location.hash.indexOf("#/practice") === 0) { renderPractice(); if (st.session) handoffSeen = st.session.version; }
+        else if (st.session && prevVer !== st.session.version && prevVer !== null && handoffSeen === prevVer) { /* keep */ }
+        updateHandoff();
+      }
+    }).catch(function () {
+      if (++failN === 4) { $("glDot").className = "dot off"; setText($("glText"), "Server offline"); }
+    }).then(function () { setTimeout(poll, document.visibilityState === "visible" ? 600 : 2500); });
+  }
+  $("handoff").querySelector("a").addEventListener("click", function () { if (live && live.session) handoffSeen = live.session.version; });
+
+  // ---------------------------------------------------------------- boot
+  Promise.all([get("/content"), get("/journal").catch(function () { return null; })]).then(function (a) {
+    ((a[0] && a[0].langs) || []).forEach(function (l) { LANGS[l.lang] = l; });
+    JOURNAL = (a[1] && a[1].entries) || [];
+    route();
+    poll();
+  }).catch(function () {
+    document.querySelector("main").insertAdjacentHTML("afterbegin", '<div class="card panel" style="margin-top:20px"><b>Can’t reach the Worn server.</b><p class="muted">Start the backend on the laptop, then reload.</p></div>');
+  });
+})();
+</script>
+</body>
+</html>
