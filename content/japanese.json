@@ -15,8 +15,7 @@
       ],
       "romanization": "konnichiwa",
       "meaning": "hello",
-      "audio": "audio/japanese/hello.m4a",
-      "asl": "asl/hello.mp4"
+      "audio": "audio/japanese/hello.m4a"
     },
     {
       "id": "thank_you",
@@ -30,8 +29,7 @@
       ],
       "romanization": "arigatō",
       "meaning": "thank you",
-      "audio": "audio/japanese/thank_you.m4a",
-      "asl": "asl/thank_you.mp4"
+      "audio": "audio/japanese/thank_you.m4a"
     },
     {
       "id": "yes",
@@ -42,8 +40,7 @@
       ],
       "romanization": "hai",
       "meaning": "yes",
-      "audio": "audio/japanese/yes.m4a",
-      "asl": "asl/yes.mp4"
+      "audio": "audio/japanese/yes.m4a"
     },
     {
       "id": "no",
@@ -55,8 +52,7 @@
       ],
       "romanization": "iie",
       "meaning": "no",
-      "audio": "audio/japanese/no.m4a",
-      "asl": "asl/no.mp4"
+      "audio": "audio/japanese/no.m4a"
     },
     {
       "id": "bathroom",
@@ -74,8 +70,7 @@
       ],
       "romanization": "toire wa doko desu ka?",
       "meaning": "where is the bathroom?",
-      "audio": "audio/japanese/bathroom.m4a",
-      "asl": "asl/bathroom.mp4"
+      "audio": "audio/japanese/bathroom.m4a"
     }
   ]
 }

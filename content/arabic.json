@@ -15,8 +15,7 @@
       ],
       "romanization": "marḥaban",
       "meaning": "hello",
-      "audio": "audio/arabic/hello.m4a",
-      "asl": "asl/hello.mp4"
+      "audio": "audio/arabic/hello.m4a"
     },
     {
       "id": "thank_you",
@@ -29,8 +28,7 @@
       ],
       "romanization": "shukran",
       "meaning": "thank you",
-      "audio": "audio/arabic/thank_you.m4a",
-      "asl": "asl/thank_you.mp4"
+      "audio": "audio/arabic/thank_you.m4a"
     },
     {
       "id": "yes",
@@ -42,8 +40,7 @@
       ],
       "romanization": "naʿam",
       "meaning": "yes",
-      "audio": "audio/arabic/yes.m4a",
-      "asl": "asl/yes.mp4"
+      "audio": "audio/arabic/yes.m4a"
     },
     {
       "id": "no",
@@ -53,8 +50,7 @@
       ],
       "romanization": "lā",
       "meaning": "no",
-      "audio": "audio/arabic/no.m4a",
-      "asl": "asl/no.mp4"
+      "audio": "audio/arabic/no.m4a"
     },
     {
       "id": "bathroom",
@@ -72,8 +68,7 @@
       ],
       "romanization": "ayna al-ḥammām?",
       "meaning": "where is the bathroom?",
-      "audio": "audio/arabic/bathroom.m4a",
-      "asl": "asl/bathroom.mp4"
+      "audio": "audio/arabic/bathroom.m4a"
     }
   ]
 }

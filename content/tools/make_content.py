@@ -46,23 +46,14 @@ LESSONS = {
     "bathroom":  ("トイレはどこですか？", list("トイレはどこですか"), "toire wa doko desu ka?"),
   }),
 }
-ASL_GLOSS = {"hello": "HELLO", "thank_you": "THANK-YOU", "yes": "YES", "no": "NO",
-             "bathroom": "BATHROOM WHERE?"}
-
-def asl_path(pid): return f"asl/{pid}.mp4"   # TODO(team): record these 5 clips, see content/README.md
-
 for lang, (name, rtl, rows) in LESSONS.items():
     phrases = []
     for pid in IDS:
         text, chars, rom = rows[pid]
         assert "".join(chars) == text.replace(" ", "").rstrip("?？؟") or lang == "arabic" and "".join(chars) == text.replace(" ", "").rstrip("؟"), (lang, pid)
         phrases.append({"id": pid, "text": text, "chars": chars, "romanization": rom,
-                        "meaning": MEANING[pid], "audio": f"audio/{lang}/{pid}.m4a", "asl": asl_path(pid)})
+                        "meaning": MEANING[pid], "audio": f"audio/{lang}/{pid}.m4a"})
     (C / f"{lang}.json").write_text(json.dumps({"lang": lang, "name": name, "rtl": rtl, "phrases": phrases},
                                                ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-asl = [{"id": pid, "text": ASL_GLOSS[pid], "chars": [], "romanization": None, "meaning": MEANING[pid],
-        "audio": None, "asl": asl_path(pid)} for pid in IDS]
-(C / "asl.json").write_text(json.dumps({"lang": "asl", "name": "American Sign Language", "rtl": False,
-                                       "phrases": asl}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 print("wrote", sorted(p.name for p in C.glob("*.json")))

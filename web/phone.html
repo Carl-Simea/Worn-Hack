@@ -55,7 +55,6 @@
     <button id="again">Replay on glasses</button>
     <button id="next" class="primary">Next ›</button>
   </div>
-  <div class="row"><button id="asl">Show ASL on glasses</button></div>
 </section>
 <div id="err"></div>
 
@@ -64,7 +63,7 @@
 const API = (new URLSearchParams(location.search).get("api") || "").replace(/\/$/, "");
 const AUTO_ADVANCE_MS = 1800;
 const $ = id => document.getElementById(id);
-let langs = [], lang = null, phrase = null, idx = 0, mode = "write", lastTs = null, advanceTimer = null;
+let langs = [], lang = null, phrase = null, idx = 0, lastTs = null, advanceTimer = null;
 
 async function api(path, opts) {
   const r = await fetch(API + path, Object.assign({ cache: "no-store" }, opts));
@@ -90,34 +89,31 @@ function renderPhrases() {
     b.innerHTML = '<span class="t"></span><span class="m"></span>';
     b.querySelector(".t").textContent = p.text; b.querySelector(".t").dir = lang.rtl ? "rtl" : "ltr";
     b.querySelector(".m").textContent = p.meaning;
-    b.onclick = () => start(p, 0, lang.lang === "asl" || !p.chars.length ? "asl" : "write");
+    b.onclick = () => start(p, 0);
     $("phrases").appendChild(b);
   });
 }
 
-async function start(p, i, m) {
+async function start(p, i) {
   clearTimeout(advanceTimer);
-  phrase = p; idx = i; mode = m; lastTs = null;
+  phrase = p; idx = i; lastTs = null;
   renderPhrases();
   $("err").textContent = "";
   try {
     await api("/session", { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ lang: lang.lang, phrase_id: p.id, char_index: i, mode: m }) });
+      body: JSON.stringify({ lang: lang.lang, phrase_id: p.id, char_index: i, mode: "write" }) });
   } catch (e) { $("err").textContent = "Couldn't reach the glasses server: " + e.message; }
   renderNow();
 }
 
 function renderNow() {
   $("now").classList.add("on");
-  const asl = mode === "asl";
-  $("char").textContent = asl ? phrase.text : phrase.chars[idx];
+  $("char").textContent = phrase.chars[idx];
   $("char").dir = lang.rtl ? "rtl" : "ltr";
-  $("rom").textContent = asl ? phrase.meaning : (phrase.romanization || "") + " · " + phrase.meaning;
-  $("step").textContent = asl ? "Watch the sign on your glasses" : "Character " + (idx + 1) + " of " + phrase.chars.length;
-  setStatus("wait", asl ? "Copy the sign, then tap Next" : "Write it on paper, then press the glasses button");
-  $("prev").disabled = asl || idx === 0;
-  $("asl").textContent = asl ? "Back to writing" : "Show ASL on glasses";
-  $("asl").disabled = asl && !phrase.chars.length;
+  $("rom").textContent = (phrase.romanization || "") + " · " + phrase.meaning;
+  $("step").textContent = "Character " + (idx + 1) + " of " + phrase.chars.length;
+  setStatus("wait", "Write it on paper, then press the glasses button");
+  $("prev").disabled = idx === 0;
 }
 function setStatus(cls, text, score) {
   const s = $("status"); s.className = cls; s.innerHTML = "";
@@ -130,19 +126,17 @@ function nextPhrase() {
   return list[(i + 1) % list.length];
 }
 function advance() {
-  if (mode === "write" && idx + 1 < phrase.chars.length) return start(phrase, idx + 1, "write");
-  const p = nextPhrase();
-  start(p, 0, mode === "asl" || !p.chars.length ? "asl" : "write");
+  if (idx + 1 < phrase.chars.length) return start(phrase, idx + 1);
+  start(nextPhrase(), 0);
 }
 
 $("next").onclick = advance;
-$("prev").onclick = () => { if (idx > 0) start(phrase, idx - 1, mode); };
-$("again").onclick = () => start(phrase, idx, mode);
-$("asl").onclick = () => start(phrase, 0, mode === "asl" ? "write" : "asl");
+$("prev").onclick = () => { if (idx > 0) start(phrase, idx - 1); };
+$("again").onclick = () => start(phrase, idx);
 
 async function poll() {
   try {
-    const r = phrase && mode === "write" ? await api("/session/result") : null;
+    const r = phrase ? await api("/session/result") : null;
     $("net").textContent = "connected"; $("net").className = "";
     // POST /session clears the server's result, so anything that shows up afterwards is for this character.
     if (r && r.ts !== lastTs && phrase && r.char === phrase.chars[idx]) {
@@ -161,7 +155,7 @@ async function poll() {
 (async function boot() {
   try {
     const c = await api("/content");
-    langs = (c && c.langs) || [];
+    langs = ((c && c.langs) || []).filter(l => l.phrases.some(p => p.chars && p.chars.length));  // writing lessons only
     lang = langs[0]; renderLangs(); renderPhrases();
     $("net").textContent = "connected";
   } catch (e) {

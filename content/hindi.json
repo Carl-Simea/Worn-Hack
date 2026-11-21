@@ -13,8 +13,7 @@
       ],
       "romanization": "namaste",
       "meaning": "hello",
-      "audio": "audio/hindi/hello.m4a",
-      "asl": "asl/hello.mp4"
+      "audio": "audio/hindi/hello.m4a"
     },
     {
       "id": "thank_you",
@@ -27,8 +26,7 @@
       ],
       "romanization": "dhanyavād",
       "meaning": "thank you",
-      "audio": "audio/hindi/thank_you.m4a",
-      "asl": "asl/thank_you.mp4"
+      "audio": "audio/hindi/thank_you.m4a"
     },
     {
       "id": "yes",
@@ -38,8 +36,7 @@
       ],
       "romanization": "hā̃",
       "meaning": "yes",
-      "audio": "audio/hindi/yes.m4a",
-      "asl": "asl/yes.mp4"
+      "audio": "audio/hindi/yes.m4a"
     },
     {
       "id": "no",
@@ -50,8 +47,7 @@
       ],
       "romanization": "nahī̃",
       "meaning": "no",
-      "audio": "audio/hindi/no.m4a",
-      "asl": "asl/no.mp4"
+      "audio": "audio/hindi/no.m4a"
     },
     {
       "id": "bathroom",
@@ -67,8 +63,7 @@
       ],
       "romanization": "śaucālay kahā̃ hai?",
       "meaning": "where is the bathroom?",
-      "audio": "audio/hindi/bathroom.m4a",
-      "asl": "asl/bathroom.mp4"
+      "audio": "audio/hindi/bathroom.m4a"
     }
   ]
 }
