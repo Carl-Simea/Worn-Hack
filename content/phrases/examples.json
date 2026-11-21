@@ -1,0 +1,194 @@
+{
+  "_about": "Hand-checked phrasebook for 'Help me write' (agent C). Answered before any model. Questions are written without '?' (matching ignores punctuation). Native-speaker check: content/REVIEW.md.",
+  "phrases": {
+    "good morning": {
+      "mandarin": {
+        "native": "早上好",
+        "romanization": "zǎoshang hǎo"
+      },
+      "hindi": {
+        "native": "सुप्रभात",
+        "romanization": "suprabhāt",
+        "note": "formal; many people also just say नमस्ते"
+      },
+      "arabic": {
+        "native": "صباح الخير",
+        "romanization": "ṣabāḥ al-khayr"
+      },
+      "russian": {
+        "native": "Доброе утро",
+        "romanization": "dobroye utro"
+      },
+      "hebrew": {
+        "native": "בוקר טוב",
+        "romanization": "boker tov"
+      },
+      "greek": {
+        "native": "Καλημέρα",
+        "romanization": "kaliméra"
+      }
+    },
+    "nice to meet you": {
+      "mandarin": {
+        "native": "很高兴认识你",
+        "romanization": "hěn gāoxìng rènshi nǐ"
+      },
+      "hindi": {
+        "native": "आपसे मिलकर अच्छा लगा",
+        "romanization": "āpse milkar acchā lagā"
+      },
+      "arabic": {
+        "native": "تشرفنا",
+        "romanization": "tasharrafnā"
+      },
+      "russian": {
+        "native": "Приятно познакомиться",
+        "romanization": "priyatno poznakomit'sya"
+      },
+      "hebrew": {
+        "native": "נעים מאוד",
+        "romanization": "na'im me'od"
+      },
+      "greek": {
+        "native": "Χάρηκα πολύ",
+        "romanization": "chárika polý"
+      }
+    },
+    "see you tomorrow": {
+      "mandarin": {
+        "native": "明天见",
+        "romanization": "míngtiān jiàn"
+      },
+      "hindi": {
+        "native": "कल मिलते हैं",
+        "romanization": "kal milte haiṁ"
+      },
+      "arabic": {
+        "native": "أراك غدا",
+        "romanization": "arāka ghadan",
+        "note": "to a man; to a woman: أراكِ غدا (arāki ghadan)"
+      },
+      "russian": {
+        "native": "До завтра",
+        "romanization": "do zavtra"
+      },
+      "hebrew": {
+        "native": "נתראה מחר",
+        "romanization": "nitra'e machar"
+      },
+      "greek": {
+        "native": "Τα λέμε αύριο",
+        "romanization": "ta léme ávrio"
+      }
+    },
+    "happy birthday": {
+      "mandarin": {
+        "native": "生日快乐",
+        "romanization": "shēngrì kuàilè"
+      },
+      "hindi": {
+        "native": "जन्मदिन मुबारक",
+        "romanization": "janmadin mubārak"
+      },
+      "arabic": {
+        "native": "عيد ميلاد سعيد",
+        "romanization": "ʿīd mīlād saʿīd"
+      },
+      "russian": {
+        "native": "С днём рождения",
+        "romanization": "s dnyom rozhdeniya"
+      },
+      "hebrew": {
+        "native": "יום הולדת שמח",
+        "romanization": "yom huledet sameach"
+      },
+      "greek": {
+        "native": "Χρόνια πολλά",
+        "romanization": "chrónia pollá",
+        "note": "literally 'many years'; the usual birthday wish"
+      }
+    },
+    "thank you very much": {
+      "mandarin": {
+        "native": "非常感谢",
+        "romanization": "fēicháng gǎnxiè"
+      },
+      "hindi": {
+        "native": "बहुत धन्यवाद",
+        "romanization": "bahut dhanyavād"
+      },
+      "arabic": {
+        "native": "شكرا جزيلا",
+        "romanization": "shukran jazīlan"
+      },
+      "russian": {
+        "native": "Большое спасибо",
+        "romanization": "bol'shoye spasibo"
+      },
+      "hebrew": {
+        "native": "תודה רבה",
+        "romanization": "toda raba"
+      },
+      "greek": {
+        "native": "Ευχαριστώ πολύ",
+        "romanization": "efcharistó polý"
+      }
+    },
+    "good night": {
+      "mandarin": {
+        "native": "晚安",
+        "romanization": "wǎn'ān"
+      },
+      "hindi": {
+        "native": "शुभ रात्रि",
+        "romanization": "śubh rātri"
+      },
+      "arabic": {
+        "native": "تصبح على خير",
+        "romanization": "tuṣbiḥ ʿalā khayr",
+        "note": "to a man; to a woman: تصبحين على خير (tuṣbiḥīn ʿalā khayr)"
+      },
+      "russian": {
+        "native": "Спокойной ночи",
+        "romanization": "spokoynoy nochi"
+      },
+      "hebrew": {
+        "native": "לילה טוב",
+        "romanization": "layla tov"
+      },
+      "greek": {
+        "native": "Καληνύχτα",
+        "romanization": "kalinýchta"
+      }
+    },
+    "how are you": {
+      "mandarin": {
+        "native": "你好吗",
+        "romanization": "nǐ hǎo ma"
+      },
+      "hindi": {
+        "native": "आप कैसे हैं",
+        "romanization": "āp kaise haiṁ",
+        "note": "to a man; to a woman: आप कैसी हैं (āp kaisī haiṁ)"
+      },
+      "arabic": {
+        "native": "كيف حالك",
+        "romanization": "kayfa ḥāluk"
+      },
+      "russian": {
+        "native": "Как дела",
+        "romanization": "kak dela"
+      },
+      "hebrew": {
+        "native": "מה נשמע",
+        "romanization": "ma nishma",
+        "note": "casual and works for anyone"
+      },
+      "greek": {
+        "native": "Τι κάνεις",
+        "romanization": "ti káneis",
+        "note": "informal; to someone you'd address formally: Τι κάνετε (ti kánete)"
+      }
+    }
+  }
+}

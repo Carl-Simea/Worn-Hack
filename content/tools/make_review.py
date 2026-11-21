@@ -37,6 +37,17 @@ if names.is_dir():
             out.append(f"| ☐ | {ex['name']} | **{ex['written']}** | {ex.get('note', '')} |")
         out.append("")
 
+pb = C / "phrases" / "examples.json"
+if pb.exists():
+    P = json.loads(pb.read_text(encoding="utf-8"))["phrases"]
+    out += ["## Phrasebook for 'Help me write' (`phrases/examples.json`)", "",
+            "Answered before any model, so a wrong row would be taught as-is. Check native text, romanization and notes.", "",
+            "| ✓ | English | Language | Native | Romanization | Note |", "|---|---|---|---|---|---|"]
+    for en, row in P.items():
+        for lang, v in row.items():
+            out.append(f"| ☐ | {en} | {lang} | **{v['native']}** | {v['romanization']} | {v.get('note', '')} |")
+    out.append("")
+
 for fname, title in (("reactions.json", "Reactions (spoken + shown)"), ("milestones.json", "Milestones")):
     f = C / fname
     if f.exists():

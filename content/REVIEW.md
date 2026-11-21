@@ -166,6 +166,55 @@ These are rough English-sound → script maps for fun, not official transliterat
 | ☐ | Adam | **אדם** |  |
 | ☐ | David | **דייוויד** |  |
 
+## Phrasebook for 'Help me write' (`phrases/examples.json`)
+
+Answered before any model, so a wrong row would be taught as-is. Check native text, romanization and notes.
+
+| ✓ | English | Language | Native | Romanization | Note |
+|---|---|---|---|---|---|
+| ☐ | good morning | mandarin | **早上好** | zǎoshang hǎo |  |
+| ☐ | good morning | hindi | **सुप्रभात** | suprabhāt | formal; many people also just say नमस्ते |
+| ☐ | good morning | arabic | **صباح الخير** | ṣabāḥ al-khayr |  |
+| ☐ | good morning | russian | **Доброе утро** | dobroye utro |  |
+| ☐ | good morning | hebrew | **בוקר טוב** | boker tov |  |
+| ☐ | good morning | greek | **Καλημέρα** | kaliméra |  |
+| ☐ | nice to meet you | mandarin | **很高兴认识你** | hěn gāoxìng rènshi nǐ |  |
+| ☐ | nice to meet you | hindi | **आपसे मिलकर अच्छा लगा** | āpse milkar acchā lagā |  |
+| ☐ | nice to meet you | arabic | **تشرفنا** | tasharrafnā |  |
+| ☐ | nice to meet you | russian | **Приятно познакомиться** | priyatno poznakomit'sya |  |
+| ☐ | nice to meet you | hebrew | **נעים מאוד** | na'im me'od |  |
+| ☐ | nice to meet you | greek | **Χάρηκα πολύ** | chárika polý |  |
+| ☐ | see you tomorrow | mandarin | **明天见** | míngtiān jiàn |  |
+| ☐ | see you tomorrow | hindi | **कल मिलते हैं** | kal milte haiṁ |  |
+| ☐ | see you tomorrow | arabic | **أراك غدا** | arāka ghadan | to a man; to a woman: أراكِ غدا (arāki ghadan) |
+| ☐ | see you tomorrow | russian | **До завтра** | do zavtra |  |
+| ☐ | see you tomorrow | hebrew | **נתראה מחר** | nitra'e machar |  |
+| ☐ | see you tomorrow | greek | **Τα λέμε αύριο** | ta léme ávrio |  |
+| ☐ | happy birthday | mandarin | **生日快乐** | shēngrì kuàilè |  |
+| ☐ | happy birthday | hindi | **जन्मदिन मुबारक** | janmadin mubārak |  |
+| ☐ | happy birthday | arabic | **عيد ميلاد سعيد** | ʿīd mīlād saʿīd |  |
+| ☐ | happy birthday | russian | **С днём рождения** | s dnyom rozhdeniya |  |
+| ☐ | happy birthday | hebrew | **יום הולדת שמח** | yom huledet sameach |  |
+| ☐ | happy birthday | greek | **Χρόνια πολλά** | chrónia pollá | literally 'many years'; the usual birthday wish |
+| ☐ | thank you very much | mandarin | **非常感谢** | fēicháng gǎnxiè |  |
+| ☐ | thank you very much | hindi | **बहुत धन्यवाद** | bahut dhanyavād |  |
+| ☐ | thank you very much | arabic | **شكرا جزيلا** | shukran jazīlan |  |
+| ☐ | thank you very much | russian | **Большое спасибо** | bol'shoye spasibo |  |
+| ☐ | thank you very much | hebrew | **תודה רבה** | toda raba |  |
+| ☐ | thank you very much | greek | **Ευχαριστώ πολύ** | efcharistó polý |  |
+| ☐ | good night | mandarin | **晚安** | wǎn'ān |  |
+| ☐ | good night | hindi | **शुभ रात्रि** | śubh rātri |  |
+| ☐ | good night | arabic | **تصبح على خير** | tuṣbiḥ ʿalā khayr | to a man; to a woman: تصبحين على خير (tuṣbiḥīn ʿalā khayr) |
+| ☐ | good night | russian | **Спокойной ночи** | spokoynoy nochi |  |
+| ☐ | good night | hebrew | **לילה טוב** | layla tov |  |
+| ☐ | good night | greek | **Καληνύχτα** | kalinýchta |  |
+| ☐ | how are you | mandarin | **你好吗** | nǐ hǎo ma |  |
+| ☐ | how are you | hindi | **आप कैसे हैं** | āp kaise haiṁ | to a man; to a woman: आप कैसी हैं (āp kaisī haiṁ) |
+| ☐ | how are you | arabic | **كيف حالك** | kayfa ḥāluk |  |
+| ☐ | how are you | russian | **Как дела** | kak dela |  |
+| ☐ | how are you | hebrew | **מה נשמע** | ma nishma | casual and works for anyone |
+| ☐ | how are you | greek | **Τι κάνεις** | ti káneis | informal; to someone you'd address formally: Τι κάνετε (ti kánete) |
+
 ## Reactions (spoken + shown) (English only; check tone: goofy, never mean)
 
 - **correct**: Chef's kiss! / Nailed it! / Clean strokes! / Look at that handwriting! / Ten out of ten, no notes. / Your pen knows what it's doing. / Textbook! / Smooth!
