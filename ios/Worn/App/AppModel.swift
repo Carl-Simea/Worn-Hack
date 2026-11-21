@@ -221,12 +221,17 @@ final class AppModel {
         let hex = char.unicodeScalars.map { String($0.value, radix: 16) }.joined(separator: "-")
         var candidates = [hint].compactMap { $0 }
         candidates += ["/static/content/strokes/\(lang)/\(hex).json", "/static/content/strokes/\(lang)/\(hex).svg"]
+        var onlyNotFound = true
         for path in candidates {
-            guard let data = try? await api.staticFile(path) else { continue }
+            let data: Data
+            do { data = try await api.staticFile(path) } catch APIError.notFound { continue } catch {
+                onlyNotFound = false   // timeout / offline: try again next time, don't remember it as "no strokes"
+                continue
+            }
             let parsed: StrokeData? = path.hasSuffix(".svg") ? StrokeData.svgCenterlines(data) : try? StrokeData.hanziWriter(data)
             if let parsed, parsed.count > 0 { strokeCache[key] = parsed; return parsed }
         }
-        strokeMisses.insert(key)
+        if onlyNotFound { strokeMisses.insert(key) }
         return nil
     }
 

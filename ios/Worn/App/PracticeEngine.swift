@@ -98,6 +98,13 @@ final class PracticeEngine {
         running = true
         app.practice = self
         app.report("practice.start", ["mode": .string(mode.rawValue), "title": .string(title), "count": .int(queue.count)])
+        // Fetch every character's stroke data up front so a slow moment mid-run can't cost a character its animation.
+        let upcoming = queue
+        Task { [app] in
+            for it in upcoming.dropFirst() {
+                _ = await app.strokes(lang: it.lang, char: it.char, hint: it.phrase.strokeURL(at: it.charIndex))
+            }
+        }
         Task { await begin(index: 0) }
         tickTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -408,6 +415,12 @@ final class PracticeEngine {
         }
         let milestone = r.correct ? earnMilestone(item) : nil
         newMilestone = milestone
+        if let m = milestone {
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(4.2))
+                if self?.newMilestone == m { self?.newMilestone = nil }
+            }
+        }
         if milestone != nil { key = "milestone" }
         reactionLine = milestone?.line.shown ?? line ?? r.reaction ?? r.feedback
         let sounds = app.reactions.sounds(key)

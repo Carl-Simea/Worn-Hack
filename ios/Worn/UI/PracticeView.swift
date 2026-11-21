@@ -531,7 +531,8 @@ private struct SummaryView: View {
             VStack(spacing: 18) {
                 Image(systemName: "seal.fill").font(.system(size: 54)).foregroundStyle(Theme.accent).symbolEffect(.bounce, value: engine.outcomes.count)
                 Text("Well written").font(Theme.display(34, weight: .medium))
-                Text("\(engine.outcomes.count) characters · average \(average)").font(Theme.sans(15)).foregroundStyle(Theme.inkSoft)
+                Text("\(engine.outcomes.count) \(engine.outcomes.count == 1 ? "character" : "characters") · average \(average)")
+                    .font(Theme.sans(15)).foregroundStyle(Theme.inkSoft)
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 10)], spacing: 10) {
                     ForEach(engine.outcomes) { o in
                         VStack(spacing: 4) {
