@@ -1,0 +1,9 @@
+{
+  "name": "Worn",
+  "short_name": "Worn",
+  "start_url": "../learn.html",
+  "scope": "../",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#58CC02"
+}

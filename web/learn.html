@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="learn/manifest.json">
+<title>Worn</title>
+<!-- Worn learning app (owner: Favor). Duolingo-style path; writing steps play on the glasses.
+     On the iPhone: http://<laptop-ip>:8000/static/web/learn.html  (Share -> Add to Home Screen for full screen)
+     Without the backend: python3 -m http.server 8080 from the repo root -> http://localhost:8080/web/learn.html
+     ?unlock=1 opens every lesson (demo). Progress is saved on the phone (localStorage). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root { --green:#58CC02; --green-d:#58A700; --blue:#1CB0F6; --blue-d:#1899D6; --red:#FF4B4B; --red-d:#EA2B2B;
+          --gold:#FFC800; --gold-d:#E5A400; --ink:#3C3C3C; --mute:#777; --line:#E5E5E5; --bg:#fff; --soft:#F7F7F7;
+          --unit:#58CC02; --unit-d:#58A700; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); overscroll-behavior:none;
+    font-family:"Nunito", ui-rounded, "SF Pro Rounded", -apple-system, system-ui, "Noto Sans CJK SC", "Noto Sans Devanagari", "Noto Naskh Arabic", sans-serif; }
+  button { font-family:inherit; }
+  .zh { font-family:"PingFang SC","Noto Sans CJK SC","Hiragino Sans",sans-serif; }
+  .screen { position:fixed; inset:0; display:none; flex-direction:column; background:var(--bg); }
+  .screen.on { display:flex; }
+
+  /* ---------- top bar ---------- */
+  .top { display:flex; align-items:center; justify-content:space-between; padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;
+         border-bottom:2px solid var(--line); background:#fff; z-index:5; }
+  .stat { display:flex; align-items:center; gap:6px; font-weight:800; font-size:17px; border:none; background:none; color:var(--ink); padding:6px 4px; cursor:pointer; }
+  .stat .ic { font-size:22px; }
+  .stat.fire { color:#FF9600; } .stat.gem { color:var(--blue); } .stat.heart { color:var(--red); }
+  .stat.dim { color:#AFAFAF; filter:grayscale(1); }
+  .langbtn { display:flex; align-items:center; gap:6px; border:2px solid var(--line); border-radius:12px; padding:4px 10px 4px 4px; background:#fff; cursor:pointer; }
+  .badge { width:30px; height:30px; border-radius:8px; display:grid; place-items:center; color:#fff; font-weight:900; font-size:17px; }
+  .langbtn b { font-size:15px; }
+
+  /* ---------- path ---------- */
+  #pathScroll { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px 16px 220px; scroll-padding-bottom:110px; }
+  .unit { margin:8px 0 26px; }
+  .ubanner { border-radius:16px; padding:16px 18px; color:#fff; box-shadow:0 4px 0 var(--d); display:flex; justify-content:space-between; align-items:center; }
+  .ubanner h3 { margin:0; font-size:13px; letter-spacing:1px; text-transform:uppercase; opacity:.9; font-weight:800; }
+  .ubanner p { margin:2px 0 0; font-size:20px; font-weight:900; }
+  .ubanner small { display:block; font-size:14px; font-weight:700; opacity:.9; margin-top:2px; }
+  .ubanner .guide { font-size:30px; }
+  .nodes { position:relative; display:flex; flex-direction:column; align-items:center; padding-top:60px; }
+  .nwrap { position:relative; margin:0 0 22px; }
+  .node { width:76px; height:70px; border-radius:50%; border:none; cursor:pointer; position:relative;
+          background:var(--c); box-shadow:0 7px 0 var(--d); color:#fff; font-size:26px; font-weight:900; display:grid; place-items:center;
+          transition:transform .08s; }
+  .node:active { transform:translateY(5px); box-shadow:0 2px 0 var(--d); }
+  .node.locked { --c:#E5E5E5; --d:#AFAFAF; color:#AFAFAF; cursor:pointer; }
+  .node.done { --c:var(--gold); --d:var(--gold-d); }
+  .node .lbl { max-width:64px; overflow:hidden; white-space:nowrap; text-overflow:clip; line-height:1; }
+  .node .lbl.long { font-size:18px; }
+  .ring { position:absolute; left:-9px; top:-9px; width:94px; height:94px; border-radius:50%; border:6px solid var(--line); pointer-events:none; }
+  .ring.cur { border-color:var(--c); opacity:.35; }
+  .startTag { position:absolute; left:50%; top:-46px; transform:translateX(-50%); background:#fff; color:var(--c); border:2px solid var(--line);
+              font-weight:900; font-size:15px; padding:6px 12px; border-radius:12px; letter-spacing:1px; white-space:nowrap; animation:bob 1.2s ease-in-out infinite; }
+  .startTag::after { content:""; position:absolute; left:50%; bottom:-8px; margin-left:-7px; border:7px solid transparent; border-top-color:#fff; border-bottom:0; }
+  @keyframes bob { 50% { transform:translate(-50%, -6px); } }
+  .pop { position:absolute; left:50%; top:96px; transform:translateX(-50%); width:280px; background:var(--c); color:#fff; border-radius:16px; padding:16px; z-index:10;
+         box-shadow:0 8px 24px rgba(0,0,0,.15); animation:popin .15s ease-out; }
+  .pop::before { content:""; position:absolute; left:50%; top:-9px; margin-left:-10px; border:10px solid transparent; border-bottom-color:var(--c); border-top:0; }
+  .pop h4 { margin:0; font-size:19px; font-weight:900; }
+  .pop p { margin:4px 0 12px; font-weight:700; opacity:.9; font-size:15px; }
+  .pop.locked { background:#F7F7F7; color:#AFAFAF; border:2px solid var(--line); }
+  .pop.locked::before { border-bottom-color:#F7F7F7; }
+  @keyframes popin { from { opacity:0; transform:translate(-50%, -6px); } }
+
+  /* ---------- bottom nav ---------- */
+  .nav { position:fixed; left:0; right:0; bottom:0; display:flex; justify-content:space-around; border-top:2px solid var(--line); background:#fff;
+         padding:8px 0 calc(env(safe-area-inset-bottom) + 8px); z-index:6; }
+  .nav button { border:2px solid transparent; background:none; border-radius:12px; padding:6px 18px; font-size:26px; cursor:pointer; }
+  .nav button.on { border-color:#84D8FF; background:#DDF4FF; }
+
+  /* ---------- buttons ---------- */
+  .btn { display:block; width:100%; border:none; border-radius:16px; padding:15px; font-size:17px; font-weight:900; letter-spacing:.8px; text-transform:uppercase;
+         background:var(--green); color:#fff; box-shadow:0 4px 0 var(--green-d); cursor:pointer; }
+  .btn:active { transform:translateY(3px); box-shadow:0 1px 0 var(--green-d); }
+  .btn:disabled { background:#E5E5E5; color:#AFAFAF; box-shadow:0 4px 0 #CDCDCD; cursor:default; transform:none; }
+  .btn.white { background:#fff; color:var(--c, var(--green)); box-shadow:0 4px 0 rgba(0,0,0,.18); }
+  .btn.blue { background:var(--blue); box-shadow:0 4px 0 var(--blue-d); }
+  .btn.red { background:var(--red); box-shadow:0 4px 0 var(--red-d); }
+  .btn.ghost { background:#fff; color:var(--blue); border:2px solid var(--line); box-shadow:0 4px 0 var(--line); }
+  .btn.link { background:none; color:#AFAFAF; box-shadow:none; padding:10px; }
+  .row { display:flex; gap:12px; } .row > * { flex:1; }
+
+  /* ---------- lesson ---------- */
+  .lhead { display:flex; align-items:center; gap:14px; padding:calc(env(safe-area-inset-top) + 14px) 16px 8px; }
+  .x { border:none; background:none; font-size:28px; color:#AFAFAF; cursor:pointer; padding:0 4px; line-height:1; }
+  .prog { flex:1; height:16px; background:var(--line); border-radius:8px; overflow:hidden; }
+  .prog i { display:block; height:100%; width:0; background:var(--green); border-radius:8px; transition:width .35s;
+            box-shadow:inset 0 -4px 0 rgba(0,0,0,.05), inset 0 4px 0 rgba(255,255,255,.3); }
+  .lhearts { color:var(--red); font-weight:900; font-size:18px; white-space:nowrap; }
+  #stage { flex:1; overflow-y:auto; padding:10px 18px 20px; display:flex; flex-direction:column; }
+  .kicker { color:#CE82FF; font-weight:900; font-size:14px; letter-spacing:1px; text-transform:uppercase; margin:6px 0 2px; }
+  .q { font-size:24px; font-weight:900; margin:4px 0 16px; line-height:1.25; }
+  .card { border:2px solid var(--line); border-radius:20px; padding:18px; text-align:center; }
+  .bigch { font-size:120px; line-height:1.1; font-weight:500; }
+  .sound { color:var(--blue); font-size:26px; font-weight:900; margin-top:6px; }
+  .gl { color:var(--mute); font-size:18px; font-weight:700; }
+  .speak { width:64px; height:64px; border-radius:16px; border:none; background:var(--blue); color:#fff; font-size:30px; box-shadow:0 4px 0 var(--blue-d); cursor:pointer; }
+  .speak.sm { width:48px; height:48px; font-size:22px; border-radius:12px; }
+  .opts { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .opts.list { grid-template-columns:1fr; }
+  .opt { border:2px solid var(--line); border-bottom-width:4px; border-radius:16px; background:#fff; padding:16px 10px; font-size:40px; cursor:pointer; color:var(--ink); min-height:96px; }
+  .opts.list .opt { font-size:20px; font-weight:800; min-height:0; text-align:left; padding:16px; }
+  .opt.sel { border-color:#84D8FF; background:#DDF4FF; color:var(--blue-d); }
+  .opt.right { border-color:var(--green); background:#D7FFB8; color:var(--green-d); }
+  .opt.wrong { border-color:var(--red); background:#FFDFE0; color:var(--red-d); }
+
+  /* write step */
+  .glassbox { position:relative; width:240px; height:240px; margin:0 auto; background:#111; border-radius:20px; overflow:hidden; }
+  .glassbox::before, .glassbox::after { content:""; position:absolute; background:#2a2f38; }
+  .glassbox::before { left:50%; top:0; bottom:0; width:1px; } .glassbox::after { top:50%; left:0; right:0; height:1px; }
+  .glassbox .anim { position:absolute; left:8px; top:8px; width:224px; height:224px; z-index:1; }
+  .glassbox .rg { position:absolute; inset:0; z-index:2; display:none; place-items:center; background:#111; color:#fff; font-size:46px; font-weight:900; }
+  .glassbox .rg.on { display:grid; animation:pop .4s ease-out; } .glassbox .rg.go { color:#3ef08a; font-size:60px; }
+  @keyframes pop { from { transform:scale(.6); opacity:0; } }
+  .snum { text-align:center; color:var(--mute); font-weight:800; margin:8px 0 2px; min-height:22px; font-size:15px; }
+  .chips { display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin:6px 0 12px; }
+  .chip { font-size:13px; font-weight:800; padding:6px 10px; border-radius:999px; background:var(--soft); color:var(--mute); border:2px solid var(--line); }
+  .chip.ok { background:#D7FFB8; color:var(--green-d); border-color:#B8F28B; }
+  .chip.wait { background:#DDF4FF; color:var(--blue-d); border-color:#84D8FF; }
+  .chip.bad { background:#FFDFE0; color:var(--red-d); border-color:#FFB2B2; }
+  .instr { text-align:center; font-size:17px; font-weight:800; color:var(--ink); margin:6px 0 4px; }
+  .instr b { color:var(--blue); }
+  .phrase { text-align:center; font-size:30px; margin:-6px 0 8px; }
+  .phrase span { color:#BDBDBD; } .phrase span.cur { color:var(--ink); border-bottom:3px solid var(--blue); }
+  .phrase.rtl { direction:rtl; }
+
+  .foot { padding:14px 16px calc(env(safe-area-inset-bottom) + 16px); border-top:2px solid var(--line); background:#fff; }
+  .fb { padding:16px 16px calc(env(safe-area-inset-bottom) + 16px); display:none; }
+  .fb.on { display:block; animation:up .2s ease-out; }
+  @keyframes up { from { transform:translateY(40px); opacity:0; } }
+  .fb.ok { background:#D7FFB8; } .fb.bad { background:#FFDFE0; }
+  .fb h3 { margin:0 0 4px; font-size:22px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .fb.ok h3 { color:var(--green-d); } .fb.bad h3 { color:var(--red-d); }
+  .fb p { margin:0 0 14px; font-weight:700; font-size:16px; }
+  .fb.ok p { color:var(--green-d); } .fb.bad p { color:var(--red-d); }
+  .fb.bad .btn:not(.link) { background:var(--red); box-shadow:0 4px 0 var(--red-d); }
+
+  /* done */
+  .done { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center; }
+  .done .trophy { font-size:96px; animation:pop .5s ease-out; }
+  .done h2 { color:var(--gold-d); font-size:30px; font-weight:900; margin:10px 0 24px; }
+  .tiles { display:flex; gap:12px; width:100%; max-width:380px; }
+  .tile { flex:1; border:2px solid var(--c); border-radius:16px; overflow:hidden; }
+  .tile h5 { margin:0; background:var(--c); color:#fff; font-size:12px; letter-spacing:1px; text-transform:uppercase; padding:5px; font-weight:900; }
+  .tile div { padding:12px 4px; font-size:22px; font-weight:900; color:var(--c); }
+
+  /* sheets & panels */
+  .sheet { position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:flex-end; z-index:30; }
+  .sheet.on { display:flex; }
+  .sheet .panel { background:#fff; width:100%; border-radius:22px 22px 0 0; padding:20px 16px calc(env(safe-area-inset-bottom) + 20px); animation:up .2s ease-out; }
+  .sheet h3 { margin:0 0 14px; font-size:20px; font-weight:900; }
+  .lrow { display:flex; align-items:center; gap:14px; width:100%; border:2px solid var(--line); border-bottom-width:4px; border-radius:16px; background:#fff;
+          padding:12px 14px; margin-bottom:10px; cursor:pointer; text-align:left; }
+  .lrow.on { border-color:#84D8FF; background:#DDF4FF; }
+  .lrow .badge { width:44px; height:44px; font-size:24px; border-radius:12px; }
+  .lrow b { font-size:18px; display:block; } .lrow span { color:var(--mute); font-weight:700; font-size:14px; }
+  .page { flex:1; overflow-y:auto; padding:18px 16px 120px; }
+  .page h2 { margin:6px 0 14px; font-size:26px; font-weight:900; }
+  .box { border:2px solid var(--line); border-radius:16px; padding:16px; margin-bottom:14px; }
+  .box h4 { margin:0 0 6px; font-size:17px; font-weight:900; } .box p { margin:0; color:var(--mute); font-weight:700; }
+  .kv { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+  .kv div { border:2px solid var(--line); border-radius:16px; padding:14px; font-weight:900; font-size:22px; }
+  .kv small { display:block; color:var(--mute); font-size:13px; font-weight:800; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:#AFAFAF; margin-right:6px; }
+  .dot.ok { background:var(--green); } .dot.bad { background:var(--red); }
+  .toast { position:fixed; left:50%; top:calc(env(safe-area-inset-top) + 70px); transform:translateX(-50%); background:var(--ink); color:#fff; font-weight:800;
+           padding:10px 16px; border-radius:12px; z-index:50; opacity:0; transition:opacity .2s; pointer-events:none; white-space:nowrap; }
+  .toast.on { opacity:1; }
+
+  /* ---------- demo mode: no server + wide window -> phone frame beside a simulated glasses display ---------- */
+  #stageWrap { display:none; }
+  html.demo, html.demo body { background:#0f1115; overflow:auto; height:auto; min-height:100%; }
+  html.demo #stageWrap { display:flex; flex-wrap:wrap; gap:32px; justify-content:center; align-items:flex-start; padding:28px 20px 40px; }
+  html.demo #device { position:relative; width:390px; height:800px; flex:none; border-radius:46px; overflow:hidden; background:#fff;
+                      border:10px solid #1b1d22; box-shadow:0 30px 60px rgba(0,0,0,.45); transform:translateZ(0); }
+  html.demo .screen, html.demo .nav, html.demo .sheet { position:absolute; }
+  #glassCol { flex:1 1 520px; max-width:680px; min-width:300px; color:#e8ebf0; }
+  #glassCol h1 { font-size:30px; line-height:1.1; margin:6px 0 6px; font-weight:900; color:#fff; }
+  #glassCol .lede { color:#9aa3b0; font-weight:700; margin:0 0 18px; font-size:16px; }
+  #gsFrame { position:relative; width:100%; aspect-ratio:4/3; border-radius:22px; overflow:hidden; background:#000; box-shadow:0 0 0 2px #2a2f38, 0 24px 50px rgba(0,0,0,.5); }
+  #gs { position:absolute; left:0; top:0; width:640px; height:480px; transform-origin:0 0; background:#000; color:#fff;
+        font-family:"Noto Sans","Noto Sans CJK SC","PingFang SC","Noto Sans Devanagari","Noto Naskh Arabic",Roboto,sans-serif; }
+  #gs .scr { position:absolute; inset:0; display:none; } #gs .scr.on { display:block; }
+  #gsIdle { text-align:center; } #gsIdle b { display:block; font-size:64px; margin-top:150px; letter-spacing:4px; } #gsIdle span { font-size:26px; color:#8a8f98; }
+  #gsStrip { position:absolute; left:16px; right:16px; top:10px; height:56px; display:flex; align-items:center; justify-content:center; font-size:40px; white-space:nowrap; }
+  #gsStrip span { color:#8a8f98; margin:0 3px; } #gsStrip span.done { color:#5e6d63; } #gsStrip span.cur { color:#5cd6ff; border-bottom:3px solid #5cd6ff; }
+  #gsBoard { position:absolute; left:16px; top:76px; width:340px; height:340px; border:2px solid #2a2f38; border-radius:14px; }
+  #gsBoard::before, #gsBoard::after { content:""; position:absolute; background:#2a2f38; }
+  #gsBoard::before { left:50%; top:0; bottom:0; width:1px; } #gsBoard::after { top:50%; left:0; right:0; height:1px; }
+  #gsAnim { position:absolute; left:10px; top:10px; width:316px; height:316px; }
+  #gsReady { position:absolute; left:16px; top:76px; width:340px; height:340px; display:none; text-align:center; line-height:340px; font-size:76px; font-weight:700; background:#000; border-radius:14px; }
+  #gsReady.on { display:block; animation:pop .45s ease-out; } #gsReady.go { color:#3ef08a; font-size:96px; }
+  #gsNo { position:absolute; left:16px; top:424px; width:340px; text-align:center; font-size:22px; color:#8a8f98; }
+  #gsSide { position:absolute; left:376px; top:76px; width:248px; height:340px; }
+  #gsRom { font-size:38px; font-weight:700; color:#5cd6ff; line-height:1.15; word-wrap:break-word; }
+  #gsMean { font-size:24px; margin-top:10px; } #gsLang { font-size:18px; margin-top:14px; color:#8a8f98; text-transform:uppercase; letter-spacing:1px; }
+  #gsPrompt { position:absolute; bottom:0; left:0; right:0; font-size:22px; line-height:1.3; } #gsPrompt b { color:#5cd6ff; }
+  #gsCount { position:absolute; right:16px; top:430px; font-size:20px; color:#8a8f98; }
+  #gsRes { position:absolute; inset:0; background:rgba(0,0,0,.88); display:none; text-align:center; }
+  #gsRes.on { display:block; } #gsResIcon { font-size:190px; line-height:1; margin-top:46px; font-weight:700; color:#3ef08a; }
+  #gsResText { font-size:34px; line-height:1.25; margin:18px 30px 0; } #gsResScore { font-size:22px; color:#8a8f98; margin-top:14px; }
+  #gsBtn { margin-top:16px; width:100%; border:none; border-radius:16px; padding:15px; font-size:17px; font-weight:900; letter-spacing:.8px; text-transform:uppercase;
+           background:#1CB0F6; color:#fff; box-shadow:0 4px 0 #1899D6; cursor:pointer; font-family:inherit; }
+  #gsBtn:disabled { background:#2a2f38; color:#6b7380; box-shadow:0 4px 0 #1b1f26; cursor:default; }
+  #gsBtn:active:not(:disabled) { transform:translateY(3px); box-shadow:0 1px 0 #1899D6; }
+  #glassCol .note { color:#7d8694; font-size:13px; font-weight:700; margin-top:14px; line-height:1.5; }
+  @media (max-width:960px) { #glassCol { order:-1; max-width:430px; } #glassCol .lede, #glassCol .note { display:none; } #glassCol h1 { font-size:22px; } html.demo #stageWrap { gap:18px; padding-top:16px; } }
+</style>
+</head>
+<body>
+<div id="stageWrap">
+<div id="device">
+
+<!-- ===================== HOME (path) ===================== -->
+<section id="home" class="screen on">
+  <div class="top">
+    <button class="langbtn" id="langBtn"><span class="badge" id="langBadge">中</span><b id="langName">Mandarin</b></button>
+    <button class="stat fire" id="streakStat"><span class="ic">🔥</span><span id="streakN">0</span></button>
+    <button class="stat gem"><span class="ic">💎</span><span id="xpN">0</span></button>
+    <button class="stat heart" id="heartStat"><span class="ic">❤️</span><span id="heartN">5</span></button>
+  </div>
+  <div id="pathScroll"></div>
+</section>
+
+<!-- ===================== GLASSES tab ===================== -->
+<section id="glassesTab" class="screen">
+  <div class="top"><b style="font-size:20px;font-weight:900">Glasses</b><span></span></div>
+  <div class="page">
+    <div class="box"><h4><span class="dot" id="srvDot"></span><span id="srvText">Checking the server…</span></h4><p id="srvSub"></p></div>
+    <div class="box"><h4>How it works</h4><p>Pick a lesson here. When it’s time to write, the character pops up on your glasses: “Ready… Go!”, then the strokes play slow, faster, full speed. Write it on paper and press the button on the glasses. Your score shows up here.</p></div>
+    <button class="btn blue" id="testGlasses">Send a test character</button>
+    <div style="height:12px"></div>
+    <button class="btn ghost" id="clearGlasses">Check another way: phone camera</button>
+  </div>
+</section>
+
+<!-- ===================== PROFILE tab ===================== -->
+<section id="profileTab" class="screen">
+  <div class="top"><b style="font-size:20px;font-weight:900">Profile</b><span></span></div>
+  <div class="page">
+    <div class="kv">
+      <div><small>Day streak</small>🔥 <span id="pStreak">0</span></div>
+      <div><small>Total XP</small>💎 <span id="pXp">0</span></div>
+      <div><small>Lessons done</small>✅ <span id="pDone">0</span></div>
+      <div><small>Characters written</small>✍️ <span id="pChars">0</span></div>
+    </div>
+    <div class="box" id="pLangs"></div>
+    <button class="btn ghost" id="unlockBtn">Unlock every lesson (demo)</button>
+    <div style="height:12px"></div>
+    <button class="btn link" id="resetBtn">Reset my progress</button>
+  </div>
+</section>
+
+<nav class="nav" id="nav">
+  <button data-tab="home" class="on" aria-label="Learn">🏠</button>
+  <button data-tab="glassesTab" aria-label="Glasses">👓</button>
+  <button data-tab="profileTab" aria-label="Profile">👤</button>
+</nav>
+
+<!-- ===================== LESSON ===================== -->
+<section id="lesson" class="screen">
+  <div class="lhead">
+    <button class="x" id="quit" aria-label="Quit lesson">✕</button>
+    <div class="prog"><i id="progBar"></i></div>
+    <div class="lhearts">❤️ <span id="lHearts">5</span></div>
+  </div>
+  <div id="stage"></div>
+  <div class="foot" id="foot"><button class="btn" id="mainBtn" disabled>Check</button></div>
+  <div class="fb" id="fb"><h3 id="fbTitle"></h3><p id="fbText"></p><button class="btn" id="fbBtn">Continue</button><button class="btn link" id="fbAlt" style="display:none"></button></div>
+</section>
+
+<!-- ===================== LESSON COMPLETE ===================== -->
+<section id="doneScreen" class="screen">
+  <div class="done">
+    <div class="trophy" id="doneIcon">🏆</div>
+    <h2 id="doneTitle">Lesson complete!</h2>
+    <div class="tiles">
+      <div class="tile" style="--c:#FFC800"><h5>Total XP</h5><div id="dXp">10</div></div>
+      <div class="tile" style="--c:#58CC02"><h5>Accuracy</h5><div id="dAcc">100%</div></div>
+      <div class="tile" style="--c:#1CB0F6"><h5>Written</h5><div id="dWrote">0</div></div>
+    </div>
+  </div>
+  <div class="foot"><button class="btn" id="doneBtn">Continue</button></div>
+</section>
+
+<!-- language picker -->
+<div class="sheet" id="langSheet"><div class="panel"><h3>I want to learn…</h3><div id="langList"></div></div></div>
+<input type="file" id="camInput" accept="image/*" capture="environment" style="display:none">
+<div class="toast" id="toast"></div>
+</div><!-- /device -->
+
+<!-- simulated glasses (demo mode only: shown when there is no server and the window is wide) -->
+<div id="glassCol" aria-label="Simulated glasses display">
+  <h1>Pick it on the phone. Write it with the glasses.</h1>
+  <p class="lede">Start a lesson on the phone. When it’s time to write, the character pops up on the glasses: Ready… Go!, then the strokes go slow, faster, full speed.</p>
+  <div id="gsFrame"><div id="gs">
+    <div id="gsIdle" class="scr on"><b>WORN</b><span>Pick a lesson on your phone</span></div>
+    <div id="gsWrite" class="scr">
+      <div id="gsStrip"></div>
+      <div id="gsBoard"><div id="gsAnim"></div></div>
+      <div id="gsReady"></div>
+      <div id="gsNo"></div>
+      <div id="gsSide"><div id="gsRom"></div><div id="gsMean"></div><div id="gsLang"></div>
+        <div id="gsPrompt">Write it on paper,<br>then <b>press the button</b></div></div>
+      <div id="gsCount"></div>
+    </div>
+    <div id="gsRes"><div id="gsResIcon">✓</div><div id="gsResText"></div><div id="gsResScore"></div></div>
+  </div></div>
+  <button id="gsBtn" disabled>Press the glasses button</button>
+  <p class="note">This is a simulation of the 640×480 glasses display (black is see-through on the real lenses). Grading is simulated here: on the real glasses the button takes a photo of your paper and a local vision AI grades it.</p>
+  <p class="note">Stroke data: Mandarin from Make Me a Hanzi / hanzi-writer-data (Arphic Public License); Japanese from KanjiVG © Ulrich Apel (CC BY-SA 3.0); Russian, Arabic and Hindi made by the Worn team.</p>
+</div>
+</div><!-- /stageWrap -->
+
+<script src="vendor/hanzi-writer.min.js"></script>
+<script src="worn-strokes.js"></script>
+<script src="learn/curriculum.js"></script>
+<script>
+(function () {
+  "use strict";
+  var C = window.WornCurriculum, META = C.META;
+  var LANGS = ["mandarin", "hindi", "arabic", "russian", "japanese"];
+  var UNIT_COLORS = [["#58CC02", "#58A700"], ["#1CB0F6", "#1899D6"], ["#CE82FF", "#A568CC"], ["#FF9600", "#CC7900"], ["#FF4B4B", "#EA2B2B"]];
+  var OFFSETS = [0, 48, 76, 48, 0, -48, -76, -48];
+  var qs = new URLSearchParams(location.search);
+  var API = (qs.get("api") || "").replace(/\/$/, "");
+  var live = false, ASSET = "../content/", content = {}, paths = {};
+  var KEY = "worn-learn-v1";
+  var st = loadState();
+  if (qs.get("unlock") === "1") { st.unlockAll = true; save(); }
+
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]; }); }
+  function hex(ch) { return Array.from(ch).map(function (c) { return c.codePointAt(0).toString(16); }).join("-"); }
+  function asset(rel) { return rel ? (/^(https?:)?\//.test(rel) ? rel : ASSET + rel) : null; }
+  function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function toast(m) { var t = $("toast"); t.textContent = m; t.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(function () { t.classList.remove("on"); }, 1800); }
+
+  // ---------------------------------------------------------------- state
+  function loadState() {
+    var d = { lang:"mandarin", done:{}, xp:0, hearts:5, streak:0, lastDay:"", learned:{}, wrote:0, unlockAll:false };
+    try { var s = JSON.parse(localStorage.getItem(KEY)); if (s) for (var k in s) d[k] = s[k]; } catch (e) {}
+    return d;
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
+  function today() { var d = new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
+  function bumpStreak() {
+    var t = today(); if (st.lastDay === t) return;
+    var y = new Date(); y.setDate(y.getDate() - 1);
+    var ys = y.getFullYear() + "-" + (y.getMonth() + 1) + "-" + y.getDate();
+    st.streak = st.lastDay === ys ? st.streak + 1 : 1; st.lastDay = t;
+  }
+
+  // ---------------------------------------------------------------- network
+  function getJSON(u) { return fetch(u, { cache:"no-store" }).then(function (r) { if (!r.ok) { var e = new Error(r.status); e.status = r.status; throw e; } return r.json(); }); }
+  function loadContent() {
+    return getJSON(API + "/content").then(function (j) {
+      live = true; ASSET = API + "/static/content/";
+      j.langs.forEach(function (l) { if (LANGS.indexOf(l.lang) >= 0) content[l.lang] = l; });
+    }).catch(function () {
+      live = false;
+      // ../content/ when served from web/ in the repo; content/ when this page sits at the root (the Claude demo)
+      return getJSON("../content/mandarin.json").then(function () { return "../content/"; }, function () { return "content/"; }).then(function (base) {
+        ASSET = base;
+        return Promise.all(LANGS.map(function (l) { return getJSON(base + l + ".json").then(function (j) { content[l] = j; }).catch(function () {}); }));
+      });
+    }).then(function () {
+      LANGS.forEach(function (l) { if (content[l]) paths[l] = C.build(l, content[l]); });
+    });
+  }
+  var strokeCache = {};
+  function strokeUrl(lang, ch) {
+    var key = lang + "/" + hex(ch);
+    if (key in strokeCache) return Promise.resolve(strokeCache[key]);
+    var exts = ["svg", "json"], i = 0;
+    function next() {
+      if (i >= exts.length) return (strokeCache[key] = "");
+      var u = ASSET + "strokes/" + key + "." + exts[i++];
+      return fetch(u, { method:"HEAD" }).then(function (r) { return r.ok ? (strokeCache[key] = u) : next(); }).catch(next);
+    }
+    return Promise.resolve(next());
+  }
+  function postSession(lang, phrase, idx) {
+    return fetch(API + "/session", { method:"POST", headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({ lang:lang, phrase_id:phrase, char_index:idx, mode:"write" }) })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+  }
+  function postPhoto(file, ch, lang) {
+    var fd = new FormData(); fd.append("image", file); fd.append("char", ch); fd.append("lang", lang);
+    return fetch(API + "/grade", { method:"POST", body:fd }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+  }
+
+  // ---------------------------------------------------------------- sound
+  var actx = null;
+  function beep(ok) {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      var notes = ok ? [880, 1320] : [300, 220], t = actx.currentTime;
+      notes.forEach(function (f, i) {
+        var o = actx.createOscillator(), g = actx.createGain(); o.type = ok ? "sine" : "triangle"; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t + i * 0.11); g.gain.exponentialRampToValueAtTime(0.25, t + i * 0.11 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.11 + 0.2);
+        o.connect(g); g.connect(actx.destination); o.start(t + i * 0.11); o.stop(t + i * 0.11 + 0.22);
+      });
+    } catch (e) {}
+  }
+  function say(text, lang) {
+    try { if (!window.speechSynthesis) return; speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(text); u.lang = META[lang].tts; u.rate = 0.8; speechSynthesis.speak(u); } catch (e) {}
+  }
+  var player = null;
+  function playPhrase(lang, phraseId) {
+    var p = phrase(lang, phraseId); if (!p) return;
+    if (p.audio) { if (player) player.pause(); player = new Audio(asset(p.audio)); player.play().catch(function () { say(p.text, lang); }); }
+    else say(p.text, lang);
+  }
+  function phrase(lang, id) { return content[lang] ? content[lang].phrases.filter(function (p) { return p.id === id; })[0] : null; }
+
+  // ---------------------------------------------------------------- home / path
+  function allLessons(lang) { var a = []; (paths[lang] || []).forEach(function (u) { u.lessons.forEach(function (l) { a.push(l); }); }); return a; }
+  function currentLesson(lang) { var a = allLessons(lang); for (var i = 0; i < a.length; i++) if (!st.done[a[i].id]) return a[i]; return null; }
+  function isUnlocked(lang, L) {
+    if (st.unlockAll || st.done[L.id]) return true;
+    var cur = currentLesson(lang); return cur && cur.id === L.id;
+  }
+
+  function renderTop() {
+    var m = META[st.lang];
+    $("langBadge").textContent = m.badge; $("langBadge").style.background = m.color; $("langName").textContent = m.short;
+    $("streakN").textContent = st.streak; $("xpN").textContent = st.xp; $("heartN").textContent = st.hearts;
+    $("streakStat").classList.toggle("dim", st.lastDay !== today());
+  }
+
+  var openPop = null;
+  function renderPath() {
+    renderTop();
+    var box = $("pathScroll"); box.innerHTML = ""; openPop = null;
+    var lang = st.lang, units = paths[lang] || [], cur = currentLesson(lang), k = 0, curEl = null;
+    if (!units.length) { box.innerHTML = '<div class="box"><h4>No lessons yet</h4><p>content/' + lang + '.json is missing.</p></div>'; return; }
+    units.forEach(function (u, ui) {
+      var col = UNIT_COLORS[ui % UNIT_COLORS.length];
+      var wrap = el("div", "unit"); wrap.style.setProperty("--c", col[0]); wrap.style.setProperty("--d", col[1]);
+      var ban = el("div", "ubanner"); ban.style.background = col[0];
+      ban.innerHTML = '<div><h3>Unit ' + u.n + '</h3><p>' + esc(u.title) + '</p><small>' + esc(u.sub) + '</small></div><div class="guide">' + (ui === 0 ? "✍️" : ui === units.length - 1 ? "🏁" : "📖") + '</div>';
+      wrap.appendChild(ban);
+      var nodes = el("div", "nodes");
+      u.lessons.forEach(function (L) {
+        var nw = el("div", "nwrap"); nw.style.transform = "translateX(" + OFFSETS[k++ % OFFSETS.length] + "px)";
+        var isCur = cur && cur.id === L.id, unlocked = isUnlocked(lang, L), done = !!st.done[L.id];
+        var b = el("button", "node" + (done ? " done" : !unlocked ? " locked" : ""));
+        var lbl = el("span", "lbl" + (Array.from(L.label).length > 2 ? " long" : ""), esc(done && L.kind !== "review" ? L.label : L.label));
+        if (st.lang === "mandarin" || st.lang === "japanese") lbl.classList.add("zh");
+        b.appendChild(lbl);
+        nw.appendChild(el("div", "ring" + (isCur ? " cur" : "")));
+        nw.appendChild(b);
+        if (isCur) { nw.appendChild(el("div", "startTag", "START")); curEl = nw; }
+        b.onclick = function (e) { e.stopPropagation(); togglePop(nw, L, unlocked, done); };
+        nodes.appendChild(nw);
+      });
+      wrap.appendChild(nodes);
+      box.appendChild(wrap);
+    });
+    if (curEl) setTimeout(function () { curEl.scrollIntoView({ block:"center" }); }, 30);
+  }
+  function togglePop(nw, L, unlocked, done) {
+    if (openPop) { var same = openPop.parentNode === nw; closePop(); if (same) return; }
+    var all = allLessons(st.lang), n = all.indexOf(L) + 1;
+    var pop = el("div", "pop" + (unlocked ? "" : " locked"));
+    pop.innerHTML = "<h4>" + esc(L.name) + "</h4><p>" + (unlocked ? (done ? "Practice again · +5 XP" : "Lesson " + n + " of " + all.length) : "Finish the lessons above to unlock this") + "</p>";
+    if (unlocked) {
+      var go = el("button", "btn white", done ? "Practice +5 XP" : "Start +10 XP");
+      go.onclick = function (e) { e.stopPropagation(); startLesson(L); };
+      pop.appendChild(go);
+    }
+    nw.appendChild(pop); openPop = pop;
+    nw.style.zIndex = 20;   // sit above the next lesson circles, or a tap on "Start" hits the circle below
+    setTimeout(function () { pop.scrollIntoView({ behavior:"smooth", block:"nearest" }); }, 20);
+  }
+  function closePop() { if (!openPop) return; openPop.parentNode.style.zIndex = ""; openPop.remove(); openPop = null; }
+  document.addEventListener("click", closePop);
+
+  // ---------------------------------------------------------------- tabs, language sheet, profile
+  Array.prototype.forEach.call(document.querySelectorAll("#nav button"), function (b) {
+    b.onclick = function () { showTab(b.getAttribute("data-tab")); };
+  });
+  function showTab(id) {
+    ["home", "glassesTab", "profileTab"].forEach(function (s) { $(s).classList.toggle("on", s === id); });
+    Array.prototype.forEach.call(document.querySelectorAll("#nav button"), function (b) { b.classList.toggle("on", b.getAttribute("data-tab") === id); });
+    $("nav").style.display = "flex";
+    if (id === "home") renderPath(); if (id === "profileTab") renderProfile(); if (id === "glassesTab") checkServer();
+  }
+  $("langBtn").onclick = function () {
+    var list = $("langList"); list.innerHTML = "";
+    LANGS.forEach(function (l) {
+      if (!content[l]) return;
+      var m = META[l], all = allLessons(l), d = all.filter(function (L) { return st.done[L.id]; }).length;
+      var r = el("button", "lrow" + (l === st.lang ? " on" : ""));
+      r.innerHTML = '<span class="badge" style="background:' + m.color + '">' + m.badge + '</span><div><b>' + m.short + '</b><span>' + d + " of " + all.length + " lessons</span></div>";
+      r.onclick = function () { st.lang = l; save(); $("langSheet").classList.remove("on"); renderPath(); };
+      list.appendChild(r);
+    });
+    $("langSheet").classList.add("on");
+  };
+  $("langSheet").onclick = function (e) { if (e.target === $("langSheet")) $("langSheet").classList.remove("on"); };
+  $("heartStat").onclick = function () { if (st.hearts < 5) { st.hearts = 5; save(); renderTop(); toast("Hearts refilled ❤️"); } else toast("Hearts are full"); };
+
+  function renderProfile() {
+    $("pStreak").textContent = st.streak; $("pXp").textContent = st.xp; $("pChars").textContent = st.wrote;
+    $("pDone").textContent = Object.keys(st.done).length;
+    var h = "<h4>Your languages</h4>";
+    LANGS.forEach(function (l) {
+      if (!content[l]) return; var all = allLessons(l), d = all.filter(function (L) { return st.done[L.id]; }).length;
+      h += '<p style="margin:8px 0"><span class="badge" style="display:inline-grid;width:24px;height:24px;font-size:14px;vertical-align:middle;margin-right:8px;background:' + META[l].color + '">' + META[l].badge + "</span>" + META[l].short + " · " + d + "/" + all.length + " lessons</p>";
+    });
+    $("pLangs").innerHTML = h;
+    $("unlockBtn").textContent = st.unlockAll ? "Lock lessons again" : "Unlock every lesson (demo)";
+  }
+  $("unlockBtn").onclick = function () { st.unlockAll = !st.unlockAll; save(); renderProfile(); toast(st.unlockAll ? "Every lesson is open" : "Lessons locked again"); };
+  $("resetBtn").onclick = function () { if (confirm("Reset all progress on this phone?")) { var l = st.lang; localStorage.removeItem(KEY); st = loadState(); st.lang = l; save(); renderProfile(); toast("Progress reset"); } };
+
+  function checkServer() {
+    getJSON(API + "/health").then(function (h) {
+      $("srvDot").className = "dot ok"; $("srvText").textContent = "Connected to the Worn server";
+      $("srvSub").textContent = "Grader: " + (h.model_ready ? h.model + " ready" : h.fake_grade ? "demo mode" : "warming up");
+      $("testGlasses").disabled = false;
+    }).catch(function () {
+      $("srvDot").className = "dot bad"; $("srvText").textContent = "Not connected";
+      $("srvSub").textContent = "Open this app from the laptop’s address (http://<laptop-ip>:8000/static/web/learn.html) on the event wifi.";
+      $("testGlasses").disabled = true;
+    });
+  }
+  $("testGlasses").onclick = function () {
+    var L = currentLesson(st.lang) || allLessons(st.lang)[0], s = L.steps[0];
+    postSession(st.lang, s.phrase, s.idx).then(function () { toast("Check your glasses 👓"); }).catch(function () { toast("Couldn’t reach the server"); });
+  };
+  $("clearGlasses").onclick = function () { toast("Start a lesson, then use “Phone camera” on a writing step"); };
+
+  // ---------------------------------------------------------------- lesson engine
+  var L = null, items = [], pos = 0, mistakes = 0, answered = 0, wroteN = 0, active = null, isPractice = false;
+
+  function buildItems(lesson) {
+    var lang = lesson.lang, out = [], introduced = {}, learned = st.learned[lang] || {};
+    lesson.steps.forEach(function (s) {
+      if (!learned[s.ch] && !introduced[s.ch] && lesson.kind !== "review") { out.push({ t:"intro", s:s }); introduced[s.ch] = 1; }
+      out.push({ t:"write", s:s });
+      if (lesson.kind === "chars" && !introduced["q" + s.ch]) { introduced["q" + s.ch] = 1; out.push({ t:"pick", s:s }); }
+    });
+    var phrases = lesson.kind === "review" ? content[lang].phrases.map(function (p) { return p.id; }) : lesson.phrase ? [lesson.phrase] : [];
+    phrases.forEach(function (id) { out.push({ t:"listen", p:id }); out.push({ t:"meaning", p:id }); });
+    if (lesson.kind === "chars" && lesson.steps.length > 1) {
+      var u = lesson.steps.map(function (s) { return s.ch; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+      if (u.length > 1) out.push({ t:"pick", s:lesson.steps[lesson.steps.length - 1], review:true });
+    }
+    return out;
+  }
+
+  function startLesson(lesson) {
+    if (st.hearts <= 0) { toast("Out of hearts. Tap ❤️ to refill"); return; }
+    L = lesson; items = buildItems(lesson); pos = 0; mistakes = 0; answered = 0; wroteN = 0; isPractice = !!st.done[lesson.id];
+    ["home", "glassesTab", "profileTab"].forEach(function (s) { $(s).classList.remove("on"); });
+    $("nav").style.display = "none"; $("lesson").classList.add("on");
+    $("lHearts").textContent = st.hearts;
+    show();
+  }
+  $("quit").onclick = function () { if (confirm("Quit? You’ll lose this lesson’s progress.")) endLesson(false); };
+
+  function stopActive() { if (active && active.stop) active.stop(); active = null; }
+  function setProg() { $("progBar").style.width = (100 * pos / items.length) + "%"; }
+  function footBtn(text, enabled, fn, cls) {
+    $("foot").style.display = "block"; $("fb").className = "fb";
+    var b = $("mainBtn"); b.textContent = text; b.disabled = !enabled; b.className = "btn" + (cls ? " " + cls : ""); b.onclick = fn;
+  }
+  function feedback(ok, title, text, btnText, fn, alt) {
+    beep(ok);
+    $("foot").style.display = "none";
+    var fb = $("fb"); fb.className = "fb on " + (ok ? "ok" : "bad");
+    $("fbTitle").textContent = (ok ? "✅ " : "❌ ") + title; $("fbText").textContent = text || "";
+    $("fbBtn").textContent = btnText || "Continue"; $("fbBtn").onclick = fn;
+    var a = $("fbAlt"); if (alt) { a.style.display = "block"; a.textContent = alt[0]; a.onclick = alt[1]; } else a.style.display = "none";
+  }
+  function next() { stopActive(); pos++; if (pos >= items.length) return endLesson(true); show(); }
+
+  function show() {
+    stopActive(); setProg();
+    var it = items[pos], stage = $("stage"); stage.innerHTML = ""; stage.scrollTop = 0;
+    ({ intro:showIntro, write:showWrite, pick:showPick, listen:showListen, meaning:showMeaning })[it.t](it, stage);
+  }
+  function fontCls() { return (L.lang === "mandarin" || L.lang === "japanese") ? "zh" : ""; }
+
+  // ---- intro: meet a new character
+  function showIntro(it, stage) {
+    var ch = it.s.ch, lang = L.lang, snd = C.sound(lang, ch), gl = C.gloss(lang, ch);
+    stage.appendChild(el("div", "kicker", "New character"));
+    stage.appendChild(el("div", "q", "Meet " + (gl ? "“" + esc(gl) + "”" : "this one")));
+    var card = el("div", "card");
+    var box = el("div", "glassbox"), an = el("div", "anim"); box.appendChild(an); card.appendChild(box);
+    var lbl = el("div", "snum"); card.appendChild(lbl);
+    card.appendChild(el("div", "bigch " + fontCls(), esc(ch))).style.fontSize = "64px";
+    card.appendChild(el("div", "sound", esc(snd)));
+    if (gl) card.appendChild(el("div", "gl", esc(gl)));
+    var sp = el("button", "speak", "🔊"); sp.style.marginTop = "12px"; sp.onclick = function () { say(ch, lang); };
+    card.appendChild(sp);
+    stage.appendChild(card);
+    var a = WornStrokes.create(an, lbl, "", { ramp:true }); active = a;
+    strokeUrl(lang, ch).then(function (u) { if (active === a) a.animate({ char:ch, stroke_url:u, rtl:!!content[lang].rtl }); });
+    say(ch, lang);
+    footBtn("Continue", true, function () { (st.learned[lang] = st.learned[lang] || {})[ch] = 1; save(); next(); });
+  }
+
+  // ---- write: the glasses take over
+  function showWrite(it, stage) {
+    var s = it.s, lang = L.lang, p = phrase(lang, s.phrase), snd = C.sound(lang, s.ch);
+    stage.appendChild(el("div", "kicker", "Write on paper"));
+    stage.appendChild(el("div", "q", "Write <span class=\"" + fontCls() + "\">" + esc(s.ch) + "</span> · " + esc(snd)));
+    if (p && !content[lang].rtl) {
+      var ph = el("div", "phrase " + fontCls());
+      p.chars.forEach(function (c, i) { var sp = el("span", i === s.idx ? "cur" : "", esc(c)); ph.appendChild(sp); });
+      stage.appendChild(ph);
+    }
+    var chips = el("div", "chips"), cG = el("span", "chip", live ? "👓 Sending to glasses…" : "👓 Glasses not connected"), cR = el("span", "chip", "✍️ Waiting for your writing");
+    chips.appendChild(cG); chips.appendChild(cR); stage.appendChild(chips);
+    var box = el("div", "glassbox"), an = el("div", "anim"), rg = el("div", "rg"); box.appendChild(an); box.appendChild(rg); stage.appendChild(box);
+    var lbl = el("div", "snum"); stage.appendChild(lbl);
+    stage.appendChild(el("div", "instr", live ? "Write it on paper, then <b>press the button on your glasses</b>" : "Write it on paper, then tap <b>I wrote it</b>"));
+
+    var token = {}, anim = WornStrokes.create(an, lbl, API, { ramp:true }), polling = true;
+    active = { stop:function () { polling = false; anim.stop(); token.dead = 1; if (demo) { gsStop(); $("gsBtn").disabled = true; } } };
+    function readyGo(url) {   // same "Ready… Go!" the glasses show
+      rg.textContent = "Ready…"; rg.className = "rg on";
+      setTimeout(function () { if (token.dead) return; rg.textContent = "Go!"; rg.className = "rg on go";
+        setTimeout(function () { if (token.dead) return; rg.className = "rg"; anim.animate({ char:s.ch, stroke_url:url, rtl:!!content[lang].rtl }); }, 650); }, 1000);
+    }
+    function graded(r) {
+      polling = false; wroteN++; st.wrote++; save();
+      if (demo) gsResult(r);
+      if (r.correct) {
+        cR.className = "chip ok"; cR.textContent = "✅ " + (typeof r.score === "number" ? r.score + "/100" : "Correct");
+        feedback(true, pick(["Nice!", "Great job!", "Awesome!", "Perfect strokes!"]), r.feedback || "", "Continue", next);
+      } else {
+        cR.className = "chip bad"; cR.textContent = "↻ Try again";
+        feedback(false, "Almost!", r.feedback || "Try that one again.", "Try again", function () { show(); }, ["Skip for now", next]);
+      }
+    }
+    async function poll() {
+      while (polling && !token.dead) {
+        await sleep(700);
+        try { var r = await getJSON(API + "/session/result"); if (r && r.ts && polling && !token.dead) { graded(r); return; } }
+        catch (e) { if (e.status !== 404) { /* server hiccup; keep trying */ } }
+      }
+    }
+    if (live) {
+      postSession(lang, s.phrase, s.idx).then(function (sess) {
+        if (token.dead) return;
+        cG.className = "chip ok"; cG.textContent = "👓 On your glasses"; cR.className = "chip wait";
+        readyGo(sess.stroke_url || ""); poll();
+      }).catch(function () {
+        cG.className = "chip bad"; cG.textContent = "👓 Couldn’t reach glasses";
+        strokeUrl(lang, s.ch).then(readyGo);
+      });
+      footBtn("📷 Phone camera", true, function () {
+        var inp = $("camInput"); inp.value = "";
+        inp.onchange = function () {
+          if (!inp.files[0]) return; cR.className = "chip wait"; cR.textContent = "⏳ Checking…"; $("mainBtn").disabled = true;
+          postPhoto(inp.files[0], s.ch, lang).then(function (r) { if (!token.dead) graded(r); })
+            .catch(function () { cR.className = "chip bad"; cR.textContent = "Couldn’t check that photo"; $("mainBtn").disabled = false; });
+        };
+        inp.click();
+      }, "ghost");
+    } else {
+      strokeUrl(lang, s.ch).then(function (u) {
+        readyGo(u);
+        if (demo) { cG.className = "chip ok"; cG.textContent = "👓 On your glasses"; cR.className = "chip wait"; gsShow(lang, s, p, u); }
+      });
+      var fake = function () { graded({ correct:true, score:78 + Math.floor(Math.random() * 19), feedback:pick(["Clean strokes!", "Nice balance, keep going!", "Great stroke order!", "Looks right, nice work!"]) }); };
+      if (demo) { $("gsBtn").disabled = false; $("gsBtn").onclick = function () { $("gsBtn").disabled = true; gsBusy(); setTimeout(function () { if (!token.dead) fake(); }, 900); }; }
+      footBtn("I wrote it", true, fake);
+    }
+  }
+  function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+  // ---- quizzes
+  function choose(stage, options, render, isRight, list, onDone) {
+    var grid = el("div", "opts" + (list ? " list" : "")), chosen = null;
+    options.forEach(function (o) {
+      var b = el("button", "opt " + (list ? "" : fontCls()), render(o));
+      b.onclick = function () { if (grid.locked) return; chosen = o; Array.prototype.forEach.call(grid.children, function (c) { c.classList.remove("sel"); }); b.classList.add("sel"); $("mainBtn").disabled = false; };
+      b._o = o; grid.appendChild(b);
+    });
+    stage.appendChild(grid);
+    footBtn("Check", false, function () {
+      grid.locked = true; answered++;
+      var ok = isRight(chosen);
+      Array.prototype.forEach.call(grid.children, function (c) { if (isRight(c._o)) c.classList.add("right"); else if (c._o === chosen) c.classList.add("wrong"); });
+      if (!ok) { mistakes++; st.hearts = Math.max(0, st.hearts - 1); save(); $("lHearts").textContent = st.hearts; }
+      onDone(ok);
+    });
+  }
+  function distractors(lang, ch, n) {
+    var snd = C.sound(lang, ch), pool = Object.keys(C.SOUNDS[lang]).filter(function (c) { return c !== ch && C.sound(lang, c).split(" ")[0] !== snd.split(" ")[0]; });
+    return shuffle(pool).slice(0, n);
+  }
+  function quizDone(ok, right) {
+    if (!ok && st.hearts <= 0) return feedback(false, "Out of hearts", "Correct answer: " + right, "End lesson", function () { endLesson(false); });
+    feedback(ok, ok ? pick(["Correct!", "Nice!", "You got it!"]) : "Not quite", ok ? "" : "Correct answer: " + right, "Continue", next);
+  }
+  function showPick(it, stage) {
+    var ch = it.s.ch, lang = L.lang, gl = C.gloss(lang, ch), snd = C.sound(lang, ch);
+    stage.appendChild(el("div", "kicker", it.review ? "Review" : "Quick check"));
+    stage.appendChild(el("div", "q", gl ? "Which one means “" + esc(gl) + "”?" : "Which one says “" + esc(snd) + "”?"));
+    var sp = el("button", "speak sm", "🔊"); sp.style.margin = "0 0 14px"; sp.onclick = function () { say(ch, lang); }; stage.appendChild(sp);
+    var opts = shuffle([ch].concat(distractors(lang, ch, 3)));
+    choose(stage, opts, esc, function (o) { return o === ch; }, false, function (ok) { quizDone(ok, ch + " (" + snd + ")"); });
+  }
+  function showListen(it, stage) {
+    var lang = L.lang, p = phrase(lang, it.p);
+    stage.appendChild(el("div", "kicker", "Listen"));
+    stage.appendChild(el("div", "q", "Tap what you hear"));
+    var sp = el("button", "speak", "🔊"); sp.style.margin = "0 auto 18px"; sp.style.display = "block"; sp.onclick = function () { playPhrase(lang, it.p); }; stage.appendChild(sp);
+    var others = shuffle(content[lang].phrases.filter(function (x) { return x.id !== it.p; })).slice(0, 2);
+    var opts = shuffle([p].concat(others));
+    choose(stage, opts, function (o) { return '<span class="' + fontCls() + '" dir="auto">' + esc(o.text) + "</span>"; }, function (o) { return o === p; }, true,
+      function (ok) { quizDone(ok, p.text + " (" + (p.romanization || "") + ")"); });
+    setTimeout(function () { playPhrase(lang, it.p); }, 300);
+  }
+  function showMeaning(it, stage) {
+    var lang = L.lang, p = phrase(lang, it.p);
+    stage.appendChild(el("div", "kicker", "Translate"));
+    stage.appendChild(el("div", "q", "What does this mean?"));
+    var card = el("div", "card"); card.style.marginBottom = "18px";
+    card.innerHTML = '<div class="' + fontCls() + '" dir="auto" style="font-size:40px">' + esc(p.text) + '</div><div class="sound" style="font-size:20px">' + esc(p.romanization || "") + "</div>";
+    stage.appendChild(card);
+    var others = shuffle(content[lang].phrases.filter(function (x) { return x.id !== it.p; })).slice(0, 2);
+    choose(stage, shuffle([p].concat(others)), function (o) { return esc(o.meaning); }, function (o) { return o === p; }, true, function (ok) { quizDone(ok, p.meaning); });
+  }
+
+  // ---- end
+  function endLesson(completed) {
+    stopActive(); if (demo) gsIdle();
+    $("lesson").classList.remove("on");
+    if (!completed) { showTab("home"); return; }
+    var xp = isPractice ? 5 : 10 + (mistakes === 0 && answered ? 5 : 0);
+    st.xp += xp; st.done[L.id] = true; bumpStreak(); save();
+    $("doneIcon").textContent = mistakes === 0 ? "🏆" : "🎉";
+    $("doneTitle").textContent = mistakes === 0 ? "Perfect lesson!" : "Lesson complete!";
+    $("dXp").textContent = "+" + xp; $("dAcc").textContent = answered ? Math.round(100 * (answered - mistakes) / answered) + "%" : "100%";
+    $("dWrote").textContent = wroteN;
+    $("doneScreen").classList.add("on"); beep(true);
+  }
+  $("doneBtn").onclick = function () { $("doneScreen").classList.remove("on"); showTab("home"); };
+
+  // ---------------------------------------------------------------- simulated glasses (demo mode)
+  var demo = false, gsAnim = null, gsTok = 0, gsTimer = null;
+  function gsFit() { var f = $("gsFrame"); if (f) $("gs").style.transform = "scale(" + (f.clientWidth / 640) + ")"; }
+  function gsScreen(id) { ["gsIdle", "gsWrite"].forEach(function (x) { $(x).classList.toggle("on", x === id); }); }
+  function gsStop() { gsTok++; $("gsReady").className = ""; if (gsAnim) gsAnim.stop(); }
+  function gsIdle() { gsStop(); clearTimeout(gsTimer); $("gsRes").className = ""; gsScreen("gsIdle"); }
+  function gsShow(lang, s, p, url) {
+    gsStop(); clearTimeout(gsTimer); $("gsRes").className = "";
+    var strip = $("gsStrip"); strip.innerHTML = "";
+    var rtl = !!content[lang].rtl;
+    (rtl || !p ? [rtl && p ? p.text : s.ch] : p.chars).forEach(function (c, i) {
+      var sp = document.createElement("span"); sp.textContent = c;
+      sp.className = rtl || !p ? "cur" : i < s.idx ? "done" : i === s.idx ? "cur" : ""; strip.appendChild(sp);
+    });
+    strip.style.direction = rtl ? "rtl" : "ltr";
+    strip.style.fontSize = (p && p.chars.length > 7 ? 30 : 40) + "px";
+    $("gsRom").textContent = (p && p.romanization) || C.sound(lang, s.ch);
+    $("gsMean").textContent = p ? "“" + p.meaning + "”" : "";
+    $("gsLang").textContent = content[lang].name || META[lang].short;
+    $("gsCount").textContent = p ? (s.idx + 1) + " / " + p.chars.length : "";
+    gsScreen("gsWrite");
+    var tok = gsTok, r = $("gsReady");
+    r.textContent = "Ready…"; r.className = "on";
+    setTimeout(function () { if (tok !== gsTok) return; r.textContent = "Go!"; r.className = "on go";
+      setTimeout(function () { if (tok !== gsTok) return; r.className = ""; gsAnim.animate({ char:s.ch, stroke_url:url, rtl:rtl }); say(s.ch, lang); }, 650); }, 1000);
+  }
+  function gsBusy() { clearTimeout(gsTimer); $("gsRes").className = "on"; $("gsResIcon").textContent = "●"; $("gsResIcon").style.color = "#5cd6ff"; $("gsResText").textContent = "Checking…"; $("gsResScore").textContent = ""; }
+  function gsResult(r) {
+    clearTimeout(gsTimer); $("gsRes").className = "on";
+    $("gsResIcon").textContent = r.correct ? "✓" : "↻"; $("gsResIcon").style.color = r.correct ? "#3ef08a" : "#ffc23d";
+    $("gsResText").textContent = r.feedback || (r.correct ? "Nice!" : "Try again");
+    $("gsResScore").textContent = typeof r.score === "number" ? r.score + " / 100" : "";
+    gsTimer = setTimeout(function () { $("gsRes").className = ""; }, 3500);
+  }
+  function enterDemo() {
+    demo = true; document.documentElement.classList.add("demo");
+    if (st.unlockAll === false && !st.demoSeen) { st.unlockAll = true; st.demoSeen = true; save(); }  // demo: every lesson open
+    gsAnim = WornStrokes.create($("gsAnim"), $("gsNo"), "", { ramp:true });
+    gsFit(); if (window.ResizeObserver) new ResizeObserver(gsFit).observe($("gsFrame")); else window.addEventListener("resize", gsFit);
+  }
+
+  // ---------------------------------------------------------------- go
+  loadContent().then(function () {
+    if (!live && window.innerWidth >= 700) enterDemo();
+    if (!content[st.lang]) st.lang = LANGS.filter(function (l) { return content[l]; })[0] || "mandarin";
+    renderPath();
+  });
+})();
+</script>
+</body>
+</html>

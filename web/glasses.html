@@ -28,6 +28,12 @@
   #board::after { top:50%; left:0; right:0; height:1px; }
   #anim { position:absolute; left:10px; top:10px; width:316px; height:316px; }
   #anim svg { display:block; }
+  /* "Ready… Go!" before each new character */
+  #ready { position:absolute; left:16px; top:76px; width:340px; height:340px; display:none; text-align:center;
+    line-height:340px; font-size:76px; font-weight:700; color:var(--fg); background:#000; border-radius:14px; }
+  #ready.on { display:block; animation:pop .45s ease-out; }
+  #ready.go { color:var(--ok); font-size:96px; }
+  @keyframes pop { from { transform:scale(.6); opacity:0; } to { transform:scale(1); opacity:1; } }
   #strokeNo { position:absolute; left:16px; top:424px; width:340px; text-align:center; font-size:22px; color:var(--dim); }
 
   #side { position:absolute; left:376px; top:76px; width:248px; height:340px; }
@@ -62,6 +68,7 @@
 <div id="write" class="screen">
   <div id="strip"></div>
   <div id="board"><div id="anim"></div></div>
+  <div id="ready"></div>
   <div id="strokeNo"></div>
   <div id="side">
     <div id="rom"></div>
@@ -129,8 +136,24 @@
   }
 
   // ---- stroke animation lives in worn-strokes.js (shared with mirror.html)
-  var strokes = WornStrokes.create($("anim"), $("strokeNo"), API);
-  function stopAnim() { strokes.stop(); }
+  // ramp: each loop goes slow -> faster -> full speed, then starts slow again
+  var strokes = WornStrokes.create($("anim"), $("strokeNo"), API, { ramp: true });
+  var readyTok = 0;
+  function stopAnim() { readyTok++; $("ready").className = ""; strokes.stop(); }
+  // "Ready…" then "Go!", then the stroke animation and the pronunciation start together
+  function readyGo(s) {
+    stopAnim();
+    var tok = readyTok, r = $("ready");
+    r.textContent = "Ready…"; r.className = "on";
+    setTimeout(function () {
+      if (tok !== readyTok) return;
+      r.textContent = "Go!"; r.className = "on go";
+      setTimeout(function () {
+        if (tok !== readyTok) return;
+        r.className = ""; animate(s); playPronunciation();
+      }, 650);
+    }, 1000);
+  }
   function animate(s) { strokes.animate(s); }
 
   // ---- render a lesson
@@ -154,8 +177,7 @@
     $("lang").textContent = s.lang_name || s.lang;
     $("counter").textContent = (s.char_index + 1) + " / " + s.total_chars;
     show("write");
-    animate(s);
-    playPronunciation();
+    readyGo(s);
   }
 
   function render(s) {
