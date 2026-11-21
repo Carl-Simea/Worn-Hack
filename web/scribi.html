@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#F4EFE6">
+<title>Scribi</title>
+<style>
+:root{--paper:#F4EFE6;--card:#FBF8F2;--ink:#1B1D24;--soft:#5C5E66;--line:#E2DACB;--accent:#E0402A;--good:#2F7D4F;--warn:#B86A12;--ink-ghost:#E3DCCD}
+@media (prefers-color-scheme:dark){:root{--paper:#0E0F12;--card:#17191E;--ink:#ECE8DF;--soft:#A19D95;--line:#2A2D34;--accent:#FF5A43;--good:#5BD68A;--warn:#F2B04A;--ink-ghost:#2A2D34}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--paper);color:var(--ink);font:17px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 0}
+.main{flex:1;overflow-y:auto;padding:12px 20px 190px}
+.hdr{display:flex;align-items:center;gap:12px;padding:14px 20px 6px}
+.logo{font:700 28px ui-serif,Georgia,serif;letter-spacing:-.5px}
+.logo b{color:var(--accent)}
+.pill{margin-left:auto;font-size:14px;padding:6px 12px;border-radius:99px;background:var(--card);border:1px solid var(--line);color:var(--soft)}
+.pill.ok{color:var(--good)}
+h1{font:600 30px ui-serif,Georgia,serif;margin:10px 0 4px}
+h2{font:600 22px ui-serif,Georgia,serif;margin:18px 0 8px}
+.sub{color:var(--soft);font-size:16px;margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.lang{display:flex;flex-direction:column;gap:6px;text-align:left;min-height:130px}
+.lang .hero{font-size:44px;line-height:1.1}
+.lang .nm{font-weight:600;font-size:18px}
+.lang .sc{color:var(--soft);font-size:14px}
+.row{display:flex;align-items:center;gap:14px;width:100%;text-align:left;margin-bottom:10px}
+.row .t{font-size:30px;min-width:70px}
+.row .m{flex:1}.row .m div:first-child{font-weight:600}.row .m div+div{color:var(--soft);font-size:15px}
+.chev{color:var(--soft);font-size:22px}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--soft);font-size:16px;padding:6px 0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:56px;padding:0 22px;border-radius:99px;font-weight:600;font-size:18px;background:var(--card);border:1px solid var(--line)}
+.btn.primary{background:var(--accent);color:#fff;border-color:transparent}
+.btn.wide{flex:1}
+.icon{width:56px;height:56px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--line);font-size:22px}
+.icon.on{background:var(--accent);color:#fff;border-color:transparent}
+.ptop{display:flex;align-items:center;gap:10px;padding:10px 20px}
+.ptop .ttl{flex:1;text-align:center;font-weight:600}
+.dots{display:flex;gap:6px;justify-content:center;margin:10px 0}
+.dots i{height:8px;width:8px;border-radius:99px;background:var(--line)}
+.dots i.done{background:var(--ink)}.dots i.cur{background:var(--accent);width:22px}
+.charcard{display:flex;align-items:center;gap:6px}
+.arrow{width:52px;height:52px;border-radius:50%;font-size:28px;background:var(--card);border:1px solid var(--line);flex:none}
+.arrow:disabled{opacity:.3}
+.canvas{flex:1;aspect-ratio:1;max-width:300px;margin:0 auto;position:relative}
+.meta{text-align:center;margin-top:8px}
+.meta .rom{font-size:20px;font-weight:600}.meta .mean{color:var(--soft)}
+.strokelbl{text-align:center;font-weight:700;font-size:20px;margin-top:6px}
+.hint{text-align:center;color:var(--soft);margin:6px 0 0}
+.controls{position:fixed;left:0;right:0;bottom:calc(112px + env(safe-area-inset-bottom));display:flex;gap:10px;padding:0 20px;max-width:520px;margin:0 auto}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:8px 20px calc(8px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--paper) 94%,transparent);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:space-between;max-width:520px;margin:0 auto;border-top:1px solid var(--line)}
+.bar .mid{display:flex;flex-direction:column;align-items:center;gap:2px}
+.bar .mid small{color:var(--soft);font-size:14px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mic{width:60px;height:60px;font-size:24px}
+.cam{position:relative;border-radius:22px;overflow:hidden;background:#000;aspect-ratio:3/4;max-height:58vh;margin:0 auto}
+.cam video{width:100%;height:100%;object-fit:cover;display:block}
+.cam .box{position:absolute;left:12%;right:12%;top:25%;bottom:25%;border:3px dashed rgba(255,255,255,.9);border-radius:16px}
+.cam .count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 120px ui-serif,Georgia,serif;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,.5)}
+.score{font:700 64px ui-serif,Georgia,serif;text-align:center}
+.score small{font-size:24px;color:var(--soft)}
+.react{text-align:center;font-size:19px;font-weight:600;margin:0 0 12px}
+.sb{display:grid;grid-template-columns:120px 1fr 36px;align-items:center;gap:10px;margin:8px 0;font-size:15px}
+.sb .tr{height:10px;border-radius:99px;background:var(--line);overflow:hidden}.sb .tr i{display:block;height:100%;background:var(--good);border-radius:99px}
+.sb.weak{color:var(--warn);font-weight:600}.sb.weak .tr i{background:var(--warn)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.cmp>div{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:8px;text-align:center;font-size:14px;color:var(--soft)}
+.cmp .pic{aspect-ratio:1;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:12px;background:var(--paper)}
+.cmp img{max-width:100%;max-height:100%}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:50}
+.sheet.open{display:block}
+.sheet .pane{position:absolute;left:0;right:0;bottom:0;top:6vh;max-width:520px;margin:0 auto;background:var(--paper);border-radius:26px 26px 0 0;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+.sh{display:flex;align-items:center;padding:18px 20px 8px}
+.sh .t{flex:1}.sh .t b{display:block;font-size:22px}.sh .t span{font-size:14px;color:var(--soft)}
+.sh .t span.l{color:var(--accent)}
+.msgs{flex:1;overflow-y:auto;padding:8px 20px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:80%;padding:12px 16px;border-radius:20px;font-size:18px}
+.msg.you{align-self:flex-end;background:var(--accent);color:#fff}
+.msg.bot{align-self:flex-start;background:var(--card);border:1px solid var(--line)}
+.msg.live{opacity:.6}
+.cin{display:flex;gap:10px;padding:10px 20px}
+.cin input{flex:1;height:52px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:0 18px;font-size:17px}
+textarea{width:100%;min-height:120px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:12px;font:inherit}
+.toast{position:fixed;top:calc(14px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:99px;font-size:15px;z-index:99;display:none}
+.wave{animation:pulse 1.2s ease-in-out infinite}@keyframes pulse{50%{transform:scale(1.08)}}
+.spin{width:36px;height:36px;border:4px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 0.8s linear infinite;margin:30px auto}@keyframes sp{to{transform:rotate(360deg)}}
+.rtl{direction:rtl}
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="view" style="display:flex;flex-direction:column;flex:1"></div>
+</div>
+<div class="bar">
+  <button class="icon" id="chatBtn" title="Talk with Scribi">💬</button>
+  <div class="mid"><button class="icon mic" id="micBtn">🎙️</button><small id="micHint">Tap to talk</small></div>
+  <button class="icon" id="flagBtn" title="Feedback">🚩</button>
+</div>
+
+<div class="sheet" id="chat"><div class="pane">
+  <div class="sh"><div class="t"><b>Scribi</b><span id="chatStatus">Tap the mic to talk</span></div><button class="icon" id="chatClose" style="width:40px;height:40px;font-size:16px">✕</button></div>
+  <div class="msgs" id="msgs"></div>
+  <div class="cin"><input id="chatIn" placeholder="Or type here" enterkeyhint="send"><button class="icon" id="chatMic">🎙️</button></div>
+</div></div>
+
+<div class="sheet" id="fb"><div class="pane" style="top:30vh;padding:0 20px 20px">
+  <div class="sh" style="padding-left:0;padding-right:0"><div class="t"><b>Feedback</b><span>What's wrong on this screen?</span></div><button class="icon" id="fbClose" style="width:40px;height:40px;font-size:16px">✕</button></div>
+  <textarea id="fbText" placeholder="Describe what you see…"></textarea>
+  <button class="btn primary" id="fbSave" style="margin-top:12px;width:100%">Send</button>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+var q = new URLSearchParams(location.search);
+var BASE = (q.get("server") || "https://competition-professional-dans-pool.trycloudflare.com").replace(/\/$/,"");
+var s = document.createElement("script"); s.src = BASE + "/static/web/worn-ink.js"; document.head.appendChild(s);
+
+var $ = function(id){return document.getElementById(id)};
+var view = $("view");
+var ORDER = ["mandarin","hindi","arabic","russian","hebrew","greek"];
+var RTL = {arabic:1,hebrew:1};
+var langs = [], route = {name:"home"}, online = false;
+var events = [];
+function esc(t){return String(t==null?"":t).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function toast(t){var e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(function(){e.style.display="none"},2600)}
+function report(type,data){events.push({t:new Date().toISOString().slice(11,19),type:type,data:data});if(events.length>40)events.shift();
+  if(type!=="feedback")return; // keep the judge screen clean: only feedback goes to the backend
+  fetch(BASE+"/event",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"web."+type,source:"scribi-web",data:data||{}})}).catch(function(){})}
+function api(p,o){return fetch(BASE+p,o).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()})}
+function url(u){return !u?"":/^https?:/.test(u)?u:BASE+u}
+
+/* ---------- speech out ---------- */
+var voice=null;
+function pickVoice(){var vs=speechSynthesis.getVoices().filter(function(v){return /^en[-_]US/i.test(v.lang)});
+  var pref=["Ava (Premium)","Zoe (Premium)","Ava (Enhanced)","Zoe (Enhanced)","Samantha (Enhanced)","Google US English","Ava","Samantha","Allison"];
+  for(var i=0;i<pref.length;i++){var f=vs.find(function(v){return v.name.indexOf(pref[i])===0});if(f)return f}
+  return vs[0]||null}
+if(window.speechSynthesis){speechSynthesis.onvoiceschanged=function(){voice=pickVoice()};voice=pickVoice()}
+function say(t,done){if(!window.speechSynthesis||!t){done&&done();return}
+  speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(t);if(!voice)voice=pickVoice();if(voice)u.voice=voice;u.lang="en-US";u.rate=1.0;u.pitch=1.04;
+  var fin=false;function f(){if(fin)return;fin=true;done&&done()}u.onend=f;u.onerror=f;setTimeout(f,Math.min(15000,1500+t.length*90));
+  rec.pause();speechSynthesis.speak(u)}
+
+/* ---------- speech in ---------- */
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+var rec={on:false,paused:false,r:null,partial:"",timer:null,
+  start:function(){if(!SR){toast("Speech recognition isn't available in this browser");return}
+    this.on=true;this.paused=false;this._go();ui.mic()},
+  stop:function(){this.on=false;this.paused=false;try{this.r&&this.r.abort()}catch(e){}this.r=null;this.partial="";ui.mic()},
+  pause:function(){if(!this.on)return;this.paused=true;try{this.r&&this.r.abort()}catch(e){}this.r=null;ui.mic()},
+  resume:function(){if(!this.on||!this.paused)return;this.paused=false;this._go();ui.mic()},
+  _go:function(){var self=this;try{this.r&&this.r.abort()}catch(e){}
+    var r=new SR();r.lang="en-US";r.continuous=true;r.interimResults=true;this.r=r;
+    r.onresult=function(e){var t="";for(var i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;
+      self.partial=t.trim();ui.partial();clearTimeout(self.timer);
+      var last=e.results[e.results.length-1];
+      self.timer=setTimeout(function(){var said=self.partial;self.partial="";ui.partial();if(said)heard(said)},last.isFinal?250:1300)};
+    r.onerror=function(e){if(e.error==="not-allowed"||e.error==="service-not-allowed"){self.on=false;toast("Allow the microphone for this site");ui.mic()}};
+    r.onend=function(){if(self.on&&!self.paused&&self.r===r)setTimeout(function(){if(self.on&&!self.paused)self._go()},200)};
+    try{r.start()}catch(e){}}};
+
+/* ---------- commands + chat ---------- */
+function parseCmd(t){t=t.toLowerCase().replace(/[^a-z ]/g," ").trim();
+  if(/^(next|next stroke|next one|continue)$/.test(t))return"next";
+  if(/^(back|go back|previous|previous one)$/.test(t))return"back";
+  if(/^(again|show again|repeat|replay|one more time)$/.test(t))return"again";
+  if(/^(check|check it|check this|done|i m done|finished|grade)$/.test(t))return"check";
+  var m=t.match(/^(switch to|open|learn) (mandarin|chinese|hindi|arabic|russian|hebrew|greek)$/);
+  if(m)return"lang:"+(m[2]==="chinese"?"mandarin":m[2]);return null}
+var chat={open:false,msgs:[],busy:false};
+function heard(t){
+  report("heard",{text:t});
+  var cmd=parseCmd(t);
+  if(!chat.open&&cmd){doCmd(cmd);return}
+  if(!chat.open&&!cmd){openChat()}
+  if(chat.busy)return;
+  addMsg("you",t);
+  if(cmd){doCmd(cmd);reply(cmdLine(cmd));return}
+  chat.busy=true;ui.chatStatus();
+  var fd=new FormData();fd.append("text",t);
+  fetch(BASE+"/voice",{method:"POST",body:fd}).then(function(r){return r.json()}).then(function(r){
+    chat.busy=false;reply((r.say||"").trim()||"Hmm, I didn't catch that. Try again?")}).catch(function(){
+    chat.busy=false;reply("Sorry, I couldn't reach my brain. Try again in a moment.")})}
+function cmdLine(c){return {next:"Next stroke.",back:"Going back one.",again:"Here it is again.",check:"Okay, checking."}[c]||"Switching."}
+function reply(t){addMsg("bot",t);report("reply",{text:t});ui.chatStatus("speaking");say(t,function(){if(rec.on)rec.resume();ui.chatStatus()})}
+function addMsg(role,t){chat.msgs.push({role:role,text:t});ui.msgs()}
+function openChat(){chat.open=true;$("chat").classList.add("open");
+  if(!chat.msgs.length)addMsg("bot","Hi! Ask me anything about the letter you're writing, or tell me what to do.");
+  if(window.speechSynthesis){var u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u)} // unlock audio on iOS
+  if(!rec.on)rec.start();ui.msgs();ui.chatStatus()}
+function closeChat(){chat.open=false;$("chat").classList.remove("open");speechSynthesis&&speechSynthesis.cancel()}
+
+var ui={
+  mic:function(){var on=rec.on&&!rec.paused;$("micBtn").className="icon mic"+(rec.on?" on":"")+(on?" wave":"");
+    $("micBtn").textContent=rec.on?"〰️":"🎙️";$("chatMic").className="icon"+(rec.on?" on":"");
+    $("micHint").textContent=!SR?"Voice not supported":rec.on?(rec.partial?"“"+rec.partial.split(" ").slice(-3).join(" ")+"”":"Say “next” or ask"):"Tap to talk";ui.chatStatus()},
+  partial:function(){ui.mic();if(chat.open)ui.msgs()},
+  msgs:function(){var h=chat.msgs.map(function(m){return'<div class="msg '+(m.role==="you"?"you":"bot")+'">'+esc(m.text)+"</div>"}).join("");
+    if(rec.partial)h+='<div class="msg you live">'+esc(rec.partial)+"</div>";
+    if(chat.busy)h+='<div class="msg bot live">Thinking…</div>';
+    var m=$("msgs");m.innerHTML=h;m.scrollTop=m.scrollHeight},
+  chatStatus:function(st){var e=$("chatStatus");if(!e)return;
+    var t=chat.busy?"Thinking…":st==="speaking"?"Speaking…":rec.on&&!rec.paused?"Listening… just talk":rec.on?"…":"Tap the mic to talk";
+    e.textContent=t;e.className=rec.on&&!rec.paused&&!chat.busy?"l":"";if(chat.busy)ui.msgs()}};
+
+$("micBtn").onclick=function(){rec.on?rec.stop():rec.start()};
+$("chatBtn").onclick=openChat;$("chatClose").onclick=closeChat;
+$("chatMic").onclick=function(){rec.on?rec.stop():rec.start()};
+$("chatIn").onkeydown=function(e){if(e.key==="Enter"&&this.value.trim()){var t=this.value;this.value="";heard(t)}};
+$("flagBtn").onclick=function(){$("fb").classList.add("open");$("fbText").focus()};
+$("fbClose").onclick=function(){$("fb").classList.remove("open")};
+$("fbSave").onclick=function(){var note=$("fbText").value.trim();
+  report("feedback",{note:note,route:route.name,lang:P&&P.item?P.item.lang:null,char:P&&P.item?P.item.char:null,stroke:P?P.stroke:null,phase:P?P.phase:null,
+    grade:P&&P.result?{score:P.result.score,subscores:P.result.subscores,feedback:P.result.feedback,crop:P.result.crop_url,image:P.result.image_url}:null,
+    ua:navigator.userAgent,screen:innerWidth+"x"+innerHeight,events:events.slice(-20)});
+  $("fbText").value="";$("fb").classList.remove("open");toast("Feedback saved")};
+
+/* ---------- screens ---------- */
+function go(r){if(P&&r.name!=="practice")stopPractice();route=r;render();window.scrollTo(0,0)}
+function render(){
+  if(route.name==="home")return home();
+  if(route.name==="lesson")return lesson(route.lang);
+  if(route.name==="practice")return practiceView()}
+
+function header(){return'<div class="hdr"><div class="logo">Scrib<b>i</b></div><span class="pill '+(online?"ok":"")+'">'+(online?"● Online":"○ Offline")+"</span></div>"}
+function home(){
+  var h=header()+'<div class="main"><h1>Learn to write</h1><p class="sub">Six scripts, stroke by stroke, on real paper.</p><div class="grid">';
+  langs.forEach(function(l){h+='<button class="card lang" data-l="'+l.lang+'"><span class="hero">'+esc(l.hero||"")+'</span><span class="nm">'+esc(l.name)+'</span><span class="sc">'+esc(l.script||"")+"</span></button>"});
+  if(!langs.length)h+='<div class="card" style="grid-column:1/-1">'+(online?"Loading…":"Can't reach the Scribi server.")+"</div>";
+  h+="</div></div>";view.innerHTML=h;
+  view.querySelectorAll("[data-l]").forEach(function(b){b.onclick=function(){go({name:"lesson",lang:b.dataset.l})}})}
+function lessonOf(k){return langs.find(function(l){return l.lang===k})}
+function lesson(k){var l=lessonOf(k);if(!l)return go({name:"home"});
+  var h='<div class="hdr"><button class="back" id="bk">‹ Back</button></div><div class="main"><h1>'+esc(l.name)+'</h1><p class="sub">'+esc(l.about||l.script||"")+"</p>";
+  (l.phrases||[]).forEach(function(p,i){h+='<button class="card row" data-i="'+i+'"><span class="t '+(RTL[k]?"rtl":"")+'">'+esc(p.text)+'</span><span class="m"><div>'+esc(p.meaning||"")+"</div><div>"+esc(p.romanization||"")+" · "+p.chars.length+" "+(p.chars.length===1?"letter":"letters")+'</div></span><span class="chev">›</span></button>'});
+  h+="</div>";view.innerHTML=h;$("bk").onclick=function(){go({name:"home"})};
+  view.querySelectorAll("[data-i]").forEach(function(b){b.onclick=function(){startPractice(l,l.phrases[+b.dataset.i])}})}
+
+/* ---------- practice ---------- */
+var P=null;
+function startPractice(l,p){
+  var items=p.chars.map(function(c,i){var ci=(p.char_info||[])[i]||{};return{lang:l.lang,char:c,index:i,stroke_url:ci.stroke_url,count:ci.stroke_count,phrase:p}});
+  P={items:items,i:0,item:items[0],stroke:1,n:1,phase:"writing",result:null,ink:null,stream:null,scores:[]};
+  report("practice.start",{lang:l.lang,phrase:p.id});
+  if(p.audio_url){try{new Audio(url(p.audio_url)).play().catch(function(){})}catch(e){}}
+  go({name:"practice"});loadChar()}
+function stopPractice(){if(!P)return;stopCam();P.ink&&P.ink.stop();P=null}
+function loadChar(){P.item=P.items[P.i];P.stroke=1;P.phase="writing";P.result=null;P.n=P.item.count||1;practiceView();
+  var host=$("ink");if(!host||!window.WornInk){setTimeout(loadChar,300);return}
+  P.ink=WornInk.create(host,{theme:"paper",numbers:true,api:BASE});
+  P.ink.load({lang:P.item.lang,char:P.item.char,stroke_url:P.item.stroke_url}).then(function(n){P.n=Math.max(1,n||P.ink.count()||1);showStroke()})}
+function showStroke(){if(!P||!P.ink)return;P.ink.sync(P.stroke,"write");report("stroke",{char:P.item.char,stroke:P.stroke,of:P.n});updateStroke()}
+function updateStroke(){var lbl=$("slbl");if(!lbl)return;
+  lbl.textContent="Stroke "+P.stroke+" of "+P.n;
+  var d="";for(var i=1;i<=P.n;i++)d+='<i class="'+(i<P.stroke?"done":i===P.stroke?"cur":"")+'"></i>';$("dots").innerHTML=d;
+  $("prev").disabled=P.stroke<=1;$("nextA").disabled=P.stroke>=P.n;
+  $("mainBtn").textContent=P.stroke>=P.n?"Check":"Next stroke"}
+function next(){if(!P)return;if(P.phase!=="writing"){if(P.phase==="result")advance();return}
+  if(P.stroke<P.n){P.stroke++;showStroke()}else check()}
+function back(){if(!P||P.phase!=="writing"||P.stroke<=1)return;P.stroke--;showStroke()}
+function again(){if(!P)return;if(P.phase==="result"){retry();return}if(P.ink){P.ink.stop();showStroke()}}
+function doCmd(c){if(c==="next")next();else if(c==="back")back();else if(c==="again")again();else if(c==="check"){if(P&&P.phase==="writing")check()}
+  else if(c.indexOf("lang:")===0)go({name:"lesson",lang:c.slice(5)})}
+
+function practiceView(){if(!P)return;var it=P.item,p=it.phrase;
+  var top='<div class="ptop"><button class="back" id="pclose">✕ Close</button><span class="ttl">'+esc(p.text)+" · "+(P.i+1)+"/"+P.items.length+"</span><span style='width:60px'></span></div>";
+  if(P.phase==="aiming"||P.phase==="checking"){
+    view.innerHTML=top+'<div class="main" style="padding-bottom:200px"><h2 style="text-align:center;margin-top:4px">Hold the phone over your page</h2><p class="sub" style="text-align:center">Put the letter inside the dashed box.</p>'+
+      '<div class="cam"><video id="vid" playsinline muted autoplay></video><div class="box"></div><div class="count" id="cnt"></div></div>'+
+      (P.phase==="checking"?'<div class="spin"></div><p class="hint">Scribi is looking…</p>':"")+"</div>"+
+      (P.phase==="aiming"?'<div class="controls"><button class="btn" id="cancel">Cancel</button><button class="btn primary wide" id="shoot">Take photo now</button></div>':"");
+    $("pclose").onclick=function(){go({name:"lesson",lang:it.lang})};
+    if(P.stream){$("vid").srcObject=P.stream}
+    if(P.phase==="aiming"){$("cancel").onclick=cancelAim;$("shoot").onclick=shoot}
+    return}
+  if(P.phase==="result"){view.innerHTML=top+'<div class="main" style="padding-bottom:200px">'+resultHTML()+"</div>"+
+      '<div class="controls"><button class="btn" id="retry">Try again</button><button class="btn primary wide" id="adv">'+(P.i+1<P.items.length?"Next letter":"Finish")+"</button></div>";
+    $("pclose").onclick=function(){go({name:"lesson",lang:it.lang})};$("retry").onclick=retry;$("adv").onclick=advance;return}
+  if(P.phase==="finished"){var avg=P.scores.length?Math.round(P.scores.reduce(function(a,b){return a+b},0)/P.scores.length):0;
+    view.innerHTML=top+'<div class="main"><h1 style="text-align:center">Word done!</h1><div class="score">'+avg+"<small>/100 avg</small></div>"+
+      '<p class="sub" style="text-align:center;font-size:40px" class="'+(RTL[it.lang]?"rtl":"")+'">'+esc(p.text)+"</p>"+
+      P.items.map(function(x,i){return'<div class="sb"><span style="font-size:24px">'+esc(x.char)+'</span><span class="tr"><i style="width:'+(P.scores[i]||0)+'%"></i></span><span>'+(P.scores[i]==null?"–":P.scores[i])+"</span></div>"}).join("")+
+      '</div><div class="controls"><button class="btn primary wide" id="done">Back to lessons</button></div>';
+    $("pclose").onclick=$("done").onclick=function(){go({name:"lesson",lang:it.lang})};return}
+  view.innerHTML=top+'<div class="main" style="padding-bottom:200px"><div class="card"><div class="charcard">'+
+    '<button class="arrow" id="prev">‹</button><div class="canvas" id="ink"></div><button class="arrow" id="nextA">›</button></div>'+
+    '<div class="meta"><div class="rom">'+esc((p.char_romanization||[])[it.index]||"")+'</div><div class="mean">'+esc(p.meaning||"")+"</div></div></div>"+
+    '<div class="strokelbl" id="slbl"></div><div class="dots" id="dots"></div>'+
+    '<p class="hint">Write this stroke on paper, then tap “Next stroke” or say “next”.</p></div>'+
+    '<div class="controls"><button class="icon" id="replay" title="Replay">↺</button><button class="btn primary wide" id="mainBtn">Next stroke</button></div>';
+  $("pclose").onclick=function(){go({name:"lesson",lang:it.lang})};
+  $("prev").onclick=back;$("nextA").onclick=function(){if(P.stroke<P.n){P.stroke++;showStroke()}};
+  $("replay").onclick=again;$("mainBtn").onclick=next;
+  if(P.ink&&$("ink").childNodes.length===0&&P.ink){/* re-render after phase change */ var keep=P.stroke;P.ink=WornInk.create($("ink"),{theme:"paper",numbers:true,api:BASE});
+    P.ink.load({lang:it.lang,char:it.char,stroke_url:it.stroke_url}).then(function(n){P.n=Math.max(1,n||1);P.stroke=Math.min(keep,P.n);showStroke()})}
+  updateStroke()}
+
+/* ---------- camera check ---------- */
+function stopCam(){if(P&&P.stream){P.stream.getTracks().forEach(function(t){t.stop()});P.stream=null}clearInterval(P&&P.cd)}
+function check(){if(!P)return;P.phase="aiming";P.ink&&P.ink.stop();practiceView();
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1440}},audio:false}).then(function(st){
+    if(!P||P.phase!=="aiming"){st.getTracks().forEach(function(t){t.stop()});return}
+    P.stream=st;var v=$("vid");v.srcObject=st;
+    var n=3;$("cnt").textContent=n;say("Hold the phone over your page.");
+    P.cd=setInterval(function(){n--;var c=$("cnt");if(c)c.textContent=n>0?n:"";if(n<=0){clearInterval(P.cd);shoot()}},1000)
+  }).catch(function(e){toast("Camera not available: "+e.message);cancelAim()})}
+function cancelAim(){stopCam();P.phase="writing";practiceView()}
+function shoot(){if(!P||P.phase!=="aiming")return;clearInterval(P.cd);var v=$("vid");
+  if(!v||!v.videoWidth){toast("Camera not ready yet");return}
+  var W=v.clientWidth,H=v.clientHeight,vw=v.videoWidth,vh=v.videoHeight,sc=Math.max(W/vw,H/vh),ox=(W-vw*sc)/2,oy=(H-vh*sc)/2;
+  // dashed box 12%..88% x 25%..75%, plus a margin
+  var bx=[0.06*W,0.19*H,0.94*W,0.81*H].map(function(x,i){return i%2?(x-oy)/sc:(x-ox)/sc});
+  var x0=Math.max(0,bx[0]),y0=Math.max(0,bx[1]),x1=Math.min(vw,bx[2]),y1=Math.min(vh,bx[3]);
+  var c=document.createElement("canvas");c.width=Math.round(x1-x0);c.height=Math.round(y1-y0);
+  c.getContext("2d").drawImage(v,x0,y0,x1-x0,y1-y0,0,0,c.width,c.height);
+  if(P.item.index>0)c=isolateNewest(c,!!RTL[P.item.lang])||c;
+  P.phase="checking";practiceView();var keepStream=P.stream;setTimeout(function(){if(keepStream){keepStream.getTracks().forEach(function(t){t.stop()})}},50);P.stream=null;
+  c.toBlob(function(b){grade(b)},"image/jpeg",0.9)}
+/* Port of InkSplit.swift: grade only the newest letter when earlier letters of the word are on the page. */
+function clusters(c){var w=240,h=Math.max(8,Math.round(w*c.height/c.width));var t=document.createElement("canvas");t.width=w;t.height=h;var g=t.getContext("2d");g.drawImage(c,0,0,w,h);
+  var d=g.getImageData(0,0,w,h).data,px=new Uint8Array(w*h);for(var i=0;i<w*h;i++)px[i]=(d[i*4]*0.3+d[i*4+1]*0.59+d[i*4+2]*0.11)|0;
+  var so=Array.from(px).sort(function(a,b){return a-b}),paper=so[Math.floor(so.length*0.6)],cut=Math.max(20,paper*0.5);
+  var col=new Array(w).fill(0),minY=h,maxY=0;for(var y=0;y<h;y++)for(var x=0;x<w;x++)if(px[y*w+x]<cut){col[x]++;if(y<minY)minY=y;if(y>maxY)maxY=y}
+  if(maxY<=minY)return[];var inkH=maxY-minY+1,minPix=Math.max(2,Math.floor(inkH*0.06)),runs=[],st=-1;
+  for(x=0;x<w;x++){if(col[x]>=minPix){if(st<0)st=x}else if(st>=0){runs.push([st,x-1]);st=-1}}if(st>=0)runs.push([st,w-1]);
+  var gap=inkH*0.45,m=[];runs.forEach(function(r){var l=m[m.length-1];if(l&&r[0]-l[1]<=gap)l[1]=r[1];else m.push(r.slice())});
+  return m.filter(function(r){return r[1]-r[0]>=2}).map(function(r){return[r[0]/w,(r[1]+1)/w]})}
+function isolateNewest(c,rtl){var all=clusters(c);if(all.length<2)return null;var r=rtl?all[0]:all[all.length-1];
+  var pad=Math.max(0.04,r[1]-r[0])*0.35,x0=Math.max(0,r[0]-pad),x1=Math.min(1,r[1]+pad);
+  var o=document.createElement("canvas");o.width=Math.round((x1-x0)*c.width);o.height=c.height;o.getContext("2d").drawImage(c,x0*c.width,0,o.width,c.height,0,0,o.width,c.height);
+  report("grade.isolated",{char:P.item.char,index:P.item.index});return o}
+function grade(blob){var it=P.item,fd=new FormData();fd.append("image",blob,"page.jpg");fd.append("char",it.char);fd.append("lang",it.lang);
+  fetch(BASE+"/grade",{method:"POST",body:fd}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()}).then(function(r){
+    if(!P||P.item!==it)return;P.result=r;P.phase="result";
+    var nw=r.status==="no_writing"||r.score==null;
+    if(!nw)P.scores[P.i]=Math.round(r.score);
+    report("grade",{char:it.char,score:r.score,status:r.status,feedback:r.feedback,seen:r.seen});
+    practiceView();say(nw?(r.feedback||"I couldn't see any writing."):(r.correct?(r.reaction||r.feedback||"Nice!"):(r.feedback||"Close, try again.")))
+  }).catch(function(e){if(!P)return;P.result={status:"error",feedback:"Couldn't check that one. "+e.message};P.phase="result";practiceView()})}
+var LABEL={recognizable:"Recognizable",proportions:"Proportions",placement:"Placement",completeness:"Completeness",neatness:"Neatness"};
+function resultHTML(){var r=P.result,it=P.item;
+  if(r.status==="error")return'<h2>Something went wrong</h2><p>'+esc(r.feedback)+"</p>";
+  if(r.status==="no_writing"||r.score==null)return'<h2>I couldn\'t see your writing</h2><p class="sub">'+esc(r.feedback||"")+'</p><div class="card"><b>Tips</b><p>Write a bit bigger and darker. Hold the phone straight above the page. Keep your hand out of the box.</p></div>'+cmpHTML(r);
+  var sc=Math.round(r.score),sub=r.subscores||{},weak=r.weakest;
+  var h='<div class="score">'+sc+'<small>/100</small></div><p class="react" style="color:'+(r.correct?"var(--good)":"var(--warn)")+'">'+esc(r.reaction||(r.correct?"Nice!":"Almost there"))+"</p>";
+  Object.keys(LABEL).forEach(function(k){if(sub[k]==null)return;var v=Math.round(sub[k]);h+='<div class="sb '+(k===weak?"weak":"")+'"><span>'+LABEL[k]+'</span><span class="tr"><i style="width:'+v+'%"></i></span><span>'+v+"</span></div>"});
+  if(r.feedback)h+='<div class="card" style="margin-top:12px">'+esc(r.feedback)+"</div>";
+  if(r.seen)h+='<p class="hint">Scribi read it as “'+esc(r.seen)+"”</p>";
+  return h+cmpHTML(r)}
+function cmpHTML(r){var img=url(r.crop_url||r.image_url);return'<div class="cmp"><div><div class="pic" style="font-size:90px" class="'+(RTL[P.item.lang]?"rtl":"")+'">'+esc(P.item.char)+"</div>Model</div>"+
+  "<div><div class=\"pic\">"+(img?'<img src="'+esc(img)+'">':"")+"</div>"+(r.crop_url?"What Scribi saw":"What the camera saw")+"</div></div>"}
+function retry(){P.result=null;P.phase="writing";P.stroke=1;practiceView();loadChar()}
+function advance(){if(P.i+1<P.items.length){P.i++;loadChar()}else{P.phase="finished";practiceView();say("Word done! Nice work.")}}
+
+/* ---------- boot ---------- */
+function boot(){api("/health").then(function(){online=true}).catch(function(){online=false}).then(function(){
+  return api("/content")}).then(function(d){langs=(d.langs||[]).slice().sort(function(a,b){return ORDER.indexOf(a.lang)-ORDER.indexOf(b.lang)});online=true;if(route.name==="home")render()})
+  .catch(function(){if(route.name==="home")render()})}
+render();ui.mic();boot();setInterval(function(){api("/health").then(function(){if(!online){online=true;if(route.name==="home")render()}}).catch(function(){if(online){online=false;if(route.name==="home")render()}})},15000);
+report("open",{ua:navigator.userAgent});
+})();
+</script>
+</body>
+</html>
