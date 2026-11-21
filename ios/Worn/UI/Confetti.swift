@@ -25,9 +25,13 @@ struct ConfettiView: View {
                 let fade = t > Self.life - 0.6 ? (Self.life - t) / 0.6 : 1
                 for p in particles {
                     // Ballistic burst with air drag and gravity, plus a little flutter.
-                    let drag = (1 - exp(-2.2 * t)) / 2.2
-                    let x = o.x + CGFloat(cos(p.angle) * p.speed * drag + sin(t * 6 + p.drift) * 8)
-                    let y = o.y + CGFloat(sin(p.angle) * p.speed * drag + 380 * t * t * 0.5)
+                    let drag: Double = (1 - exp(-2.2 * t)) / 2.2
+                    let dx: Double = cos(p.angle) * p.speed * drag
+                    let flutter: Double = sin(t * 6 + p.drift) * 8
+                    let dy: Double = sin(p.angle) * p.speed * drag
+                    let fall: Double = 190 * t * t
+                    let x: CGFloat = o.x + CGFloat(dx + flutter)
+                    let y: CGFloat = o.y + CGFloat(dy + fall)
                     var c = ctx
                     c.opacity = fade
                     c.translateBy(x: x, y: y)
