@@ -709,6 +709,7 @@
         var A = v.args || {}, arg = langLabel(A.language || A.lang) || TITLES[A.screen || A.target] || A.screen || A.target || A.name || A.text || A.word;
         if (arg && (A.language || A.lang) && (A.text || A.word)) arg = (A.text || A.word) + " · " + langLabel(A.language || A.lang);
         if (typeof arg !== "string") arg = "";
+        if (!/^(learn|open|word|how_write|write_name|start|pick|translate|compose)$/.test(v.intent || "")) arg = ""; // "check · Russian" reads wrong
         var el = $("said");
         el.innerHTML = (v.heard ? '<span class="q">“' + esc(iso(v.heard)) + '”</span>' : "") +
           (intent ? '<span class="intent">' + esc(intent + (arg ? " · " + arg : "")) + "</span>" : "") +
