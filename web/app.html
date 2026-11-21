@@ -604,7 +604,7 @@
     var el = $("res");
     el.className = "card result " + (r.correct ? "ok" : "no");
     void el.offsetWidth; el.classList.add("pop");
-    $("resSc").innerHTML = esc(r.score) + "<small>/100</small>";
+    countUp($("resSc"), r.score, quiet);
     $("resIcon").setAttribute("d", r.correct ? "M5 12.5l4.5 4.5L19 7" : "M12 6v8M12 18v.5");
     $("resFb").textContent = r.feedback || (r.correct ? "Nice!" : "Try again");
     var fx = WornSfx.forResult(r, { silent: !!quiet });
@@ -618,6 +618,24 @@
       advanceT = setTimeout(function () { if (pKey === key) advance(r); }, 2600);
     }
   }
+  function countUp(el, n, instant) {
+    n = Math.max(0, Math.round(+n || 0));
+    if (instant) { el.innerHTML = n + "<small>/100</small>"; return; }
+    var t0 = null;
+    (function step(ts) {
+      if (t0 === null) t0 = ts;
+      var k = Math.min(1, (ts - t0) / 650), v = Math.round(n * (1 - Math.pow(1 - k, 3)));
+      el.innerHTML = v + "<small>/100</small>";
+      if (k < 1) requestAnimationFrame(step);
+    })(performance.now());
+  }
+  document.addEventListener("keydown", function (e) {
+    if (!$("v-practice").classList.contains("on") || /input|textarea/i.test((e.target && e.target.tagName) || "")) return;
+    if (e.key === " ") { e.preventDefault(); $("replay").click(); }
+    else if (e.key === "ArrowRight") $("next").click();
+    else if (e.key === "ArrowLeft" && !$("prev").disabled) $("prev").click();
+    else if (e.key === "h") hear();
+  });
   function advance(r) {
     var s = live.session;
     if (daily) {
