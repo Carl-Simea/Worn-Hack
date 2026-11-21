@@ -21,7 +21,7 @@ BASE = (sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8010").rstrip("/
 LANGS = ["mandarin", "hindi", "arabic", "russian", "hebrew", "greek"]
 NUM = re.compile(r"-?\d+(?:\.\d+)?")
 S = 480
-CHAR = 0.5   # the character fills half the photo, like a 3 cm box seen by the glasses camera
+CHAR = float(__import__("os").environ.get("CHAR", "0.5"))   # the character fills half the photo, like a 3 cm box seen by the glasses camera
 
 
 def place(x, y):

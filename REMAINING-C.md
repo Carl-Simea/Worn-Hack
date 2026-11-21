@@ -122,8 +122,8 @@ Mandarin is checked as hanzi-writer JSON (strokes and medians agree). Nothing wa
 | Greek | 28/28 | 95 | 25/28 |
 
 Tier 2 only tracks stroke progress. The right/wrong verdict is `/grade` (A: 100% of wrong letters rejected).
-Caveat sent to A and D: a single long thin stroke spanning more than 60% of the photo is dropped as a "page edge"
-(the first stroke of ر ת א χ 友 at full-frame size), so the paper must not fill the camera frame.
+A long dark single stroke that fills the frame (the first stroke of ر ת א χ 友) used to be dropped as a "page
+edge". A fixed it in dce8978. Re-verified: all 6 languages pass at full-frame size (`CHAR=1.0`) and at half-frame size.
 
 ## Needs people in the morning (not code)
 
