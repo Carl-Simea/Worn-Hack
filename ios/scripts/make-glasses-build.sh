@@ -23,6 +23,9 @@ cd "$out/MLDemo" || exit 1
 rm -f AppDelegate.swift SceneDelegate.swift HomeViewController.swift FeatureViewControllers.swift \
       Form.swift Components.swift Theme.swift WifiViewController.swift
 
+# Worn brings its own app icon; drop the vendor's so the two asset catalogs don't both define AppIcon.
+rm -rf "$out/MLDemo/Assets.xcassets/AppIcon.appiconset"
+
 # 3. Worn's sources (same files as the standalone project; SDKGlassesLink.swift switches on via canImport).
 rsync -a --delete "$ios/Worn/" "$out/MLDemo/Worn/" || exit 1
 
