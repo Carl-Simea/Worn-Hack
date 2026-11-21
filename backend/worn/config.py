@@ -23,7 +23,8 @@ VISION_CTX = int(os.environ.get("WORN_VISION_CTX", "4096"))
 
 GRADE_TIMEOUT = float(os.environ.get("WORN_GRADE_TIMEOUT", "30"))
 TUTOR_BUDGET = float(os.environ.get("WORN_TUTOR_BUDGET", "3"))  # brief: fall back to 7b past 3 s
-HEDGE_AFTER = float(os.environ.get("WORN_HEDGE_AFTER", "1.5"))  # start 7b in parallel after this
+HEDGE_AFTER = float(os.environ.get("WORN_HEDGE_AFTER", "1.0"))  # start 7b in parallel after this
+DECIDE_CAP = float(os.environ.get("WORN_DECIDE_CAP", "4.5"))  # total; past it the rule policy decides
 FALLBACK_TIMEOUT = float(os.environ.get("WORN_FALLBACK_TIMEOUT", "6"))
 WARM_MODELS = os.environ.get("WORN_WARM", "1") == "1"
 FAKE_GRADE = os.environ.get("WORN_FAKE_GRADE") == "1"  # demo safety net: canned pass if vision is down

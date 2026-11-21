@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import io
+import re
 import unicodedata
 
 from PIL import Image, ImageOps
@@ -50,8 +51,21 @@ def _base(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", s) if not unicodedata.combining(c))
 
 
+def _unlatex(seen: str) -> str:
+    """The model sometimes answers Greek in LaTeX ('\\lambda'). Map \\name back to the letter."""
+    def sub(m):
+        name = m.group(1)
+        case = "CAPITAL" if name[0].isupper() else "SMALL"
+        name = {"lambda": "lamda", "varsigma": "final sigma"}.get(name.lower(), name)  # Unicode spellings
+        try:
+            return unicodedata.lookup(f"GREEK {case} LETTER {name.upper()}")
+        except KeyError:
+            return m.group(0)
+    return re.sub(r"\\([A-Za-z]+)", sub, seen)
+
+
 def parse_grade(data: dict, char: str, lang: str = "") -> dict:
-    seen = str(data.get("seen") or "").strip()
+    seen = _unlatex(str(data.get("seen") or "").strip())
     score = int(max(0, min(100, float(data.get("score") or 0))))
     fix = str(data.get("fix") or "").strip().splitlines()[0][:120] if data.get("fix") else ""
     if not seen and char in fix:

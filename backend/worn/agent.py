@@ -124,7 +124,7 @@ Actions:
 - "review": jump to a weak character from memory (use rarely, when correct AND a weak char exists).
 
 JSON only:
-{{"thought": "max 8 words", "action": "advance|retry|review", "mood": "celebrate|proud|encourage|gentle", "reaction": "max 7 words, spoken aloud, kind, no style criticism"}}"""
+{{"why": "max 5 words", "action": "advance|retry|review", "mood": "celebrate|proud|encourage|gentle", "say": "max 6 words, spoken aloud, kind"}}"""
 
 
 def _decide_validator(d: dict) -> dict:
@@ -132,10 +132,10 @@ def _decide_validator(d: dict) -> dict:
     if action not in ACTIONS:
         raise ValueError(f"bad action {action!r}")
     mood = str(d.get("mood", "")).strip().lower()
-    reaction = str(d.get("reaction", "")).strip()
+    reaction = str(d.get("say") or d.get("reaction") or "").strip()
     if not reaction:
-        raise ValueError("missing reaction")
-    return {"thought": str(d.get("thought", "")).strip()[:200], "action": action,
+        raise ValueError("missing say")
+    return {"thought": str(d.get("why") or d.get("thought") or "").strip()[:120], "action": action,
             "mood": mood if mood in MOODS else "", "reaction": reaction[:90]}
 
 
@@ -217,7 +217,7 @@ async def run_grade(jpeg: bytes, char: str, lang: str, session: dict | None, ima
     t = time.perf_counter()
     try:
         dec, dmeta = await llm.tutor_json(prompt, system=DECIDE_SYSTEM, validate=_decide_validator,
-                                          num_predict=70, temperature=0.5)
+                                          num_predict=48, temperature=0.5)
         via = dmeta["model"] + (" (fallback: " + dmeta.get("reason", "") + ")" if dmeta.get("fallback") else "")
     except llm.LLMError as e:
         dec, dmeta, via = rule_policy(correct, tries_after, bool(weak)), {"model": "rules"}, f"rules ({e})"

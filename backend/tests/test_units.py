@@ -84,3 +84,8 @@ def test_grade_never_penalizes_form_or_style():
 
 def test_unicode_name_in_prompt():
     assert vision.unicode_name("ש") == "hebrew letter shin"
+
+
+def test_latex_greek_answer_is_understood():
+    assert vision.parse_grade({"seen": "\\lambda", "score": 70}, "λ", "greek")["correct"] is True
+    assert vision.parse_grade({"seen": "\\Omega", "score": 70}, "Ω", "greek")["correct"] is True

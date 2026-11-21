@@ -37,8 +37,8 @@ class FakeModels:
             data = {"devanagari": "माया", "arabic": "مايا", "cyrillic": "Майя", "hebrew": "מאיה", "greek": "Μάγια"}
         else:  # decide
             correct = "correct=true" in prompt
-            data = {"thought": "ok", "action": "advance" if correct else "advance",  # 'advance' on a miss tests guardrails
-                    "mood": "celebrate" if correct else "encourage", "reaction": "You did it!" if correct else "Almost!"}
+            data = {"why": "ok", "action": "advance" if correct else "advance",  # 'advance' on a miss tests guardrails
+                    "mood": "celebrate" if correct else "encourage", "say": "You did it!" if correct else "Almost!"}
         return (validate(data) if validate else data), {"model": "fake-14b", "ms": 3, "fallback": False}
 
 
@@ -404,3 +404,21 @@ def test_stroke_template_reloads_when_file_changes(tmp_path):
     finally:
         f.write_text(original)
         os.utime(f, (time.time() + 10, time.time() + 10))
+
+
+def test_tutor_total_cap_then_rules(monkeypatch):
+    """Both models slow: give up at DECIDE_CAP so /grade never hangs (rules decide)."""
+    from worn import config
+
+    async def slow(model, prompt, **kw):
+        await asyncio.sleep(5)
+        return {"model": model}
+    monkeypatch.setattr(llm, "json_call", slow)
+    monkeypatch.setattr(config, "TUTOR_BUDGET", 0.2)
+    monkeypatch.setattr(config, "HEDGE_AFTER", 0.1)
+    monkeypatch.setattr(config, "DECIDE_CAP", 0.4)
+    import time as _t
+    t = _t.perf_counter()
+    with pytest.raises(llm.LLMError):
+        asyncio.run(llm.tutor_json("x"))
+    assert _t.perf_counter() - t < 1.0

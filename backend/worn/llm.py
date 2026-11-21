@@ -136,8 +136,9 @@ async def tutor_json(prompt: str, *, system: str | None = None, validate: Callab
             big.cancel()
     log.info("tutor fallback: %s", reason)
     start_small()
+    left = min(config.FALLBACK_TIMEOUT, config.DECIDE_CAP - (time.perf_counter() - t0))
     try:
-        data = await asyncio.wait_for(small, timeout=config.FALLBACK_TIMEOUT)
+        data = await asyncio.wait_for(small, timeout=max(0.05, left))
     except (asyncio.TimeoutError, LLMError) as e:
         raise LLMError(f"{reason}; {config.TUTOR_FALLBACK}: {e or 'timed out'}") from e
     return data, meta(config.TUTOR_FALLBACK, True, reason)
