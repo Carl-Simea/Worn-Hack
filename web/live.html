@@ -9,7 +9,7 @@
 <title>Worn Live</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231b1a17'/%3E%3Cpath d='M14 22c6 18 9 24 12 24s5-14 6-14 3 14 6 14 6-8 12-24' fill='none' stroke='%23f6f2ea' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Noto+Serif+SC:wght@500&family=Noto+Serif+JP:wght@500&family=Noto+Serif+Devanagari:wght@500&family=Noto+Naskh+Arabic:wght@500&family=Noto+Serif:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Noto+Serif+SC:wght@500&family=Noto+Serif+Devanagari:wght@500&family=Noto+Naskh+Arabic:wght@500&family=Noto+Serif+Hebrew:wght@500&family=Noto+Serif:wght@500&display=swap">
 <link rel="stylesheet" href="/static/web/worn.css">
 <!-- The judge site (owner: agent B). Served at GET /live and GET /mirror. Readable from 2 m on an iPad or a big screen.
      Polls GET /live/state every 500 ms. If the backend doesn't have it yet, falls back to /session + /session/result. -->
@@ -94,6 +94,16 @@
   #check.retry path { stroke-dashoffset: 0; }
   #feedback { font-family: var(--display); font-size: 1.45em; line-height: 1.22; margin-top: .55em; min-height: 3.66em; letter-spacing: -.01em; }
   #reaction { margin-top: .7em; font-size: .78em; color: var(--ink-2); min-height: 1.5em; display: flex; gap: .5em; align-items: center; }
+  #reaction .emo { font-size: 1.4em; line-height: 1; }
+  #reaction .line { font-family: var(--display); font-style: italic; font-size: 1.15em; color: var(--ink); }
+  #reaction .line.faint { font-style: normal; font-family: var(--ui); font-size: 1em; color: var(--ink-3); }
+  #reaction .next { margin-left: auto; color: var(--ink-3); white-space: nowrap; }
+  #reaction .next b { color: var(--accent); font-size: 1.4em; margin-left: .25em; font-weight: 500; }
+  #tutor.pop { animation: pop .6s cubic-bezier(.3, 1.6, .5, 1); }
+  @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.025); } 100% { transform: scale(1); } }
+  .stream li .tool { font: 600 .72em/1 var(--mono); color: var(--ink-3); margin-left: .7em; padding: .2em .45em; border: 1px solid var(--rule); border-radius: 5px; }
+  .stream li.k-decide .k, .stream li.k-act .k { color: var(--accent); }
+  .stream li.k-error .k { color: var(--bad); }
   #reaction .chip { font-size: .8em; height: 1.9em; color: var(--accent); background: var(--accent-soft); border-color: transparent; }
   .waiting #score { color: var(--ink-ghost); }
   .swap { transition: opacity .25s var(--ease); }
@@ -112,7 +122,6 @@
   .stream li .t em { font-style: normal; color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
   .stream li .ts { font: 500 .78em/1 var(--mono); color: var(--ink-3); }
   .stream li:last-child .t { font-weight: 600; }
-  .stream li.k-react .k, .stream li.k-grade .k { color: var(--accent); }
   @keyframes rise { from { opacity: 0; transform: translateY(.6em); } to { opacity: 1; transform: none; } }
   #timeline li { grid-template-columns: 3.6em minmax(0, 1fr); font-size: .78em; }
   #timeline li .ts { text-align: left; }
@@ -218,7 +227,7 @@
 <div id="idle">
   <span class="wordmark">Worn</span>
   <p id="idleText">Waiting for the first lesson</p>
-  <div class="scripts" aria-hidden="true"><span class="script" data-lang="mandarin">你好</span><span class="script" data-lang="japanese">こんにちは</span><span class="script" data-lang="hindi">नमस्ते</span><span class="script" data-lang="arabic">مرحبا</span><span class="script" data-lang="russian">Привет</span></div>
+  <div class="scripts" aria-hidden="true"><span class="script" data-lang="mandarin">你好</span><span class="script" data-lang="hindi">नमस्ते</span><span class="script" data-lang="arabic">مرحبا</span><span class="script" data-lang="russian">Привет</span><span class="script" data-lang="hebrew">שלום</span><span class="script" data-lang="greek">Γεια σου</span></div>
 </div>
 
 <script src="/static/web/worn-ink.js"></script>
@@ -232,7 +241,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var ink = WornInk.create($("ink"), { theme: "glasses", label: $("lensLabel"), api: API });
 
-  var useLive = true, failCount = 0, lessonKey = "", inkReady = false, lastResultTs = null, firstPoll = true;
+  var useLive = true, failCount = 0, lessonKey = "", inkReady = false, firstPoll = true, version = null, last = null;
   var celebrated = {}, shownPhoto = "", imgFront = "imgA", seenSteps = {}, seenEvents = {}, lastLat = {};
 
   function url(p) { return !p ? p : /^(https?:|data:|blob:)/.test(p) ? p : API + p; }
@@ -244,30 +253,34 @@
     });
   }
   function setText(el, t) { if (el.textContent !== t) el.textContent = t; }
+  function esc(t) { return String(t === undefined || t === null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
   // ---------------------------------------------------------------- data
   function fetchState() {
     if (useLive) {
-      return get("/live/state").then(function (st) {
+      return get("/live/state" + (version !== null ? "?since=" + version : "")).then(function (st) {
         if (st === null) { useLive = false; return fetchState(); }
+        if (st.unchanged) return null;
+        if (st.version !== undefined) version = st.version;
         return st;
       });
     }
-    // fallback: compose a state from the basic endpoints
+    // fallback for an older backend: compose a state from the basic endpoints
     return Promise.all([get("/session"), get("/session/result")]).then(function (a) {
       var s = a[0], r = a[1];
-      return { session: s, glasses: { connected: null, phase: r ? "result" : "demo" }, last_result: r,
-               latest_photo_url: r ? (r.image_url || "/capture/latest?ts=" + r.ts) : null, agent_steps: [], events: [], latency: {} };
+      return { session: s, glasses: { connected: null, phase: r ? "result" : "watch" }, last_result: r,
+               latest_photo_url: r ? r.image_url : null, agent_steps: [], events: [], latency: {} };
     });
   }
 
   function poll() {
     fetchState().then(function (st) {
       failCount = 0;
-      render(st || {});
+      if (st) { last = st; render(st); }
+      else if (last) renderConn(last.glasses && last.glasses.connected, true);
     }).catch(function () {
       failCount++;
-      if (failCount > 3) offline();
+      if (failCount > 3) renderConn(false, false);
     }).then(function () { setTimeout(poll, 500); });
   }
 
@@ -275,22 +288,20 @@
   function render(st) {
     var s = st.session, g = st.glasses || {};
     $("idle").classList.toggle("hide", !!s);
-    renderConn(g.connected, true);
-    renderListen(!!st.listening);
+    renderConn(g.stale ? null : g.connected, true);
+    $("listen").classList.toggle("on", !!st.listening);
     renderLatency(st.latency || {});
+    renderSteps(st.agent_steps || []);
+    renderEvents(st.events || []);
     if (!s) { firstPoll = false; return; }
     renderLesson(s);
     renderLens(s, g);
-    renderPhoto(st.latest_photo_url || (st.last_result && st.last_result.image_url), s);
-    renderResult(st.last_result, s, g);
-    renderSteps(st.agent_steps || []);
-    renderEvents(st.events || []);
-    renderProgress(st.progress, s);
+    renderPhoto(st.latest_photo_url || (st.last_result && st.last_result.image_url));
+    renderResult(st.last_result, s, g, st.next);
+    renderProgress(st.progress || {}, s);
     maybeCelebrate(st);
     firstPoll = false;
   }
-
-  function offline() { renderConn(false, false); }
 
   function renderConn(c, serverOk) {
     var dot = $("connDot"), t;
@@ -299,40 +310,46 @@
     else if (c === false) { dot.className = "dot off"; t = "Glasses offline"; }
     else { dot.className = "dot"; t = "Glasses"; }
     setText($("connText"), t);
-    $("lens").classList.toggle("off", c === false || !serverOk);
+    $("lens").classList.toggle("off", !serverOk);
   }
 
-  function renderListen(on) { $("listen").classList.toggle("on", on); }
-
+  function msOf(v) {
+    if (v && typeof v === "object") v = v.last_ms !== undefined ? v.last_ms : v.ms !== undefined ? v.ms : v.avg_ms;
+    return typeof v === "number" && isFinite(v) ? v : null;
+  }
   function fmtMs(v) {
-    if (v && typeof v === "object") v = v.ms !== undefined ? v.ms : v.last;
-    if (typeof v !== "number" || !isFinite(v)) return "–";
+    if (v === null) return "–";
     return v < 1000 ? Math.round(v) + " ms" : (v / 1000).toFixed(v < 10000 ? 1 : 0) + " s";
   }
   function renderLatency(l) {
     Array.prototype.forEach.call(document.querySelectorAll("#lat .pill"), function (p) {
-      var k = p.getAttribute("data-t"), txt = fmtMs(l[k]);
+      var k = p.getAttribute("data-t"), txt = fmtMs(msOf(l[k]));
       var b = p.querySelector("b");
       if (b.textContent !== txt) {
         b.textContent = txt;
         if (lastLat[k] !== undefined) { p.classList.add("fresh"); setTimeout(function () { p.classList.remove("fresh"); }, 1200); }
       }
       lastLat[k] = txt;
+      var o = l[k];
+      if (o && typeof o === "object" && o.avg_ms !== undefined && o.avg_ms !== null) p.title = "avg " + fmtMs(o.avg_ms) + " · p95 " + fmtMs(o.p95_ms) + " · n=" + o.n;
     });
   }
 
-  function chars(s) {
-    var c = window.__wornChars && window.__wornChars[s.lang + "/" + s.phrase_id];
-    return c || (s.text ? null : [s.char]);
+  function charsOf(s) {
+    if (s.item && s.item.chars) return s.item.chars;
+    var c = window.__wornChars && window.__wornChars[s.lang + "/" + (s.item_id || s.phrase_id)];
+    return c || [s.char];
   }
   function renderLesson(s) {
-    var key = [s.version, s.lang, s.phrase_id, s.char_index].join("|");
+    var iid = s.item_id || s.phrase_id;
+    var key = [s.version, s.lang, iid, s.char_index].join("|");
     if (key === lessonKey) return;
-    var phraseChanged = lessonKey.split("|").slice(1, 3).join("|") !== [s.lang, s.phrase_id].join("|");
+    var phraseChanged = lessonKey.split("|").slice(1, 3).join("|") !== [s.lang, iid].join("|");
     lessonKey = key;
     document.body.setAttribute("data-lang", s.lang);
-    setText($("langName"), (s.lang_name || s.lang) + (s.meaning ? "  ·  “" + s.meaning + "”" : ""));
-    var box = $("chars"), list = chars(s) || [s.char];
+    var script = s.script && s.script !== s.lang_name ? " · " + s.script : "";
+    setText($("langName"), (s.lang_name || s.lang) + script + (s.meaning ? "  ·  “" + s.meaning + "”" : ""));
+    var box = $("chars"), list = charsOf(s);
     box.setAttribute("dir", s.rtl ? "rtl" : "ltr");
     if (phraseChanged || box.children.length !== list.length) {
       box.innerHTML = "";
@@ -341,33 +358,33 @@
     Array.prototype.forEach.call(box.children, function (sp, i) {
       sp.className = i < s.char_index ? "done" : i === s.char_index ? "cur" : "";
     });
-    setText($("romCap"), s.romanization || "");
+    setText($("romCap"), s.char_romanization || s.romanization || "");
     setText($("meaningCap"), (s.char_index + 1) + " of " + s.total_chars);
-    // new char -> new ink
-    inkReady = false;
-    ink.load(s).then(function () { inkReady = true; ink.sync(1, "demo"); lastSync = ""; });
-    lastResultTs = firstPoll ? lastResultTs : lastResultTs; // keep; results are matched by char below
+    inkReady = false; lastSync = "";
+    ink.load(s).then(function () { inkReady = true; lastSync = ""; if (last && last.session) renderLens(last.session, last.glasses || {}); });
   }
 
+  // phases from A: watch -> write (stroke is 0-based) -> checking -> result
   var lastSync = "";
+  var PHASE = { watch: "watch", demo: "watch", write: "writing", writing: "writing", checking: "checking", result: "result",
+                celebrate: "result", retry: "result", idle: "idle" };
   function renderLens(s, g) {
-    var phase = g.phase || "demo";
-    var label = { demo: "showing", writing: "writing", checking: "checking", celebrate: "celebrating", retry: "try again", result: "result", idle: "idle" }[phase] || phase;
-    setText($("lensPhase"), label);
+    var phase = PHASE[g.phase] || g.phase || "watch";
+    var show = s.show_char === false && phase !== "result" ? "listen" : phase;
+    setText($("lensPhase"), show === "listen" ? "listening (dictation)" : show);
     if (!inkReady) return;
-    var k = [g.stroke, phase].join("|");
+    var k = [g.stroke, phase, s.show_char].join("|");
     if (k === lastSync) return;
     lastSync = k;
-    if (phase === "demo" || !g.stroke) ink.sync(1, "demo");
-    else ink.sync(g.stroke, phase);
+    if (s.show_char === false && phase !== "result") { ink.stop(); $("ink").style.opacity = "0"; setText($("lensLabel"), "write what you hear"); return; }
+    $("ink").style.opacity = "";
+    if (phase === "writing") ink.sync((g.stroke || 0) + 1, "write");
+    else if (phase === "checking" || phase === "result") ink.sync(999, "result");
+    else ink.sync(1, "demo");
   }
 
-  function renderPhoto(p, s) {
-    if (!p) {
-      if (shownPhoto) { $("paper").classList.remove("has"); $(imgFront).classList.remove("show"); shownPhoto = ""; }
-      setText($("photoCap"), "");
-      return;
-    }
+  function renderPhoto(p) {
+    if (!p) return; // keep the last photo rather than blanking it
     if (p === shownPhoto) return;
     shownPhoto = p;
     var back = imgFront === "imgA" ? "imgB" : "imgA", img = $(back);
@@ -377,7 +394,7 @@
       $(imgFront).classList.remove("show");
       imgFront = back;
       $("paper").classList.add("has");
-      var f = $("flash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go");
+      if (!firstPoll) { var f = $("flash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
       setText($("photoCap"), new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }));
     };
     img.onerror = function () { if (shownPhoto === p) shownPhoto = ""; };
@@ -385,125 +402,143 @@
   }
 
   var shownResultKey = "";
-  function renderResult(r, s, g) {
+  function renderResult(r, s, g, nxt) {
     var tutor = $("tutor"), fb = $("feedback");
     var matches = r && (!r.char || r.char === s.char) && (!r.lang || r.lang === s.lang);
-    var phase = g.phase || "";
+    var phase = PHASE[g.phase] || g.phase || "";
     var key;
     if (matches) key = "r" + r.ts;
-    else if (/check/.test(phase)) key = "checking";
-    else key = "wait|" + (g.stroke || 0) + "|" + phase + "|" + s.char;
+    else if (phase === "checking") key = "checking";
+    else key = "wait|" + (g.stroke || 0) + "|" + phase + "|" + s.char + "|" + s.show_char;
     if (key === shownResultKey) return;
     shownResultKey = key;
     var check = $("check");
     if (matches) {
       tutor.classList.remove("waiting");
-      setText($("score"), String(r.score));
-      $("score").innerHTML = r.score + "<small>/100</small>";
+      $("score").innerHTML = esc(r.score) + "<small>/100</small>";
       check.classList.toggle("on", !!r.correct);
       check.classList.toggle("retry", !r.correct);
       $("checkPath").setAttribute("d", r.correct ? "M14 25l7 7 13-15" : "M24 14v13M24 34v.5");
       swapText(fb, r.feedback || (r.correct ? "Nice!" : "Try again"));
-      var line = r.reaction_line || r.reaction_text || "";
-      var rx = r.reaction ? '<span class="chip">' + esc(r.reaction) + "</span>" : "";
-      $("reaction").innerHTML = rx + (line ? "<span>" + esc(line) + "</span>" : "") || "&nbsp;";
+      var line = r.reaction || "";
+      var n = r.next || nxt;
+      var nextBit = n && n.char && n.action !== "retry" ? '<span class="next">Next <b class="script">' + esc(n.char) + "</b></span>" : "";
+      $("reaction").innerHTML = (r.emoji ? '<span class="emo">' + esc(r.emoji) + "</span>" : "") +
+        (line ? '<span class="line">“' + esc(line) + "”</span>" : "") + nextBit || "&nbsp;";
     } else {
       tutor.classList.add("waiting");
       $("score").innerHTML = "–";
       check.classList.remove("on", "retry");
-      var n = ink.count(), k = g.stroke || 0;
-      var t = /check/.test(phase) ? "Checking the whole character…" :
-              k && n > 1 ? "Writing stroke " + k + " of " + n + "…" : "Watching the pen…";
+      var total = s.stroke_count || ink.count(), k = (g.stroke || 0) + 1;
+      var t = phase === "checking" ? "Checking the whole character…" :
+              s.show_char === false ? "Dictation: they write from the sound alone." :
+              phase === "writing" && total > 1 ? "Writing stroke " + Math.min(k, total) + " of " + total + "…" :
+              phase === "writing" ? "Writing…" : "Watching the animation…";
       swapText(fb, t);
-      $("reaction").innerHTML = "&nbsp;";
+      $("reaction").innerHTML = s.prompt ? '<span class="line faint">' + esc(s.prompt) + "</span>" : "&nbsp;";
     }
   }
   function swapText(el, t) {
-    if (el.textContent === t) return;
+    if (el.textContent === t || el.getAttribute("data-next") === t) return;
+    el.setAttribute("data-next", t);
     el.classList.add("out");
     setTimeout(function () { el.textContent = t; el.classList.remove("out"); }, 200);
   }
-  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
-  var KIND = { observe: "◉", match: "≈", advance: "→", grade: "✓", react: "♪", plan: "◇", speak: "♫", listen: "◐", error: "!" };
-  function stepText(x) { return typeof x === "string" ? x : (x.text || x.msg || x.step || x.action || JSON.stringify(x)); }
-  function stepKind(x, t) {
-    if (x && x.kind) return x.kind;
-    if (/observ|ink/.test(t)) return "observe";
-    if (/match/.test(t)) return "match";
-    if (/advanc|next/.test(t)) return "advance";
-    if (/grad|score/.test(t)) return "grade";
-    if (/react|cheer|celebr/.test(t)) return "react";
-    return "plan";
-  }
-  function hi(t) { return esc(t).replace(/(\d+(?:\.\d+)?)/g, "<em>$1</em>"); }
+  // ---------------------------------------------------------------- agent brain
+  var PH = { observe: "◉", evaluate: "≈", decide: "◇", act: "→", error: "!" };
+  function stepText(x) { return typeof x === "string" ? x : (x.summary || x.text || x.msg || ""); }
+  function hi(t) { return esc(t).replace(/(\d+(?:\.\d+)?(?:\/\d+)?)/g, "<em>$1</em>"); }
   function clock(ts) {
     if (!ts) return "";
     var d = new Date(ts > 1e12 ? ts : ts * 1000);
     return d.toLocaleTimeString([], { hour12: false, minute: "2-digit", second: "2-digit" });
   }
   function renderStream(listEl, items, seen, max, row) {
-    var added = false;
     items.forEach(function (x, i) {
-      var t = stepText(x), id = (x && x.id) || ((x && x.ts) || i) + "|" + t;
+      var id = (x && x.id) || ((x && x.ts) || i) + "|" + stepText(x) + "|" + (x && x.type);
       if (seen[id]) return;
       seen[id] = 1;
-      listEl.appendChild(row(x, t));
-      added = true;
+      var e = listEl.querySelector(".empty-note"); if (e) e.remove();
+      listEl.appendChild(row(x));
     });
     while (listEl.children.length > max) listEl.removeChild(listEl.firstChild);
-    return added;
   }
   function renderSteps(steps) {
-    var added = renderStream($("brain"), steps, seenSteps, 12, function (x, t) {
-      var li = document.createElement("li"), k = stepKind(x, t);
-      li.className = "k-" + k;
-      li.innerHTML = '<span class="k">' + (KIND[k] || "·") + '</span><span class="t">' + hi(t) + '</span><span class="ts">' + clock(x && x.ts) + "</span>";
+    var list = $("brain");
+    if (!steps.length && !list.children.length) {
+      list.innerHTML = '<li class="empty-note"><span></span><span class="t">The tutor agent’s steps stream here as it reads the paper.</span><span></span></li>';
+      return;
+    }
+    renderStream(list, steps, seenSteps, 12, function (x) {
+      var li = document.createElement("li"), ph = (x && x.phase) || "observe";
+      li.className = "k-" + ph + (x && x.status && x.status !== "ok" ? " k-error" : "");
+      var tool = x && x.tool ? '<span class="tool">' + esc(x.tool) + "</span>" : "";
+      var ms = x && typeof x.ms === "number" ? fmtMs(x.ms) : clock(x && x.ts);
+      li.innerHTML = '<span class="k">' + (PH[ph] || "·") + '</span><span class="t">' + hi(stepText(x)) + tool + '</span><span class="ts">' + ms + "</span>";
       return li;
     });
-    if (added) setText($("brainCap"), "local · on this laptop");
-    if (!steps.length && !$("brain").children.length) $("brain").innerHTML = '<li class="empty-note"><span></span><span class="t">The tutor’s steps stream here.</span><span></span></li>';
-    else { var e = $("brain").querySelector(".empty-note"); if (e && steps.length) e.remove(); }
+    var lastStep = steps[steps.length - 1];
+    setText($("brainCap"), lastStep && lastStep.model ? "local · " + lastStep.model : "local · on this laptop");
+  }
+
+  function eventText(e) {
+    var d = e.data || {};
+    switch (e.type) {
+      case "session": return "Lesson: " + (d.char || "") + (d.mode && d.mode !== "write" ? " · " + d.mode : "") + (typeof d.char_index === "number" ? " (" + (d.char_index + 1) + ")" : "");
+      case "photo": return "Photo from the glasses";
+      case "stroke": return "Glasses moved to stroke " + ((d.stroke || 0) + 1) + (d.stroke_count ? " of " + d.stroke_count : "");
+      case "capture": return "Whole character captured";
+      case "grade": return (d.char || "") + " · " + (d.score !== undefined ? d.score + "/100" : "graded") + (d.correct === false ? " · retry" : "");
+      case "celebrate": return "Confetti on the glasses";
+      case "grade_error": return "Grader hiccup, retrying";
+      case "glasses_connected": return "Glasses connected";
+      case "glasses_disconnected": return "Glasses disconnected";
+      case "listening_start": return "Listening for a voice command";
+      case "listening_stop": return "Stopped listening";
+      case "voice": case "command": return "Heard: “" + (d.text || d.command || "") + "”";
+      case "tier1": return "Ink check on the phone";
+      default: return String(e.type || "event").replace(/_/g, " ") + (d.text ? ": " + d.text : "");
+    }
   }
   function renderEvents(ev) {
-    renderStream($("timeline"), ev, seenEvents, 8, function (x, t) {
+    var list = $("timeline");
+    if (!ev.length && !list.children.length) {
+      list.innerHTML = '<li class="empty-note"><span></span><span class="t">Lessons, photos and grades appear here.</span></li>';
+      return;
+    }
+    renderStream(list, ev.filter(function (e) { return e.type !== "tier1" && e.type !== "photo"; }), seenEvents, 8, function (x) {
       var li = document.createElement("li");
-      li.innerHTML = '<span class="ts">' + clock(x && x.ts) + '</span><span class="t">' + esc(t) + "</span>";
+      li.className = "e-" + (x.type || "");
+      li.innerHTML = '<span class="ts">' + clock(x && x.ts) + '</span><span class="t">' + esc(eventText(x)) + "</span>";
       return li;
     });
   }
   function renderProgress(p, s) {
-    var t = "";
-    if (p && typeof p === "object") {
-      var bits = [];
-      if (p.today !== undefined) bits.push(p.today + " today");
-      if (p.streak) bits.push(p.streak + "-day streak");
-      t = bits.join(" · ");
-    }
-    setText($("progressCap"), t);
+    var bits = [];
+    if (p.learned !== undefined && p.learnable) bits.push(p.learned + " of " + p.learnable + " learned");
+    if (p.items_total) bits.push("word " + ((p.item_index || 0) + 1) + " of " + p.items_total);
+    setText($("progressCap"), bits.join(" · "));
   }
 
   function maybeCelebrate(st) {
-    var r = st.last_result, g = st.glasses || {};
-    var key = null;
+    var r = st.last_result, key = null;
     if (r && r.correct && r.ts) key = "r" + r.ts;
-    (st.events || []).forEach(function (e) { if (e && /celebr|confetti/.test(e.type || "") && e.ts) key = "e" + e.ts; });
-    if (!key && g.phase === "celebrate" && r && r.ts) key = "r" + r.ts;
+    (st.events || []).forEach(function (e) { if (e && /celebr|confetti/.test(e.type || "") && e.ts) key = key || "e" + e.ts; });
     if (!key || celebrated[key]) return;
     celebrated[key] = 1;
-    if (firstPoll) return; // don't celebrate something that happened before the page opened
+    if (firstPoll) return; // nothing old: only celebrate what happens while the page is open
     var rect = $("lens").getBoundingClientRect();
     WornConfetti.burst({ x: (rect.left + rect.width / 2) / innerWidth, y: (rect.top + rect.height * 0.45) / innerHeight, count: 140 });
     var t = $("tutor").getBoundingClientRect();
     setTimeout(function () { WornConfetti.burst({ x: (t.left + t.width / 2) / innerWidth, y: (t.top + t.height * 0.3) / innerHeight, count: 110, power: .9 }); }, 180);
+    $("tutor").classList.remove("pop"); void $("tutor").offsetWidth; $("tutor").classList.add("pop");
   }
 
-  // phrase chars for the header strip
   get("/content").then(function (c) {
     var m = {};
-    ((c && c.langs) || []).forEach(function (l) { l.phrases.forEach(function (p) { if (p.chars) m[l.lang + "/" + p.id] = p.chars; }); });
+    ((c && c.langs) || []).forEach(function (l) { (l.items || l.phrases || []).forEach(function (p) { if (p.chars) m[l.lang + "/" + p.id] = p.chars; }); });
     window.__wornChars = m;
-    lessonKey = "";
   }).catch(function () {}).then(poll);
 })();
 </script>

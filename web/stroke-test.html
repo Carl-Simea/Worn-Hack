@@ -6,7 +6,7 @@
 <title>Worn Stroke Check</title>
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,500&family=Noto+Serif+SC:wght@500&family=Noto+Serif+JP:wght@500&family=Noto+Serif+Devanagari:wght@500&family=Noto+Naskh+Arabic:wght@500&family=Noto+Serif:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Noto+Serif+SC:wght@500&family=Noto+Serif+Devanagari:wght@500&family=Noto+Naskh+Arabic:wght@500&family=Noto+Serif+Hebrew:wght@500&family=Noto+Serif:wght@500&display=swap">
 <link rel="stylesheet" href="/static/web/worn.css">
 <!-- Pre-demo check (owner: agent B). Animates every lesson character in all five scripts with worn-ink.js,
      the renderer /live, /glasses and /app use, and reports which data each one uses. Never touches /session.
@@ -47,7 +47,7 @@
   var API = (qs.get("api") || "").replace(/\/$/, "");
   var only = qs.get("lang");
   var dark = qs.get("glasses") === "1";
-  var LABEL = { hanzi: ["true order", "ok"], pen: ["stroke paths", "ok"], worn: ["stroke paths", "ok"], glyph: ["font trace", "warn"] };
+  var LABEL = { hanzi: ["true order", "ok"], pen: ["suggested order", "ok"], worn: ["stroke paths", "ok"], glyph: ["font trace", "warn"] };
   document.getElementById("mode").textContent = dark ? "Show on paper" : "Show on glasses black";
   document.getElementById("mode").onclick = function () { qs.set("glasses", dark ? "0" : "1"); location.search = qs.toString(); };
 

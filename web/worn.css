@@ -2,7 +2,7 @@
    Paper + ink. One accent (ultramarine ink). Newsreader for display, Inter for UI, Noto for every script.
    Load with:
    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Noto+Serif+SC:wght@500&family=Noto+Serif+JP:wght@500&family=Noto+Serif+Devanagari:wght@500&family=Noto+Naskh+Arabic:wght@500&family=Noto+Serif:wght@500&family=Noto+Sans+SC:wght@500&family=Noto+Sans+JP:wght@500&family=Noto+Sans+Devanagari:wght@500&family=Noto+Sans+Arabic:wght@500&display=swap">
+   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Noto+Serif+SC:wght@500&family=Noto+Serif+Devanagari:wght@500&family=Noto+Naskh+Arabic:wght@500&family=Noto+Serif+Hebrew:wght@500&family=Noto+Serif:wght@500&family=Noto+Sans+SC:wght@500&family=Noto+Sans+Devanagari:wght@500&family=Noto+Sans+Arabic:wght@500&family=Noto+Sans+Hebrew:wght@500&family=Noto+Sans:wght@500&display=swap">
    <link rel="stylesheet" href="/static/web/worn.css"> */
 
 :root {
@@ -31,8 +31,8 @@
   --display: "Newsreader", "Iowan Old Style", "Palatino", Georgia, serif;
   --ui: "Inter", -apple-system, system-ui, "Segoe UI", sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
-  --script-serif: "Noto Serif", "Noto Serif SC", "Noto Serif JP", "Noto Serif Devanagari", "Noto Naskh Arabic", serif;
-  --script-sans: "Noto Sans", "Noto Sans SC", "Noto Sans JP", "Noto Sans Devanagari", "Noto Sans Arabic", sans-serif;
+  --script-serif: "Noto Serif", "Noto Serif SC", "Noto Serif Devanagari", "Noto Naskh Arabic", "Noto Serif Hebrew", serif;
+  --script-sans: "Noto Sans", "Noto Sans SC", "Noto Sans Devanagari", "Noto Sans Arabic", "Noto Sans Hebrew", sans-serif;
   --ease: cubic-bezier(.2, .7, .2, 1);
   color-scheme: light;
 }
@@ -83,10 +83,11 @@ a { color: inherit; }
 .script { font-family: var(--script-serif); font-weight: 500; line-height: 1.15; }
 .script-sans { font-family: var(--script-sans); font-weight: 500; }
 [data-lang="mandarin"] .script, .script[data-lang="mandarin"] { font-family: "Noto Serif SC", serif; }
-[data-lang="japanese"] .script, .script[data-lang="japanese"] { font-family: "Noto Serif JP", serif; }
 [data-lang="hindi"] .script, .script[data-lang="hindi"] { font-family: "Noto Serif Devanagari", serif; line-height: 1.35; }
 [data-lang="arabic"] .script, .script[data-lang="arabic"] { font-family: "Noto Naskh Arabic", serif; line-height: 1.45; }
 [data-lang="russian"] .script, .script[data-lang="russian"] { font-family: "Noto Serif", serif; }
+[data-lang="hebrew"] .script, .script[data-lang="hebrew"] { font-family: "Noto Serif Hebrew", serif; line-height: 1.3; }
+[data-lang="greek"] .script, .script[data-lang="greek"] { font-family: "Noto Serif", serif; }
 
 /* surfaces */
 .card { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); box-shadow: var(--shadow); }

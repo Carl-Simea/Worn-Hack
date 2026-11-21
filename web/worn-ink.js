@@ -9,9 +9,9 @@
  *   ink.stop()
  *
  * Data sources, picked from the session's stroke_url (content/strokes/, see content/README.md):
- *   .json with "medians"  -> hanzi-writer data (Mandarin): per-stroke outline revealed along its median
- *   .svg                  -> centerlines in a 109 box: KanjiVG (Japanese) and C's suggested order
- *                            (Hindi, Arabic, Russian), drawn as pen lines
+ *   .json with "medians"  -> hanzi-writer-data (Mandarin): per-stroke outline revealed along its median
+ *   .svg                  -> centerlines in a 109 box: C's hand-authored suggested order
+ *                            (Hindi, Arabic, Russian, Hebrew, Greek), drawn as pen lines
  *   .json with "outline"  -> Worn stroke file (Hindi, Arabic, Russian): Noto glyph outline revealed
  *                            stroke by stroke along hand-authored centerlines (see web/strokes/README.md)
  *   nothing               -> the font glyph, traced (shape only; label says so)

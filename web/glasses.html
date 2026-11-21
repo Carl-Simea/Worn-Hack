@@ -18,7 +18,7 @@
   .screen.on { opacity:1; }
 
   #strip { position:absolute; left:16px; right:16px; top:12px; height:54px; display:flex; justify-content:center; align-items:center;
-    font-family:"Noto Sans","Noto Sans SC","Noto Sans JP","Noto Sans Devanagari","Noto Sans Arabic",sans-serif; font-size:36px; white-space:nowrap; }
+    font-family:"Noto Sans","Noto Sans SC","Noto Sans Devanagari","Noto Sans Arabic","Noto Sans Hebrew",sans-serif; font-size:36px; white-space:nowrap; }
   #strip span { color:#4a4f5a; margin:0 4px; padding-bottom:2px; border-bottom:3px solid transparent; }
   #strip span.done { color:#d8dbe2; }
   #strip span.cur { color:var(--accent); border-bottom-color:var(--accent); }
@@ -172,9 +172,13 @@
     $("meaning").textContent = s.meaning ? "“" + s.meaning + "”" : "";
     $("lang").textContent = s.lang_name || s.lang;
     $("counter").textContent = (s.char_index + 1) + " / " + s.total_chars;
+    if (s.show_char === false) $("strip").innerHTML = "<span class='cur'>?</span>";
     show("write");
     inkReady = false; lastSync = "";
-    ink.load(s).then(function () { inkReady = true; ink.loop(); });
+    var dictation = s.show_char === false;
+    $("board").style.visibility = dictation ? "hidden" : "";
+    $("prompt").innerHTML = dictation ? "Listen, then write<br>what you hear." : "Write it on paper.<br>I'll follow your pen.";
+    ink.load(s).then(function () { inkReady = true; if (!dictation) ink.loop(); else ink.stop(); });
     playPronunciation();
   }
   function render(s) {
@@ -194,12 +198,13 @@
     $("resPath").setAttribute("d", r.correct ? "M30 52l13 13 27-30" : "M50 28v28M50 70v1");
     $("resScore").textContent = typeof r.score === "number" ? r.score + " / 100" : "";
     $("resText").textContent = r.feedback || (r.correct ? "Nice!" : "Try again");
-    $("resLine").textContent = r.reaction_line || "";
-    speak(r.feedback || (r.correct ? "Nice!" : "Try again"));
+    $("resLine").textContent = r.reaction ? (r.emoji ? r.emoji + " " : "") + r.reaction : "";
+    speak(r.reaction || r.feedback || (r.correct ? "Nice!" : "Try again"));
+    var mood = { celebrate: "cheer", proud: "applause", encourage: "encourage", gentle: "boing" }[r.mood];
     if (r.correct) {
-      play(SOUNDS[r.reaction] ? r.reaction : "cheer");
+      play(mood || "cheer");
       WornConfetti.burst({ x: .5, y: .35, count: 120, power: .8 });
-    } else play(SOUNDS[r.reaction] ? r.reaction : "encourage");
+    } else play(mood || "encourage");
     resultTimer = setTimeout(hideResult, RESULT_HOLD_MS);
   }
   function showBusy(msg) {
@@ -221,9 +226,16 @@
       var key = s ? [s.version, s.lang, s.phrase_id, s.char_index].join("|") : "";
       var fresh = key !== lessonKey;
       if (fresh) { lessonKey = key; render(s); }
-      if (s && inkReady && g.phase && g.phase !== "demo" && g.stroke) {
-        var k = g.stroke + "|" + g.phase;
-        if (k !== lastSync) { if (lastSync && g.phase === "writing") play("stroke"); lastSync = k; ink.sync(g.stroke, g.phase); }
+      // A's phases: watch (loop the animation) -> write (stroke is 0-based) -> checking -> result
+      if (s && inkReady && g.phase) {
+        var k = (g.stroke || 0) + "|" + g.phase;
+        if (k !== lastSync) {
+          var wasWriting = /^\d+\|write/.test(lastSync);
+          lastSync = k;
+          if (g.phase === "write" || g.phase === "writing") { if (wasWriting) play("stroke"); ink.sync((g.stroke || 0) + 1, "write"); }
+          else if (/check|result/.test(g.phase)) ink.sync(999, "result");
+          else ink.loop();
+        }
       }
       if (/check/.test(g.phase || "") && !$("result").classList.contains("on")) showBusy();
       var r = st.last_result;
