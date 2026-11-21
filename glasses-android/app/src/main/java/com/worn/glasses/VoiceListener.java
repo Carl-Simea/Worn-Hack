@@ -29,7 +29,7 @@ final class VoiceListener {
     static final int RATE = 16000;
     private static final int FRAME = 320;              // 20 ms
     private static final int START_FRAMES = 3;         // 60 ms of voice to start
-    private static final int END_FRAMES = 30;          // 600 ms of quiet to end
+    private static final int END_FRAMES = 35;          // 700 ms of quiet to end (no clipped words)
     private static final int PREROLL_FRAMES = 20;      // 400 ms kept from before the start
     private static final int MIN_FRAMES = 18;          // 360 ms minimum
     private static final int MAX_FRAMES = 350;         // 7 s maximum
@@ -38,11 +38,11 @@ final class VoiceListener {
     private volatile boolean running;
     private volatile long mutedUntil;
     private volatile boolean paused;
-    private Thread thread;
+    private volatile Thread thread;
     private String state = "";
     /** Average loudness (RMS over the voiced frames) an utterance needs. The wearer's mouth is ~5 cm from
      *  the mic; people talking nearby are much quieter. Tunable live: --ei loud 2500 */
-    volatile int minLoud = 1800;
+    volatile int minLoud = 1000;   // wearer measured ~1700 (80th pct), room chatter ~400–700
 
     VoiceListener(Callback cb) { this.cb = cb; }
 
@@ -126,7 +126,8 @@ final class VoiceListener {
         long lastLevel = 0;
         setState("listening");
         try {
-            while (running) {
+            final Thread me = Thread.currentThread();
+            while (running && thread == me) {     // a restarted listener retires the old thread (never two mics)
                 int n = rec.read(frame, 0, FRAME);
                 if (n <= 0) continue;
                 double sum = 0;

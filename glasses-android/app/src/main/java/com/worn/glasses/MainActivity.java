@@ -152,8 +152,8 @@ public class MainActivity extends Activity {
             Log.i(TAG, "backend " + primary + " (fallback " + fallback + ")");
             chooseAndLoad();
         }
-        if (intent != null && intent.hasExtra("loud")) p.edit().putInt("loud", intent.getIntExtra("loud", 1800)).apply();
-        mic.minLoud = p.getInt("loud", 1800);
+        if (intent != null && intent.hasExtra("loud")) p.edit().putInt("loud", intent.getIntExtra("loud", 1000)).apply();
+        mic.minLoud = p.getInt("loud", 1000);
         if (intent != null && intent.hasExtra("barge")) p.edit().putInt("barge", intent.getIntExtra("barge", 3000)).apply();
         mic.bargeMin = p.getInt("barge", 3000);
         String say = intent == null ? null : intent.getStringExtra("say");

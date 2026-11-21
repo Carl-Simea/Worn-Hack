@@ -238,6 +238,7 @@
 <div id="cap"></div>
 <div id="scribi" class="idle"><div class="halo"></div><div class="orb"></div><i class="eye l"></i><i class="eye r"></i><i class="mouth"></i></div>
 
+<script src="/__app/ui/commands.js"></script>
 <script src="/static/web/worn-ink.js"></script>
 <script src="/static/web/worn-confetti.js"></script>
 <script src="/static/web/worn-sfx.js"></script>
@@ -254,8 +255,9 @@
   var SCRIPT_OF = { hindi: "devanagari", arabic: "arabic", russian: "cyrillic", hebrew: "hebrew", greek: "greek" };
   var HOME_MENU = [
     { k: "Learn", s: "learn", x: "six scripts" },
-    { k: "Write my name", s: "name", x: "in five scripts" },
+    { k: "How do I write my name", s: "name", x: "in five scripts" },
     { k: "Help me write", s: "compose", x: "any message" },
+    { k: "Write this word", s: "compose", x: "" },
     { k: "Daily 5", s: "daily5", x: "quick review" },
     { k: "Journal", s: "journal", x: "your pages" },
     { k: "How to use", s: "howto", x: "what to say" }
@@ -1228,7 +1230,24 @@
     });
   }
 
+  // Deterministic commands ALWAYS win over the AI (commands.js; tested in tests/commands.test.js)
+  var CMD_TOOL = { home: "go_home", back: "go_back", exit: "exit_app", learn: "learn_language", compose: "compose", write_name: "write_name",
+    open: "open_screen", next: "next", previous: "previous", repeat: "repeat", show_again: "show_again", slower: "slower", faster: "faster",
+    check: "check", skip: "skip", meaning: "meaning", help: "help", start: "start" };
   function handleVoice(r) {
+    var heard0 = r.heard || r.text || "";
+    if (heard0 && st.screen !== "idle" && window.WornCommands) {
+      var c = WornCommands.command(heard0, { screen: st.screen, phase: st.phase, lang: st.lang });
+      if (c && CMD_TOOL[c.intent]) {
+        var a = c.args || {};
+        if (c.intent === "compose" && !a.lang) a.lang = st.lang || "mandarin";
+        console.log("voice heard=" + JSON.stringify(heard0) + " -> COMMAND " + c.intent + " " + JSON.stringify(a));
+        showHeard(heard0); caption(heard0, "you"); captionOff(1500);
+        var nav = c.intent === "learn" ? { screen: "words", lang: a.lang } : null;
+        applyReply({ heard: heard0, actions: [{ tool: CMD_TOOL[c.intent], args: a }], nav: nav, say: c.say || "" }, heard0);
+        return;
+      }
+    }
     var heard = r.heard || r.text || "";
     if (heard && st.screen !== "idle" && r.intent !== "unknown") { caption(heard, "you"); captionOff(1800); }
     if (st.screen !== "idle") showHeard(heard);
@@ -1296,9 +1315,10 @@
   // ------------------------------------------------------------------ native → page
   window.worn = {
     mic: function (s) { setMic(s === "off" ? "off" : s); },
-    voice: function (json) {
+    voice: function (json, seq) {
       voiceDown = false;
       var r; try { r = typeof json === "string" ? JSON.parse(json) : json; } catch (e) { return; }
+      if (seq) { if (seq < (st.lastSeq || 0)) { console.log("dropped out-of-order reply #" + seq); return; } st.lastSeq = seq; }
       setMic("listening");
       handleVoice(r);
     },
@@ -1308,6 +1328,8 @@
       else toast("I didn't catch that.", 1600);
     },
     heard: function (text) {
+      // deterministic commands don't need the network at all
+      if (window.WornCommands && st.screen !== "idle" && WornCommands.command(text, { screen: st.screen, phase: st.phase, lang: st.lang })) { handleVoice({ heard: text, typed: true }); return; }
       // test hook (adb --es say "…"): through /voice with text, else our matcher
       var fd = new FormData(); fd.append("text", text); fd.append("screen", st.screen);
       setMic("thinking");
