@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stroke Preview</title>
+<!-- Content check page (owner: agent C). Open http://<laptop-ip>:8000/static/content/tools/stroke_preview.html
+     For every character of every lesson item it shows:
+       left  = the real font glyph (grey) under the stroke file, each stroke numbered at its start with an arrow at its end
+       right = the live animation, using /static/web/worn-strokes.js (the code the glasses and mirror use)
+     ?lang=hindi limits to one language. ?grid=1 adds a labelled 0-100 grid (authoring aid). ?anim=0 hides animations.
+     It never touches /session. -->
+<style>
+  :root { --bg:#fff; --fg:#111; --dim:#666; --line:#dde; --ok:#178a3c; --bad:#c62828; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--fg); font:14px/1.4 system-ui,sans-serif; }
+  h1 { font-size:20px; margin:0 0 6px; } h2 { font-size:17px; margin:22px 0 4px; }
+  .meta { color:var(--dim); margin:0 0 6px; }
+  .item { margin:8px 0 14px; }
+  .item b { font-size:15px; }
+  .row { display:flex; flex-wrap:wrap; }
+  .cell { margin:0 10px 10px 0; text-align:center; }
+  .pair { display:flex; }
+  .box { position:relative; width:170px; height:170px; border:1px solid var(--line); background:#fff; }
+  .box canvas, .box svg { position:absolute; left:0; top:0; width:170px; height:170px; }
+  .anim { background:#000; margin-left:4px; }
+  .anim .inner { position:absolute; left:5px; top:5px; width:160px; height:160px; }
+  .cap { font-size:12px; color:var(--dim); height:16px; }
+  .status { font-weight:700; font-size:12px; } .ok { color:var(--ok); } .bad { color:var(--bad); }
+  #sum { font-size:17px; font-weight:700; }
+</style>
+</head>
+<body>
+<h1>Worn stroke preview</h1>
+<div class="meta">Grey = real font glyph. Colored = stroke file: number at the start, arrow at the end. Black boxes = live animation.</div>
+<div id="sum">loading…</div>
+<div id="out"></div>
+<script src="/static/web/vendor/hanzi-writer.min.js"></script>
+<script src="/static/web/worn-strokes.js"></script>
+<script>
+"use strict";
+const qs = new URLSearchParams(location.search);
+const ONLY = qs.get("lang"), GRID = qs.get("grid") === "1", ANIM = qs.get("anim") !== "0";
+const COLORS = ["#e53935", "#1e88e5", "#43a047", "#fb8c00", "#8e24aa", "#00acc1", "#d81b60", "#827717", "#5d4037", "#3949ab", "#c0ca33", "#6d4c41"];
+const FONT = { hindi: '"Kohinoor Devanagari","Noto Sans Devanagari",sans-serif', arabic: '"Geeza Pro","Noto Naskh Arabic",sans-serif',
+  russian: 'Helvetica,Arial,sans-serif', mandarin: '"PingFang SC","Noto Sans CJK SC",sans-serif', japanese: '"Hiragino Sans","Noto Sans CJK JP",sans-serif' };
+const NS = "http://www.w3.org/2000/svg";
+const hex = c => [...c].map(x => x.codePointAt(0).toString(16)).join("-");
+let total = 0, withFile = 0, problems = [];
+
+function drawGlyph(canvas, ch, lang) {
+  // fit the glyph's ink box into the same 80-unit box the strokes were traced on (units 10..90 of 100)
+  const S = 170 / 100, dpr = 2;
+  canvas.width = 170 * dpr; canvas.height = 170 * dpr;
+  const g = canvas.getContext("2d"); g.scale(dpr, dpr);
+  const off = document.createElement("canvas"); off.width = 800; off.height = 800;
+  const o = off.getContext("2d"); o.font = `300px ${FONT[lang]}`; o.textBaseline = "alphabetic"; o.fillStyle = "#000";
+  if (lang === "arabic") o.direction = "rtl";
+  o.textAlign = "center"; o.fillText(ch, 400, 520);
+  const d = o.getImageData(0, 0, 800, 800).data; let x0 = 800, y0 = 800, x1 = 0, y1 = 0;
+  for (let y = 0; y < 800; y++) for (let x = 0; x < 800; x++) if (d[(y * 800 + x) * 4 + 3] > 20) {
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 <= x0) return;
+  const k = 80 / Math.max(x1 - x0, y1 - y0), w = (x1 - x0) * k, h = (y1 - y0) * k;
+  g.globalAlpha = .22;
+  g.drawImage(off, x0, y0, x1 - x0, y1 - y0, (50 - w / 2) * S, (50 - h / 2) * S, w * S, h * S);
+  g.globalAlpha = 1;
+  if (GRID) {
+    g.font = "8px sans-serif"; g.fillStyle = "#99a";
+    for (let v = 0; v <= 100; v += 10) {
+      g.strokeStyle = v % 50 ? "#dfe3ff" : "#ffb3b3"; g.lineWidth = .6;
+      g.beginPath(); g.moveTo(v * S, 0); g.lineTo(v * S, 170); g.moveTo(0, v * S); g.lineTo(170, v * S); g.stroke();
+      if (v && v < 100) { g.fillText(v, v * S + 1, 8); g.fillText(v, 1, v * S - 1); }
+    }
+  }
+}
+
+function overlay(svgText) {
+  const src = new DOMParser().parseFromString(svgText, "image/svg+xml");
+  const vb = (src.documentElement.getAttribute("viewBox") || "0 0 109 109").split(/\s+/).map(Number);
+  const svg = document.createElementNS(NS, "svg");
+  // our hand-authored files are a 100-box centred in 109 (+4.5); KanjiVG is native 109. Show both on the 100 grid.
+  svg.setAttribute("viewBox", `${vb[0] + 4.5} ${vb[1] + 4.5} 100 100`);
+  const paths = [...src.getElementsByTagName("path")].map(p => p.getAttribute("d"));
+  paths.forEach((dd, i) => {
+    const col = COLORS[i % COLORS.length];
+    const p = document.createElementNS(NS, "path");
+    p.setAttribute("d", dd); p.setAttribute("fill", "none"); p.setAttribute("stroke", col);
+    p.setAttribute("stroke-width", "2.4"); p.setAttribute("stroke-linecap", "round"); p.setAttribute("stroke-linejoin", "round");
+    p.setAttribute("opacity", ".9"); svg.appendChild(p);
+    const L = p.getTotalLength(), a = p.getPointAtLength(0), b = p.getPointAtLength(L), q = p.getPointAtLength(Math.max(0, L - 3));
+    const dot = document.createElementNS(NS, "circle"); dot.setAttribute("cx", a.x); dot.setAttribute("cy", a.y); dot.setAttribute("r", "1.8"); dot.setAttribute("fill", col); svg.appendChild(dot);
+    const t = document.createElementNS(NS, "text"); t.setAttribute("x", a.x + 2); t.setAttribute("y", a.y - 2); t.setAttribute("font-size", "7"); t.setAttribute("font-weight", "700"); t.setAttribute("fill", col); t.textContent = i + 1; svg.appendChild(t);
+    let vx = b.x - q.x, vy = b.y - q.y; const n = Math.hypot(vx, vy) || 1; vx /= n; vy /= n;
+    const tri = document.createElementNS(NS, "polygon");
+    tri.setAttribute("points", `${b.x + vx * 3.5},${b.y + vy * 3.5} ${b.x - vy * 2.6},${b.y + vx * 2.6} ${b.x + vy * 2.6},${b.y - vx * 2.6}`);
+    tri.setAttribute("fill", col); svg.appendChild(tri);
+  });
+  return { svg, n: paths.length };
+}
+
+async function cell(lang, ch, stroke_order) {
+  total++;
+  const c = document.createElement("div"); c.className = "cell";
+  const pair = document.createElement("div"); pair.className = "pair";
+  const box = document.createElement("div"); box.className = "box";
+  const cv = document.createElement("canvas"); box.appendChild(cv); drawGlyph(cv, ch, lang);
+  pair.appendChild(box); c.appendChild(pair);
+  const cap = document.createElement("div"); cap.className = "cap"; c.appendChild(cap);
+  const st = document.createElement("div"); st.className = "status"; c.appendChild(st);
+  const ext = lang === "mandarin" ? "json" : "svg";
+  const url = `/static/content/strokes/${lang}/${hex(ch)}.${ext}`;
+  const r = await fetch(url);
+  if (!r.ok) {
+    st.textContent = lang === "arabic" && [...ch].length > 1 ? "joined word: shape trace" : "no stroke file";
+    st.className = "status " + (lang === "arabic" && [...ch].length > 1 ? "" : "bad");
+    if (!(lang === "arabic" && [...ch].length > 1)) problems.push(`${lang} ${ch}: no stroke file`);
+  } else {
+    withFile++;
+    if (ext === "svg") { const o = overlay(await r.text()); box.appendChild(o.svg); st.textContent = `${o.n} strokes · ${stroke_order}`; }
+    else { const d = await r.json(); st.textContent = `${d.strokes.length} strokes · ${stroke_order}`; }
+    st.className = "status ok";
+  }
+  if (ANIM) {
+    const a = document.createElement("div"); a.className = "box anim";
+    const inner = document.createElement("div"); inner.className = "inner"; a.appendChild(inner); pair.appendChild(a);
+    WornStrokes.create(inner, cap, "").animate({ char: ch, stroke_url: r.ok ? url : null, rtl: lang === "arabic" });
+  }
+  return c;
+}
+
+(async function () {
+  const c = await (await fetch("/content", { cache: "no-store" })).json();
+  const out = document.getElementById("out");
+  let items = 0;
+  for (const L of c.langs) {
+    if (ONLY && L.lang !== ONLY) continue;
+    const h = document.createElement("h2"); h.textContent = `${L.name} · ${L.script || ""} · stroke order: ${L.stroke_order || "?"}`; out.appendChild(h);
+    for (const p of L.phrases) {
+      items++;
+      const it = document.createElement("div"); it.className = "item";
+      it.innerHTML = "<b></b> <span class='meta'></span>";
+      it.querySelector("b").textContent = p.text; it.querySelector("b").dir = L.rtl ? "rtl" : "ltr";
+      it.querySelector(".meta").textContent = ` ${p.romanization} · “${p.meaning}”`;
+      const row = document.createElement("div"); row.className = "row"; it.appendChild(row); out.appendChild(it);
+      for (const ch of p.chars) row.appendChild(await cell(L.lang, ch, p.stroke_order || L.stroke_order || ""));
+    }
+  }
+  const s = document.getElementById("sum");
+  s.textContent = `${items} items · ${total} characters · ${withFile} with stroke files` + (problems.length ? ` · ${problems.length} missing` : " · nothing missing");
+  s.className = problems.length ? "bad" : "ok";
+  window.__strokeReport = { items, total, withFile, problems };
+})();
+</script>
+</body>
+</html>
