@@ -190,6 +190,8 @@
     .lhead { grid-template-columns: 1fr; gap: 4px; }
     .top .gl span.t { display: none; }
     .result .sc { font-size: 52px; }
+    .stage { width: 78vw; max-width: 78vw; }
+    .practice { gap: 16px; }
   }
 </style>
 </head>
@@ -528,7 +530,7 @@
       if (daily) $("pDaily").textContent = "Daily 5 · " + (daily.i + 1) + " of " + daily.items.length;
       $("pMode").textContent = s.mode === "dictation" ? "Dictation" : s.mode === "compose" ? "Your message" : "Watch & write";
       $("pCount").textContent = (s.char_index + 1) + " of " + s.total_chars;
-      $("pLang").textContent = (s.lang_name || langName(s.lang)) + " · " + (s.script || scriptName(s.lang));
+      $("pLang").textContent = s.script || scriptName(s.lang) || s.lang_name || langName(s.lang);
       var chars = (s.item && s.item.chars) || [s.char], w = $("pWord");
       w.setAttribute("dir", s.rtl ? "rtl" : "ltr");
       w.innerHTML = WornInk.segments((s.item && s.item.text) || s.text, chars).map(function (g) {
@@ -610,6 +612,10 @@
     var fx = WornSfx.forResult(r, { silent: !!quiet });
     $("resRx").innerHTML = (r.emoji ? "<span>" + esc(r.emoji) + "</span>" : "") + (fx.line ? "<span>“" + esc(fx.line) + "”</span>" : "");
     if (s.show_char === false) $("stage").classList.add("reveal");
+    if (!quiet && innerWidth < 900) {
+      var rb = el.getBoundingClientRect();
+      if (rb.bottom > innerHeight || rb.top < 60) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
     if (r.correct && !quiet) {
       var b = $("stage").getBoundingClientRect();
       WornConfetti.burst({ x: (b.left + b.width / 2) / innerWidth, y: Math.max(.15, (b.top + b.height * .4) / innerHeight), count: 130 });
