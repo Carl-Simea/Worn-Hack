@@ -65,3 +65,22 @@ def test_font_fallback_templates_for_every_script():
 def test_svg_path_parser():
     pts = strokes.parse_svg_path("M10,10c0,10 10,10 10,0L30,30z")
     assert len(pts) > 10 and abs(pts[-1][0] - 10) < 1e-3  # z returns to start
+
+
+def test_grade_never_penalizes_form_or_style():
+    # exact read with a low style score is still correct
+    assert vision.parse_grade({"seen": "M", "score": 30}, "M", "latin")["correct"] is True
+    # capital vs small letter counts, kindly
+    g = vision.parse_grade({"seen": "п", "score": 80}, "П", "russian")
+    assert g["correct"] and "Both count" in g["feedback"]
+    # Greek accent missing: still correct, with the tip
+    g = vision.parse_grade({"seen": "ο", "score": 80}, "ό", "greek")
+    assert g["correct"] and "accent" in g["feedback"]
+    # but a different letter is a miss, and Devanagari vowel signs are never stripped
+    assert vision.parse_grade({"seen": "ע", "score": 60}, "ש", "hebrew")["correct"] is False
+    assert vision.parse_grade({"seen": "न", "score": 90}, "ने", "hindi")["correct"] is False
+    assert vision.parse_grade({"seen": "Б", "score": 90}, "В", "russian")["correct"] is False
+
+
+def test_unicode_name_in_prompt():
+    assert vision.unicode_name("ש") == "hebrew letter shin"

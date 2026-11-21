@@ -28,7 +28,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 47
+    "ms": 42
    },
    {
     "writer": 1,
@@ -37,7 +37,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 39
+    "ms": 41
    },
    {
     "writer": 1,
@@ -46,7 +46,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.000276,
-    "ms": 52
+    "ms": 70
    },
    {
     "writer": 1,
@@ -55,7 +55,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 37
+    "ms": 41
    },
    {
     "writer": 1,
@@ -64,7 +64,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 69
+    "ms": 68
    },
    {
     "writer": 1,
@@ -73,7 +73,7 @@
     "got": true,
     "ok": true,
     "new_ink_frac": 0.000802,
-    "ms": 42
+    "ms": 40
    },
    {
     "writer": 2,
@@ -82,7 +82,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 7.6e-05,
-    "ms": 43
+    "ms": 41
    },
    {
     "writer": 2,
@@ -91,7 +91,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 37
+    "ms": 49
    },
    {
     "writer": 2,
@@ -100,7 +100,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 40
+    "ms": 43
    },
    {
     "writer": 2,
@@ -109,7 +109,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.000165,
-    "ms": 37
+    "ms": 61
    },
    {
     "writer": 2,
@@ -118,7 +118,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 39
+    "ms": 43
    },
    {
     "writer": 2,
@@ -127,7 +127,7 @@
     "got": true,
     "ok": true,
     "new_ink_frac": 0.00081,
-    "ms": 39
+    "ms": 64
    },
    {
     "writer": 3,
@@ -136,7 +136,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 43
+    "ms": 74
    },
    {
     "writer": 3,
@@ -145,7 +145,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 40
+    "ms": 42
    },
    {
     "writer": 3,
@@ -154,7 +154,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.000145,
-    "ms": 44
+    "ms": 42
    },
    {
     "writer": 3,
@@ -163,7 +163,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 40
+    "ms": 38
    },
    {
     "writer": 3,
@@ -172,7 +172,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 5.8e-05,
-    "ms": 45
+    "ms": 44
    },
    {
     "writer": 3,
@@ -181,7 +181,7 @@
     "got": true,
     "ok": true,
     "new_ink_frac": 0.000815,
-    "ms": 42
+    "ms": 43
    }
   ],
   "accuracy": 1.0,
@@ -189,8 +189,8 @@
   "missed_strokes": 0,
   "n": 18,
   "latency": {
-   "avg_ms": 43.1,
-   "max_ms": 69
+   "avg_ms": 49.2,
+   "max_ms": 74
   }
  },
  "tier2": {
@@ -216,8 +216,8 @@
   "separation": 0.857,
   "n": 84,
   "latency": {
-   "avg_ms": 13.9,
-   "max_ms": 23.3
+   "avg_ms": 14.8,
+   "max_ms": 73.7
   },
   "rows": [
    {
@@ -586,7 +586,7 @@
     "style": "print",
     "writer": 1,
     "final_stroke_done": true,
-    "score_right": 53,
+    "score_right": 50,
     "score_wrong": 0,
     "separates": true
    },
@@ -596,7 +596,7 @@
     "style": "print",
     "writer": 2,
     "final_stroke_done": true,
-    "score_right": 54,
+    "score_right": 51,
     "score_wrong": 0,
     "separates": true
    },
@@ -606,7 +606,7 @@
     "style": "print",
     "writer": 3,
     "final_stroke_done": true,
-    "score_right": 54,
+    "score_right": 51,
     "score_wrong": 0,
     "separates": true
    },
@@ -616,7 +616,7 @@
     "style": "cursive-ish",
     "writer": 1,
     "final_stroke_done": false,
-    "score_right": 47,
+    "score_right": 31,
     "score_wrong": 0,
     "separates": true
    },
@@ -626,7 +626,7 @@
     "style": "cursive-ish",
     "writer": 2,
     "final_stroke_done": false,
-    "score_right": 47,
+    "score_right": 31,
     "score_wrong": 0,
     "separates": true
    },
@@ -636,7 +636,7 @@
     "style": "cursive-ish",
     "writer": 3,
     "final_stroke_done": false,
-    "score_right": 48,
+    "score_right": 32,
     "score_wrong": 0,
     "separates": true
    },
@@ -646,7 +646,7 @@
     "style": "marker",
     "writer": 1,
     "final_stroke_done": true,
-    "score_right": 53,
+    "score_right": 50,
     "score_wrong": 0,
     "separates": true
    },
@@ -656,7 +656,7 @@
     "style": "marker",
     "writer": 2,
     "final_stroke_done": true,
-    "score_right": 53,
+    "score_right": 49,
     "score_wrong": 0,
     "separates": true
    },
@@ -666,7 +666,7 @@
     "style": "marker",
     "writer": 3,
     "final_stroke_done": true,
-    "score_right": 53,
+    "score_right": 51,
     "score_wrong": 0,
     "separates": true
    },
@@ -676,7 +676,7 @@
     "style": "mixed",
     "writer": 1,
     "final_stroke_done": true,
-    "score_right": 60,
+    "score_right": 51,
     "score_wrong": 0,
     "separates": true
    },
@@ -686,7 +686,7 @@
     "style": "mixed",
     "writer": 2,
     "final_stroke_done": true,
-    "score_right": 59,
+    "score_right": 52,
     "score_wrong": 0,
     "separates": true
    },
@@ -696,7 +696,7 @@
     "style": "mixed",
     "writer": 3,
     "final_stroke_done": true,
-    "score_right": 61,
+    "score_right": 52,
     "score_wrong": 0,
     "separates": true
    },
@@ -1059,6 +1059,1042 @@
     "score_right": 74,
     "score_wrong": 0,
     "separates": true
+   }
+  ]
+ },
+ "tier3": {
+  "by_kind": {
+   "real: as photographed": {
+    "n": 16,
+    "ok": 5,
+    "accuracy": 0.312
+   },
+   "real: tilted 8° + shadow": {
+    "n": 16,
+    "ok": 5,
+    "accuracy": 0.312
+   },
+   "real: wrong target (must reject)": {
+    "n": 16,
+    "ok": 16,
+    "accuracy": 1.0
+   },
+   "script on real paper: print": {
+    "n": 7,
+    "ok": 6,
+    "accuracy": 0.857
+   },
+   "script on real paper: print, wrong char": {
+    "n": 7,
+    "ok": 7,
+    "accuracy": 1.0
+   },
+   "script on real paper: mixed": {
+    "n": 7,
+    "ok": 5,
+    "accuracy": 0.714
+   },
+   "script on real paper: mixed, wrong char": {
+    "n": 7,
+    "ok": 7,
+    "accuracy": 1.0
+   }
+  },
+  "accuracy": 0.671,
+  "n": 76,
+  "harsh_feedback": 0,
+  "latency": {
+   "avg_ms": 4733.6,
+   "max_ms": 8975.6
+  },
+  "rows": [
+   {
+    "kind": "real: as photographed",
+    "writer": 1,
+    "target": "B",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "b",
+    "score": 45,
+    "feedback": "Add more vertical line and curve.",
+    "harsh_words": [],
+    "ms": 5216
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 1,
+    "target": "B",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "b",
+    "score": 45,
+    "feedback": "The letter needs more vertical alignment and straight lines.",
+    "harsh_words": [],
+    "ms": 5041
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 1,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "",
+    "score": 0,
+    "feedback": "I can't see your writing, hold the paper closer.",
+    "harsh_words": [],
+    "ms": 1729
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 1,
+    "target": "D",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "D",
+    "score": 70,
+    "feedback": "Good, D is readable.",
+    "harsh_words": [],
+    "ms": 7708
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 1,
+    "target": "D",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "p",
+    "score": 30,
+    "feedback": "The letter 'p' should have a vertical line and two curved lines.",
+    "harsh_words": [],
+    "ms": 5862
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 1,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "p",
+    "score": 30,
+    "feedback": "The letter should be 'Q'.",
+    "harsh_words": [],
+    "ms": 1609
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 1,
+    "target": "F",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "f",
+    "score": 45,
+    "feedback": "The top line needs to be straight and horizontal.",
+    "harsh_words": [],
+    "ms": 5027
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 1,
+    "target": "F",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "F",
+    "score": 70,
+    "feedback": "Good, F is readable.",
+    "harsh_words": [],
+    "ms": 5117
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 1,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "F",
+    "score": 30,
+    "feedback": "The letter should be more open and rounded at the top.",
+    "harsh_words": [],
+    "ms": 1884
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 1,
+    "target": "G",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "g",
+    "score": 45,
+    "feedback": "Add the top curve to make it more like 'G'.",
+    "harsh_words": [],
+    "ms": 5523
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 1,
+    "target": "G",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "G",
+    "score": 70,
+    "feedback": "Good, G is readable.",
+    "harsh_words": [],
+    "ms": 5304
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 1,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "Gg",
+    "score": 20,
+    "feedback": "The letter should be 'Q' with a circle.",
+    "harsh_words": [],
+    "ms": 1868
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 1,
+    "target": "H",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "H",
+    "score": 70,
+    "feedback": "Good, H is readable.",
+    "harsh_words": [],
+    "ms": 5441
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 1,
+    "target": "H",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "H",
+    "score": 70,
+    "feedback": "Good, H is readable.",
+    "harsh_words": [],
+    "ms": 5537
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 1,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "Hh",
+    "score": 20,
+    "feedback": "The learner needs to distinguish between H and h.",
+    "harsh_words": [],
+    "ms": 1739
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 1,
+    "target": "M",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "m",
+    "score": 45,
+    "feedback": "The letter should be capitalized and written more upright.",
+    "harsh_words": [],
+    "ms": 5104
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 1,
+    "target": "M",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "M",
+    "score": 30,
+    "feedback": "The letter looks like 'M', but the top part is not closed.",
+    "harsh_words": [],
+    "ms": 5237
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 1,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "m",
+    "score": 30,
+    "feedback": "The letter 'M' should be written with two vertical lines and a horizontal line.",
+    "harsh_words": [],
+    "ms": 1906
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 2,
+    "target": "C",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "c",
+    "score": 45,
+    "feedback": "The loop needs to be more open and distinct.",
+    "harsh_words": [],
+    "ms": 5048
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 2,
+    "target": "C",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "",
+    "score": 0,
+    "feedback": "I can't see your writing, hold the paper closer.",
+    "harsh_words": [],
+    "ms": 5023
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 2,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "Cc",
+    "score": 30,
+    "feedback": "The learner needs to focus on the tail of 'C' and the loop.",
+    "harsh_words": [],
+    "ms": 1848
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 2,
+    "target": "D",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "Dd",
+    "score": 70,
+    "feedback": "Good, D is readable.",
+    "harsh_words": [],
+    "ms": 5335
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 2,
+    "target": "D",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "Dd",
+    "score": 75,
+    "feedback": "Good, D is readable.",
+    "harsh_words": [],
+    "ms": 5210
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 2,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "Dd",
+    "score": 30,
+    "feedback": "The letter 'Q' has not been written.",
+    "harsh_words": [],
+    "ms": 1469
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 2,
+    "target": "F",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "f",
+    "score": 45,
+    "feedback": "The top line needs to be straight and horizontal.",
+    "harsh_words": [],
+    "ms": 4975
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 2,
+    "target": "F",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "f",
+    "score": 45,
+    "feedback": "Ensure the top line is straight and horizontal.",
+    "harsh_words": [],
+    "ms": 8976
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 2,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "f",
+    "score": 30,
+    "feedback": "The letter 'f' needs to be more distinct and upright.",
+    "harsh_words": [],
+    "ms": 5049
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 2,
+    "target": "G",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "g",
+    "score": 45,
+    "feedback": "Add more curve to the top of the letter.",
+    "harsh_words": [],
+    "ms": 5436
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 2,
+    "target": "G",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "g",
+    "score": 45,
+    "feedback": "Ensure the loop is more open and distinct.",
+    "harsh_words": [],
+    "ms": 8919
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 2,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "G",
+    "score": 30,
+    "feedback": "The letter should be 'Q' with a hook on the bottom.",
+    "harsh_words": [],
+    "ms": 1808
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 2,
+    "target": "K",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "k",
+    "score": 45,
+    "feedback": "The letter needs more vertical alignment and straighter lines.",
+    "harsh_words": [],
+    "ms": 5231
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 2,
+    "target": "K",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "k",
+    "score": 45,
+    "feedback": "The line needs to be straighter and the letter should be more open.",
+    "harsh_words": [],
+    "ms": 5285
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 2,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "k",
+    "score": 45,
+    "feedback": "The letter should be more open and have a tail.",
+    "harsh_words": [],
+    "ms": 1661
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 3,
+    "target": "B",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "B",
+    "score": 70,
+    "feedback": "Good, B is readable.",
+    "harsh_words": [],
+    "ms": 4959
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 3,
+    "target": "B",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "",
+    "score": 0,
+    "feedback": "I can't see your writing, hold the paper closer.",
+    "harsh_words": [],
+    "ms": 4488
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 3,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "B",
+    "score": 30,
+    "feedback": "The letter should be 'Q' with a vertical line and two horizontal lines.",
+    "harsh_words": [],
+    "ms": 1843
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 3,
+    "target": "C",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "c",
+    "score": 45,
+    "feedback": "The letter needs more vertical line and sharper curve.",
+    "harsh_words": [],
+    "ms": 4968
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 3,
+    "target": "C",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "c",
+    "score": 45,
+    "feedback": "The letter needs more vertical line and less curve.",
+    "harsh_words": [],
+    "ms": 5033
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 3,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "c",
+    "score": 30,
+    "feedback": "The letter should be 'Q' with two vertical lines and a curved tail.",
+    "harsh_words": [],
+    "ms": 1907
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 3,
+    "target": "D",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "d",
+    "score": 45,
+    "feedback": "Add a vertical line and curve to make it more like 'D'.",
+    "harsh_words": [],
+    "ms": 5200
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 3,
+    "target": "D",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "D",
+    "score": 70,
+    "feedback": "Good, D is readable.",
+    "harsh_words": [],
+    "ms": 4993
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 3,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "D",
+    "score": 30,
+    "feedback": "The letter should be 'Q' with two loops.",
+    "harsh_words": [],
+    "ms": 1756
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 3,
+    "target": "G",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "",
+    "score": 0,
+    "feedback": "I can't see your writing, hold the paper closer.",
+    "harsh_words": [],
+    "ms": 5065
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 3,
+    "target": "G",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "G",
+    "score": 30,
+    "feedback": "It looks like 'G' but the curve and tail are not distinct.",
+    "harsh_words": [],
+    "ms": 5142
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 3,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "",
+    "score": 0,
+    "feedback": "I can't see your writing, hold the paper closer.",
+    "harsh_words": [],
+    "ms": 1640
+   },
+   {
+    "kind": "real: as photographed",
+    "writer": 3,
+    "target": "K",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "K",
+    "score": 70,
+    "feedback": "Good, K is readable.",
+    "harsh_words": [],
+    "ms": 4940
+   },
+   {
+    "kind": "real: tilted 8° + shadow",
+    "writer": 3,
+    "target": "K",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "",
+    "score": 0,
+    "feedback": "I can't see your writing, hold the paper closer.",
+    "harsh_words": [],
+    "ms": 4432
+   },
+   {
+    "kind": "real: wrong target (must reject)",
+    "writer": 3,
+    "target": "Q",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "K",
+    "score": 30,
+    "feedback": "The letter should be 'Q' with two vertical lines and a horizontal line.",
+    "harsh_words": [],
+    "ms": 1825
+   },
+   {
+    "kind": "script on real paper: print",
+    "lang": "mandarin",
+    "target": "你",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "你",
+    "score": 90,
+    "feedback": "Nice! That's 你.",
+    "harsh_words": [],
+    "ms": 4460
+   },
+   {
+    "kind": "script on real paper: print, wrong char",
+    "lang": "mandarin",
+    "target": "你",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "好",
+    "score": 45,
+    "feedback": "The character should be '你', not '好'.",
+    "harsh_words": [],
+    "ms": 4849
+   },
+   {
+    "kind": "script on real paper: mixed",
+    "lang": "mandarin",
+    "target": "你",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "你",
+    "score": 90,
+    "feedback": "Nice! That's 你.",
+    "harsh_words": [],
+    "ms": 4691
+   },
+   {
+    "kind": "script on real paper: mixed, wrong char",
+    "lang": "mandarin",
+    "target": "你",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "好",
+    "score": 20,
+    "feedback": "The character should be '你', not '好'.",
+    "harsh_words": [],
+    "ms": 5257
+   },
+   {
+    "kind": "script on real paper: print",
+    "lang": "mandarin",
+    "target": "水",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "水",
+    "score": 90,
+    "feedback": "Nice! That's 水.",
+    "harsh_words": [],
+    "ms": 4708
+   },
+   {
+    "kind": "script on real paper: print, wrong char",
+    "lang": "mandarin",
+    "target": "水",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "永",
+    "score": 20,
+    "feedback": "The character should be '水', not '永'.",
+    "harsh_words": [],
+    "ms": 5284
+   },
+   {
+    "kind": "script on real paper: mixed",
+    "lang": "mandarin",
+    "target": "水",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "水",
+    "score": 90,
+    "feedback": "Nice! That's 水.",
+    "harsh_words": [],
+    "ms": 4659
+   },
+   {
+    "kind": "script on real paper: mixed, wrong char",
+    "lang": "mandarin",
+    "target": "水",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "永",
+    "score": 20,
+    "feedback": "The character should be '水', not '永'.",
+    "harsh_words": [],
+    "ms": 5269
+   },
+   {
+    "kind": "script on real paper: print",
+    "lang": "hindi",
+    "target": "न",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "न",
+    "score": 70,
+    "feedback": "Good, न is readable.",
+    "harsh_words": [],
+    "ms": 5608
+   },
+   {
+    "kind": "script on real paper: print, wrong char",
+    "lang": "hindi",
+    "target": "न",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "म",
+    "score": 45,
+    "feedback": "The learner needs to focus on the vertical line and the curve at the bottom.",
+    "harsh_words": [],
+    "ms": 5311
+   },
+   {
+    "kind": "script on real paper: mixed",
+    "lang": "hindi",
+    "target": "न",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "न",
+    "score": 70,
+    "feedback": "Good, न is readable.",
+    "harsh_words": [],
+    "ms": 5258
+   },
+   {
+    "kind": "script on real paper: mixed, wrong char",
+    "lang": "hindi",
+    "target": "न",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "म",
+    "score": 45,
+    "feedback": "The learner needs to make the vertical line straight and longer.",
+    "harsh_words": [],
+    "ms": 5604
+   },
+   {
+    "kind": "script on real paper: print",
+    "lang": "arabic",
+    "target": "م",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "م",
+    "score": 70,
+    "feedback": "Good, م is readable.",
+    "harsh_words": [],
+    "ms": 5317
+   },
+   {
+    "kind": "script on real paper: print, wrong char",
+    "lang": "arabic",
+    "target": "م",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": ")",
+    "score": 30,
+    "feedback": "The learner needs to focus on the shape of م and avoid the parenthesis.",
+    "harsh_words": [],
+    "ms": 5257
+   },
+   {
+    "kind": "script on real paper: mixed",
+    "lang": "arabic",
+    "target": "م",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "م",
+    "score": 70,
+    "feedback": "Good, م is readable.",
+    "harsh_words": [],
+    "ms": 5243
+   },
+   {
+    "kind": "script on real paper: mixed, wrong char",
+    "lang": "arabic",
+    "target": "م",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": ")",
+    "score": 30,
+    "feedback": "The letter looks like a parenthesis instead of م.",
+    "harsh_words": [],
+    "ms": 5133
+   },
+   {
+    "kind": "script on real paper: print",
+    "lang": "russian",
+    "target": "П",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "П",
+    "score": 70,
+    "feedback": "Good, П is readable.",
+    "harsh_words": [],
+    "ms": 4734
+   },
+   {
+    "kind": "script on real paper: print, wrong char",
+    "lang": "russian",
+    "target": "П",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "Л",
+    "score": 45,
+    "feedback": "The vertical line needs to be straight and longer.",
+    "harsh_words": [],
+    "ms": 5646
+   },
+   {
+    "kind": "script on real paper: mixed",
+    "lang": "russian",
+    "target": "П",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "П",
+    "score": 70,
+    "feedback": "Good, П is readable.",
+    "harsh_words": [],
+    "ms": 5648
+   },
+   {
+    "kind": "script on real paper: mixed, wrong char",
+    "lang": "russian",
+    "target": "П",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "Л",
+    "score": 45,
+    "feedback": "The vertical line needs to be straight and taller.",
+    "harsh_words": [],
+    "ms": 6093
+   },
+   {
+    "kind": "script on real paper: print",
+    "lang": "hebrew",
+    "target": "ש",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "ע",
+    "score": 45,
+    "feedback": "The top line should be straight and horizontal.",
+    "harsh_words": [],
+    "ms": 6056
+   },
+   {
+    "kind": "script on real paper: print, wrong char",
+    "lang": "hebrew",
+    "target": "ש",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "ת",
+    "score": 30,
+    "feedback": "The letter should be 'ש', not 'ת'.",
+    "harsh_words": [],
+    "ms": 6214
+   },
+   {
+    "kind": "script on real paper: mixed",
+    "lang": "hebrew",
+    "target": "ש",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "ע",
+    "score": 45,
+    "feedback": "The top line should be straight and horizontal.",
+    "harsh_words": [],
+    "ms": 6293
+   },
+   {
+    "kind": "script on real paper: mixed, wrong char",
+    "lang": "hebrew",
+    "target": "ש",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "ן",
+    "score": 30,
+    "feedback": "The letter looks like 'ן', not 'ש'. It's important to distinguish between these two characters.",
+    "harsh_words": [],
+    "ms": 6998
+   },
+   {
+    "kind": "script on real paper: print",
+    "lang": "greek",
+    "target": "λ",
+    "expected": true,
+    "correct": true,
+    "ok": true,
+    "seen": "λ",
+    "score": 95,
+    "feedback": "Nice! That's λ.",
+    "harsh_words": [],
+    "ms": 5769
+   },
+   {
+    "kind": "script on real paper: print, wrong char",
+    "lang": "greek",
+    "target": "λ",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "ν",
+    "score": 45,
+    "feedback": "That looks like ν, not λ. Watch the animation again.",
+    "harsh_words": [],
+    "ms": 5460
+   },
+   {
+    "kind": "script on real paper: mixed",
+    "lang": "greek",
+    "target": "λ",
+    "expected": true,
+    "correct": false,
+    "ok": false,
+    "seen": "\\",
+    "score": 45,
+    "feedback": "The vertical line should be straight and the horizontal line should be shorter.",
+    "harsh_words": [],
+    "ms": 6591
+   },
+   {
+    "kind": "script on real paper: mixed, wrong char",
+    "lang": "greek",
+    "target": "λ",
+    "expected": false,
+    "correct": false,
+    "ok": true,
+    "seen": "ν",
+    "score": 45,
+    "feedback": "That looks like ν, not λ. Watch the animation again.",
+    "harsh_words": [],
+    "ms": 6025
    }
   ]
  }
