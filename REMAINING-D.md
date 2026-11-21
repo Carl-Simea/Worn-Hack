@@ -33,8 +33,8 @@ Not verified:
   1800; the wearer is usually 3000+, room chatter about 900).
 - **Ink detection on real writing under the venue light.** Voice and the timer cover it.
 - **Wi-Fi only:** CityTech-WiFi isolates clients, so the glasses stay on USB to the Mac.
-- **Pushing:** CityTech-WiFi's sign-in page blocks HTTPS to GitHub from the Mac (seen 10:03). Commits stay local
-  until someone signs in again in a browser on the Mac.
+- **Pushing:** CityTech-WiFi's sign-in page briefly blocked GitHub at 10:03. If `git push` fails with an SSL error,
+  sign in to the Wi-Fi again in a browser on the Mac.
 
 ## Done and verified (iPhone app)
 
