@@ -1201,7 +1201,9 @@
     else if (url && N.speakUrl) N.speakUrl(url, r.say || ""); else if (r.say) N.speak(r.say);
     if (r.mood === "laugh" || r.mood === "celebrate" || funny(r.say)) laugh(1600);
   }
+  var replyGen = 0;   // a newer reply cancels whatever an older one still had to do (no stale navigation)
   function applyReply(r, heard) {
+    var gen = ++replyGen;
     var acts = r.actions || r.tools || r.steps || r.tool_calls || [];
     if (!Array.isArray(acts)) acts = [acts];
     acts = acts.map(function (x) { return typeof x === "string" ? { tool: x, args: {} } : { tool: x.tool || x.name || x.action || x.type, args: x.args || x.arguments || x.input || {} }; })
@@ -1210,12 +1212,13 @@
     if (hasSay) { holdSay++; heldLines = []; }
     event("voice", { heard: heard, intent: r.intent, tools: acts.map(function (x) { return x.tool; }), nav: r.nav || null, screen: st.screen, source: "glasses" });
     var chain = Promise.resolve();
-    acts.forEach(function (x) { chain = chain.then(function () { runTool(x.tool, x.args); return waitIdle(); }); });
+    acts.forEach(function (x) { chain = chain.then(function () { if (gen !== replyGen) return; runTool(x.tool, x.args); return waitIdle(); }); });
     return chain.then(function () {
+      if (gen !== replyGen) { console.log("reply superseded: " + heard); return; }
       applyNav(r.nav, r.session);
       return waitIdle(1500);
     }).catch(function (e) { console.log("apply error " + e); }).then(function () {
-      if (hasSay) { holdSay = Math.max(0, holdSay - 1); heldLines = []; speakReply(r); }
+      if (hasSay) { holdSay = Math.max(0, holdSay - 1); heldLines = []; if (gen === replyGen) speakReply(r); }
       report();
     });
   }
