@@ -583,7 +583,7 @@ class H(BaseHTTPRequestHandler):
             with ST.lock:
                 if "listening" in d:
                     ST.listening = bool(d.pop("listening"))
-                ST.app.update({k: v for k, v in d.items() if k in ("screen", "breadcrumb", "hint", "phase", "lang", "item_id")})
+                ST.app.update({k: v for k, v in d.items() if k in ("screen", "breadcrumb", "breadcrumb_names", "mic", "hint", "phase", "lang", "item_id")})
                 ST.bump()
             return self.send(200, ST.app_state())
         if u.path == "/voice":

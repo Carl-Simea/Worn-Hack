@@ -66,6 +66,10 @@
   #mic::after { content: ""; position: absolute; inset: -.3em; border-radius: 50%; border: .14em solid var(--accent); opacity: 0; }
   #mic.on { background: var(--accent); color: var(--on-accent); }
   #mic.on::after { animation: ring 1.3s ease-out infinite; }
+  #mic.m-listening { background: var(--accent-soft); color: var(--accent); } #mic.m-listening::after { animation-duration: 2.4s; }
+  #mic.m-hearing { background: var(--accent); color: var(--on-accent); } #mic.m-hearing::after { animation-duration: .8s; }
+  #mic.m-thinking { background: var(--ink); color: var(--paper); } #mic.m-thinking::after { animation: none; opacity: .6; border-style: dashed; animation: spinRing 1.2s linear infinite; }
+  @keyframes spinRing { to { transform: rotate(360deg); } }
   @keyframes ring { 0% { opacity: .7; transform: scale(.85); } 100% { opacity: 0; transform: scale(1.35); } }
   #crumbs { display: flex; align-items: baseline; gap: .35em; min-width: 0; white-space: nowrap; overflow: hidden; font-size: .86em; color: var(--ink-3); }
   #crumbs b { color: var(--ink); font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
@@ -682,7 +686,7 @@
     if (!a || (!a.screen && !a.last_voice && !a.hint)) return;
     $("app").classList.add("hasVoice");
     if (!appSeen) { appSeen = true; $("idle").classList.add("hide"); } // the wearer's menus are the show now, even before a lesson
-    var bc = Array.isArray(a.breadcrumb) ? a.breadcrumb : a.breadcrumb ? String(a.breadcrumb).split(/\s*[›>\/]\s*/) : [a.screen];
+    var bc = Array.isArray(a.breadcrumb_names) && a.breadcrumb_names.length ? a.breadcrumb_names : Array.isArray(a.breadcrumb) ? a.breadcrumb : a.breadcrumb ? String(a.breadcrumb).split(/\s*[›>\/]\s*/) : [a.screen];
     var sess = a.session || (last && last.session) || {}, lang = a.lang || sess.lang;
     bc = bc.map(function (c) { return crumbName(String(c), lang, sess); });
     var html = bc.filter(Boolean).map(function (c, i, arr) {
@@ -690,8 +694,11 @@
     }).join("");
     if ($("crumbs").getAttribute("data-h") !== html) { $("crumbs").innerHTML = html; $("crumbs").setAttribute("data-h", html); }
     setText($("hintText"), (a.hint || "“what can I say”").replace(/^say\s+/i, ""));
-    var on = !!(a.listening || liveListening);
-    $("mic").classList.toggle("on", on);
+    // D's glasses report mic: listening | hearing | thinking | off (older senders only have listening: true/false)
+    var mic = a.mic || ((a.listening || liveListening) ? "listening" : "off");
+    ["listening", "hearing", "thinking"].forEach(function (k) { $("mic").classList.toggle("m-" + k, mic === k); });
+    $("mic").classList.toggle("on", mic !== "off");
+    $("mic").title = { listening: "Glasses mic: listening", hearing: "Glasses mic: hearing speech", thinking: "Scribi is thinking", off: "Glasses mic: off" }[mic] || "Glasses microphone";
     var v = a.last_voice;
     if (!v && a.last_heard && typeof a.last_heard === "string") v = { heard: a.last_heard, id: "h:" + a.last_heard };
     if (v && (v.heard || v.say)) {
