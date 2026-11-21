@@ -87,7 +87,7 @@
   #res .fix { font-size:22px; color:var(--gold); margin-top:12px; max-width:560px; }
   #res.ok .score { color:var(--say); } #res.no .score { color:var(--acc); }
   /* Scribi: a little face in an orb (bottom right) + a caption bubble. Overlays everything, blocks nothing. */
-  #scribi { position:absolute; right:16px; bottom:100px; width:48px; height:48px; z-index:60; pointer-events:none;
+  #scribi { position:absolute; right:14px; bottom:22px; width:48px; height:48px; z-index:60; pointer-events:none;
     transition:transform .35s cubic-bezier(.2,.8,.2,1), opacity .3s; }
   #scribi .orb { position:absolute; left:0; top:0; right:0; bottom:0; border-radius:50%;
     background:radial-gradient(circle at 34% 28%, #d6f1ff 0%, #7fb4ff 38%, #3d63ff 78%, #2a2fd0 100%);
@@ -125,12 +125,17 @@
   #scribi.laughing .mouth { width:18px; height:10px; margin-left:-9px; top:28px; border-radius:2px 2px 10px 10px; animation:none; }
   #scribi.laughing .orb { filter:hue-rotate(-30deg) brightness(1.15); box-shadow:0 0 22px rgba(255,210,80,.6); }
   @keyframes hop { 0%,100% { transform:translateY(0); } 45% { transform:translateY(-9px) rotate(-6deg); } }
-  #cap { position:absolute; right:74px; bottom:102px; max-width:476px; z-index:59; pointer-events:none;
+  #cap { position:absolute; right:72px; bottom:30px; max-width:290px; z-index:59; pointer-events:none;
     background:rgba(6,10,22,.86); border:1px solid #2d4170; color:#e9efff; font-size:20px; line-height:1.3;
     padding:8px 14px; border-radius:16px 16px 4px 16px;
-    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     opacity:0; transform:translateY(8px) scale(.98); transform-origin:right bottom; transition:opacity .25s, transform .3s cubic-bezier(.2,.8,.2,1); }
   #cap.on { opacity:1; transform:none; }
+  /* bottom strip: hint left, Scribi's one-line caption + face right; nothing overlaps the content above */
+  #cap { background:none !important; border:none !important; padding:0 !important; font-size:18px !important; color:#aebfff !important; }
+  #cap.you { color:#8fe3a8 !important; }
+  #heard { display:none !important; }
+  #hint { max-width:300px; }
   #cap.you { border-color:#2f6b45; color:#c8f5d6; border-radius:16px 16px 16px 4px; }
 
   /* accuracy ring around the character */
@@ -168,6 +173,7 @@
   #res .dial circle { fill:none; stroke-width:12; stroke-linecap:round; }
   #res .dial .num { position:absolute; left:0; right:0; top:58px; text-align:center; font-size:84px; font-weight:800; line-height:1; }
   #res .dial .of { position:absolute; left:0; right:0; top:146px; text-align:center; font-size:17px; color:var(--dim); }
+  #res .line, #res .fix { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:580px; }
   #res .line, #res .fix { opacity:0; transform:translateY(8px); transition:opacity .35s, transform .35s; }
   #res.shown .line, #res.shown .fix { opacity:1; transform:none; }
   .spin { width:54px; height:54px; border:5px solid #222; border-top-color:var(--blue); border-radius:50%; animation:sp 0.8s linear infinite; margin:0 auto 14px; }
@@ -339,7 +345,8 @@
     var c = $("cap"); if (!c) return;
     clear("cap");
     if (!text) { c.className = c.className.replace(" on", ""); return; }
-    c.textContent = text;
+    var one = String(text).split(/(?<=[.!?…])\s+/)[0];
+    c.textContent = who === "you" ? "“" + one + "”" : one;
     c.className = (who === "you" ? "you" : "") + " on";
   }
   function captionOff(ms) { later("cap", ms || 2200, function () { var c = $("cap"); if (c) c.className = c.className.replace(" on", ""); }); }
@@ -400,16 +407,16 @@
   function moveSel(d, n) { st.sel = (st.sel + d + n) % n; RENDER[st.screen]({ sel: st.sel, keep: true }); }
 
   RENDER.home = function (o) {
-    $("main").innerHTML = "<div class='brand'>" + MARK + "<span>Scribi</span></div>" +
+    $("main").innerHTML = "<div class='brand'>" + MARK + "<span>Worn</span></div>" +
       menu(HOME_MENU.map(function (m) { return { html: esc(m.k), x: m.x }; }));
-    chrome(["Home"], "Say “learn Greek” or “write my name, Sam”", "“Daily five” · “journal” · “help” for everything");
+    chrome(["Home"], "Say “learn Greek”", "");
     if (!o.keep && !o.quiet) say(o.greet || "");
   };
 
   RENDER.learn = function (o) {
-    var list = LANGS.map(function (l) { var c = content[l] || {}; return { html: "<span class='hero'>" + esc(c.hero || "") + "</span>" + esc(langName(l)), x: c.script || "" }; });
+    var list = LANGS.map(function (l) { var c = content[l] || {}; return { html: "<span class='hero'>" + esc(c.hero || "") + "</span>" + esc(langName(l)) }; });
     $("main").innerHTML = "<div class='title'>Learn</div>" + menu(list);
-    chrome(["Home", "Learn"], "Say a language: “Hindi”, “Hebrew”…", "“next” / “previous” to move · “back” · “home”");
+    chrome(["Home", "Learn"], "Say a language", "");
     if (!o.keep) say("Which language? Say Mandarin, Hindi, Arabic, Russian, Hebrew or Greek.");
   };
 
@@ -417,10 +424,10 @@
     var l = o.lang || st.lang; st.lang = l;
     var c = content[l]; if (!c) { go("learn", {}, true); return; }
     st.items = c.phrases || c.items || [];
-    var list = st.items.map(function (p) { return { html: "<span class='hero' dir='auto'>" + esc(p.text) + "</span>" + esc(p.meaning), x: p.romanization }; });
-    $("main").innerHTML = "<div class='title'>" + esc(langName(l)) + " <small>" + esc(c.script || "") + "</small></div>" + menu(list);
+    var list = st.items.map(function (p) { return { html: "<span class='hero' dir='auto'>" + esc(p.text) + "</span>" + esc(p.meaning) }; });
+    $("main").innerHTML = "<div class='title'>" + esc(langName(l)) + "</div>" + menu(list);
     var first = st.items[0] ? st.items[0].meaning : "hello";
-    chrome(["Home", "Learn", langName(l)], "Say a word, like “" + first + "”", "“next” to move · “start” to open · “back”");
+    chrome(["Home", "Learn", langName(l)], "Say a word", "");
     if (!o.keep) say(langName(l) + ". Say a word to learn, like " + first + ".");
   };
 
@@ -428,7 +435,7 @@
   RENDER.idle = function (o) {
     if (ink) ink.stop();
     $("main").innerHTML = "<div class='idlemark'>" + MARK + "</div>";
-    chrome([], "Say “Hey Scribi”", "or press the button");
+    chrome([], "Say “Hey Scribi”", "");
     $("hint").style.color = "#3f8f58"; $("hint2").style.color = "#3a3f48";
     if (!o.quiet) say(o.bye || "Bye for now. Say hey Scribi when you need me.");
   };
@@ -441,30 +448,28 @@
 
   RENDER.howto = function () {
     $("main").innerHTML = "<div class='title'>Just talk to Scribi</div><div class='cmds'>" + [
-      ["learn Greek", "pick a language"], ["next · previous", "move, or next stroke"], ["show me again · slower", "replay the strokes"],
-      ["check · I'm done", "I look at your paper"], ["what does this mean", "meaning + sound"],
-      ["how do I write thank you in Hindi", "any message"], ["write my name, Sam", "your name in five scripts"],
-      ["back · home", "anywhere"]
-    ].map(function (c) { return "<div><b>“" + esc(c[0]) + "”</b> &nbsp;" + esc(c[1]) + "</div>"; }).join("") + "</div>";
-    chrome(["Home", "How to use"], "Say “home” or “learn Mandarin”", "The button also works: tap = select, double tap = back");
+      "learn Greek", "next · previous", "show me again · slower", "check · I'm done", "what does this mean",
+      "good luck in Hindi", "my name is Sam", "back · home"
+    ].map(function (c) { return "<div><b>“" + esc(c) + "”</b></div>"; }).join("") + "</div>";
+    chrome(["Home", "How to use"], "Say “home”", "");
     say("Just talk to Scribi. Say learn, then a language. In a lesson say next, check, or show me again. Say home anytime.");
   };
 
   RENDER.name = function (o) {
     var n = o.name || st.name;
     if (!n) {
-      $("main").innerHTML = "<div class='title'>Write my name</div>" +
+      $("main").innerHTML = "<div class='title'>Your name</div>" +
         "<p class='big say' style='font-size:34px;margin-top:26px'>“My name is Sam”</p>";
-      chrome(["Home", "Write my name"], "Say “my name is …”", "“back” · “home”");
+      chrome(["Home", "Write my name"], "Say your name", "");
       say("What's your name? Say, my name is, then your name.");
       return;
     }
     st.name = n;
     if (!o.result) {
-      $("main").innerHTML = "<div class='title'>" + esc(n.text || n) + "</div><div class='spin'></div><p class='muted' style='text-align:center'>Spelling it by sound…</p>";
-      chrome(["Home", "Write my name", n.text || n], "One moment…", "");
+      $("main").innerHTML = "<div class='title'>" + esc(n.text || n) + "</div><div class='spin'></div>";
+      chrome(["Home", "Write my name", n.text || n], "One moment", "");
       getJSON("/name?text=" + encodeURIComponent(n.text || n)).then(function (r) { if (st.screen === "name") RENDER.name({ name: n, result: r }); })
-        .catch(function () { if (st.screen === "name") { $("main").innerHTML = "<p class='big'>I couldn't spell that.</p>"; chrome(["Home", "Write my name"], "Say “my name is …” again", ""); say("Sorry, try saying your name again."); } });
+        .catch(function () { if (st.screen === "name") { $("main").innerHTML = "<p class='big'>Didn't catch that</p>"; chrome(["Home", "Write my name"], "Say your name", ""); say("Sorry, try saying your name again."); } });
       return;
     }
     var r = o.result; st.nameResult = r;
@@ -472,7 +477,7 @@
     st.nameRows = rows;
     $("main").innerHTML = "<div class='title'>" + esc(r.text || n) + "</div><div class='rows'>" + rows.map(function (x, i) {
       return "<div class='" + (i === st.sel ? "sel" : "") + "'><span>" + esc(langName(x.l)) + "</span><bdi>" + esc(x.t) + "</bdi></div>"; }).join("") + "</div>";
-    chrome(["Home", "Write my name", r.text || n], "Say “write it in Hindi” to practice", "Names are spelled by sound · “back” · “home”");
+    chrome(["Home", "Write my name", r.text || n], "Say a language", "");
     if (!o.keep) say("Here's " + (r.text || n) + " in five scripts. Say a language to write it.");
   };
 
@@ -480,47 +485,47 @@
     var c = o.compose || st.compose;
     if (!c) {
       $("main").innerHTML = "<div class='title'>Help me write</div>" +
-        "<p class='big say' style='font-size:30px;margin-top:24px'>“How do I write<br>good luck in Greek?”</p>";
-      chrome(["Home", "Help me write"], "Say “how do I write … in …”", "“back” · “home”");
+        "<p class='big say' style='font-size:34px;margin-top:26px'>“Good luck in Greek”</p>";
+      chrome(["Home", "Help me write"], "Say a message", "");
       say("What would you like to write? Say, how do I write good luck in Greek.");
       return;
     }
     st.compose = c;
     if (!c.result) {
-      $("main").innerHTML = "<div class='title'>“" + esc(c.text) + "”</div><div class='spin'></div><p class='muted' style='text-align:center'>Writing it in " + esc(langName(c.lang)) + "…</p>";
-      chrome(["Home", "Help me write", langName(c.lang)], "One moment…", "");
+      $("main").innerHTML = "<div class='title'>“" + esc(c.text) + "”</div><div class='spin'></div>";
+      chrome(["Home", "Help me write", langName(c.lang)], "One moment", "");
       postJSON("/session", { lang: c.lang, mode: "compose", text: c.text, char_index: 0 }).then(function (s) {
         c.result = { native: s.item ? s.item.text : s.text, romanization: s.romanization, back_translation: s.back_translation, note: s.note, chars: (s.item || {}).chars };
         c.session = s;
         if (st.screen === "compose") RENDER.compose({ compose: c });
       }).catch(function (e) {
         if (st.screen !== "compose") return;
-        $("main").innerHTML = "<p class='big' style='font-size:34px'>I couldn't write that one.</p><p class='muted'>" + esc(e.message) + "</p>";
-        chrome(["Home", "Help me write"], "Try a shorter message", "“how do I write … in …”");
+        $("main").innerHTML = "<p class='big' style='font-size:34px'>Couldn't write that</p>";
+        chrome(["Home", "Help me write"], "Try shorter", "");
         say("Sorry, I couldn't write that. Try something shorter.");
       });
       return;
     }
     var r = c.result;
-    $("main").innerHTML = "<div class='muted'>“" + esc(c.text) + "” in " + esc(langName(c.lang)) + "</div>" +
+    $("main").innerHTML = "<div class='muted'>" + esc(c.text) + " · " + esc(langName(c.lang)) + "</div>" +
       "<div class='big' dir='auto' style='font-size:" + ((r.native || "").length > 8 ? 44 : 62) + "px'>" + esc(r.native) + "</div>" +
       "<div style='font-size:28px;color:var(--blue)'>" + esc(r.romanization || "") + "</div>" +
-      (r.back_translation ? "<div class='muted' style='margin-top:8px'>Reads back as: “" + esc(r.back_translation) + "”</div>" : "");
-    chrome(["Home", "Help me write", langName(c.lang)], "Say “start” to write it with me", "“what does this mean” · “back” · “home”");
+      (r.back_translation && r.back_translation.toLowerCase() !== String(c.text).toLowerCase() ? "<div class='muted' style='margin-top:8px'>↩ " + esc(r.back_translation) + "</div>" : "");
+    chrome(["Home", "Help me write", langName(c.lang)], "Say “start”", "");
     if (!o.keep) say("Here it is. Say start, and I'll guide you stroke by stroke.");
   };
 
   RENDER.daily5 = function (o) {
     if (!st.daily || o.reload) {
       $("main").innerHTML = "<div class='title'>Daily 5</div><div class='spin'></div>";
-      chrome(["Home", "Daily 5"], "One moment…", "");
+      chrome(["Home", "Daily 5"], "One moment", "");
       getJSON("/review").then(function (r) { st.daily = (r.items || []).slice(0, 5); if (st.screen === "daily5") RENDER.daily5({}); })
         .catch(function () { st.daily = fallbackDaily(); if (st.screen === "daily5") RENDER.daily5({}); });
       return;
     }
     var list = st.daily.map(function (d) { return { html: "<span class='hero' dir='auto'>" + esc(d.char) + "</span>" + esc(d.meaning || ""), x: langName(d.lang) }; });
-    $("main").innerHTML = "<div class='title'>Daily 5 <small>the ones worth another go</small></div>" + menu(list);
-    chrome(["Home", "Daily 5"], "Say “start” for the first one", "or say “number three” · “back”");
+    $("main").innerHTML = "<div class='title'>Daily 5</div>" + menu(list);
+    chrome(["Home", "Daily 5"], "Say “start”", "");
     if (!o.keep) say("Your daily five. Say start.");
   };
   function fallbackDaily() {
@@ -531,17 +536,17 @@
 
   RENDER.journal = function (o) {
     $("main").innerHTML = "<div class='title'>Journal</div><div class='spin'></div>";
-    chrome(["Home", "Journal"], "One moment…", "");
+    chrome(["Home", "Journal"], "One moment", "");
     getJSON("/journal" + (st.lang ? "?lang=" + st.lang : "")).then(function (j) {
       if (st.screen !== "journal") return;
       var e = (j.entries || []).filter(function (x) { return x.image_url; }).slice(-8).reverse();
-      $("main").innerHTML = "<div class='title'>Journal <small>" + (e.length ? "your latest pages" : "") + "</small></div>" + (e.length ?
+      $("main").innerHTML = "<div class='title'>Journal</div>" + (e.length ?
         "<div class='jgrid'>" + e.map(function (x) { return "<figure class='" + (x.correct ? "ok" : "no") + "'><img src='" + esc(x.image_url) + "'><figcaption><b>" + esc(x.char) + "</b>" + (x.score != null ? x.score : "") + "</figcaption></figure>"; }).join("") + "</div>"
-        : "<p class='muted'>Nothing yet. Every page I check lands here.</p>");
-      chrome(["Home", "Journal"], e.length ? "Say “learn” to practice more" : "Say “learn Mandarin” to start", "“back” · “home”");
+        : "<p class='muted'>No pages yet</p>");
+      chrome(["Home", "Journal"], "Say “back”", "");
       if (!o.keep) say(e.length ? "Here are your latest pages." : "Your journal is empty. Let's learn something.");
     }).catch(function () {
-      $("main").innerHTML = "<p class='muted'>I couldn't open the journal.</p>";
+      $("main").innerHTML = "<p class='muted'>Journal unavailable</p>";
       chrome(["Home", "Journal"], "Say “home”", "");
     });
   };
@@ -563,7 +568,7 @@
     st.loading = true;
     st.lang = body.lang;
     phaseUI("Loading…", "", 0);
-    chrome(lessonCrumbs(), "One moment…", "");
+    chrome(lessonCrumbs(), "One moment", "");
     var tries = 0;
     (function attempt() {
       postJSON("/session", body).then(function (s) { if (st.screen === "lesson") startSession(s); }).catch(function (e) {
@@ -571,9 +576,8 @@
         tries++;
         var net = !e.status;   // no answer at all: the server is restarting or the link dropped
         if (net && tries < 6) { phaseUI("Reconnecting…", "", 0); later("retryLesson", 2000, attempt); return; }
-        $("main").innerHTML = "<p class='big' style='font-size:32px'>I couldn't open that lesson.</p><p class='muted'>" +
-          esc(net ? "The lesson server isn't answering." : e.message) + "</p>";
-        chrome(["Home", "Learn"], "Say “back” or “home”", "");
+        $("main").innerHTML = "<p class='big' style='font-size:32px'>Lesson unavailable</p>";
+        chrome(["Home", "Learn"], "Say “back”", "");
         say("Sorry, I couldn't open that lesson.");
       });
     })();
@@ -736,7 +740,7 @@
     st.phase = "watch"; clearLessonTimers(); hideRes();
     var s = st.session;
     phaseUI("Watch", "Watch", 0);
-    chrome(lessonCrumbs(), "Say “next” when you're ready to write", "“what does this mean” · “slower” · “back”");
+    chrome(lessonCrumbs(), "Say “next”", "");
     inkLoad().then(function (n) {
       if (st.phase !== "watch") return;
       if (ink && !st.noStrokes) ink.loop();
@@ -772,13 +776,13 @@
     if (st.stroke >= n) { lastStrokeDone(); return; }
     if (st.noStrokes) {
       phaseUI("Your turn", "Write this shape", 0);
-      chrome(lessonCrumbs(), "Write this shape · say “I'm done”", "“show me again” · “slower” · “skip”");
+      chrome(lessonCrumbs(), "Write this shape", "");
       later("stroke", Math.round(9000 * st.speed), function () { nextStroke("timeout"); });
       return;
     }
     if (ink) ink.sync(st.stroke + 1, "write");
-    phaseUI("Your turn", "Stroke " + (st.stroke + 1) + " of " + n, st.stroke / n);
-    chrome(lessonCrumbs(), "Write stroke " + (st.stroke + 1) + " · say “next”", "“previous” · “show me again” · “slower” · “I'm done”");
+    phaseUI("Your turn", (st.stroke + 1) + " / " + n, st.stroke / n);
+    chrome(lessonCrumbs(), "Write, then “next”", "");
     event("glasses.show", { phase: "write", stroke: st.stroke, stroke_number: st.stroke + 1, stroke_count: n, trigger: trigger, source: "glasses" });
     var ms = Math.round(4200 * st.speed);
     later("stroke", ms, function () { nextStroke("timeout"); });
@@ -793,8 +797,8 @@
   function lastStrokeDone() {
     st.phase = "your_turn"; clear("stroke");
     if (ink) ink.full();
-    phaseUI("Your turn", "All strokes done", 1);
-    chrome(lessonCrumbs(), "Say “check” when you're done", "“show me again” · “skip”");
+    phaseUI("Your turn", "Done", 1);
+    chrome(lessonCrumbs(), "Say “check”", "");
     say("Say check when you're done.");
     later("autocheck", 9000, check);
     report();
@@ -812,7 +816,7 @@
     $("checklist").style.display = "block";
     tick(1, "on"); tick(2, ""); tick(3, "");
     watchSteps();
-    chrome(lessonCrumbs(), "Hold the paper still…", "");
+    chrome(lessonCrumbs(), "Hold still", "");
     say("Let me look.");
     event("grade.start", { source: "glasses" });
     var gs = st.session || {};
@@ -866,7 +870,7 @@
     tick(1, "ok"); tick(2, "ok"); tick(3, "ok");
     later("toResult", 350, function () { showDial(score, line, fix, party); });
     var wantRetry = !party && st.tries < 2 && !(r.next && r.next.action && r.next.action !== "retry");
-    chrome(lessonCrumbs(), party ? "Say “next” for the next one" : wantRetry ? "Say “again” to try once more" : "Say “next” to move on",
+    chrome(lessonCrumbs(), party ? "Say “next”" : wantRetry ? "Say “again”" : "Say “next”",
       party ? "“again” · “back” · “home”" : "“next” to move on · “show me again”");
     say(party ? line : line + ". " + fix);
     later("afterResult", party ? 7500 : 12000, function () { if (wantRetry) watch(true); else nextChar(); });
@@ -881,7 +885,8 @@
     res.innerHTML = "<div class='dial'><svg viewBox='0 0 210 210'><circle cx='105' cy='105' r='" + R + "' stroke='#15181d'/>" +
       "<circle id='dialFill' cx='105' cy='105' r='" + R + "' stroke='#ff5a4a' stroke-dasharray='" + C + "' stroke-dashoffset='" + C + "'/></svg>" +
       "<div class='num' id='dialNum'>0</div><div class='of'>out of 100</div></div>" +
-      "<div class='line'>" + esc(line) + "</div>" + (fix ? "<div class='fix'>" + esc(fix) + "</div>" : "");
+      (party ? "<div class='line'>" + esc(String(line).split(/(?<=[.!?])\s+/)[0]) + "</div>" : "") +
+      (fix ? "<div class='fix'>" + esc(String(fix).replace(/^Work on [^:]*:\s*/, "").split(/(?<=[.!?])\s+/)[0]) + "</div>" : "");
     var t0 = null, dur = 300 + score * 9;   // ~1.2 s to 100
     function frame(t) {
       if (!t0) t0 = t;
@@ -905,8 +910,8 @@
     clear("gradeTimeout");
     st.phase = "result";
     $("res").className = "no"; $("res").style.display = "flex";
-    $("res").innerHTML = "<div class='line'>" + esc(msg) + "</div>";
-    chrome(lessonCrumbs(), "Say “check” to try again", "“next” to move on");
+    $("res").innerHTML = "<div class='line'>Couldn't check</div>";
+    chrome(lessonCrumbs(), "Say “check”", "");
     say(msg);
     later("afterResult", 12000, nextChar);
     report();
@@ -948,7 +953,7 @@
         if (st.screen !== "lesson") return;
         if (!e.status && ++tries < 6) { phaseUI("Reconnecting…", "", 0); later("retryLesson", 2000, attempt); return; }
         say("I couldn't open the next one. Say next to try again.");
-        chrome(lessonCrumbs(), "Say “next” to try again", "“back” · “home”");
+        chrome(lessonCrumbs(), "Say “next”", "");
       });
     })();
   }
