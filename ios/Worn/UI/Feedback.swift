@@ -67,6 +67,14 @@ extension AppModel {
             }
             c.append(("stroke", "\(p.shownStroke) of \(p.strokes?.count ?? 0) · data \(p.strokes == nil ? "none" : "loaded") · last trigger \(p.lastTrigger?.rawValue ?? "-") · speed \(String(format: "%.2f", p.speed))"))
             c.append(("photo source", p.source.rawValue))
+            if case .result(let r) = p.phase {
+                let u: (String?) -> String = { path in path.flatMap { self.api?.url($0)?.absoluteString } ?? "-" }
+                c.append(("grade", "status \(r.status ?? "?") · score \(r.score.map { String(Int($0)) } ?? "none") · correct \(r.correct) · weakest \(r.weakest ?? "-") · seen “\(r.seen ?? "")”"))
+                c.append(("grade subscores", (r.subscores ?? [:]).sorted { $0.key < $1.key }.map { "\($0.key) \(Int($0.value))" }.joined(separator: ", ")))
+                c.append(("grade feedback", r.feedback))
+                c.append(("photo sent (full)", u(r.imageUrl)))
+                c.append(("photo checked (crop)", u(r.cropUrl)))
+            }
         } else {
             c.append(("practice", "none"))
         }

@@ -61,27 +61,20 @@ struct StrokeCanvas: View {
     @ViewBuilder
     private func strokeLayers(_ data: StrokeData, rect: CGRect) -> some View {
         let lineWidth = rect.width * 0.075
-        ForEach(Array(data.strokes.enumerated()), id: \.offset) { i, s in
-            let n = i + 1
-            let color: Color = shown == 0 || n < shown ? inkColor : (n == shown ? current : faint)
-            let trim: CGFloat = n == shown ? progress : 1
-            if let outline = s.outline {
-                // hanzi-writer: fill the outline, revealed along its median (like a brush moving).
-                OpsShape(ops: outline).fill(color)
-                    .mask {
-                        OpsShape(ops: s.centerline)
-                            .trim(from: 0, to: trim)
-                            .stroke(style: StrokeStyle(lineWidth: rect.width * 0.16, lineCap: .round, lineJoin: .round))
-                    }
-                    .frame(width: rect.width, height: rect.height)
-                    .position(x: rect.midX, y: rect.midY)
-            } else {
-                OpsShape(ops: s.centerline)
-                    .trim(from: 0, to: trim)
-                    .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                    .frame(width: rect.width, height: rect.height)
-                    .position(x: rect.midX, y: rect.midY)
+        let uid = "\(lang)/\(char)"
+        // Finished and waiting strokes never change while the current one animates, so they are Equatable
+        // layers SwiftUI skips; the whole group is rasterised once per frame on the GPU.
+        ZStack {
+            ForEach(Array(data.strokes.enumerated()), id: \.offset) { i, s in
+                let n = i + 1
+                let key = shown == 0 || n < shown ? 0 : (n == shown ? 1 : 2)
+                let color: Color = key == 0 ? inkColor : (key == 1 ? current : faint)
+                StrokeLayer(uid: uid, n: n, stroke: s, key: key, color: color,
+                            trim: n == shown ? progress : 1, rect: rect, lineWidth: lineWidth)
+                    .equatable()
             }
+            ForEach(Array(data.strokes.enumerated()), id: \.offset) { i, s in
+                let n = i + 1
             if numbers && shown > 0 && n <= shown, let start = s.centerline.first.flatMap(Self.point) {
                 let d = max(22, rect.width * 0.1)
                 Text("\(n)")
@@ -96,7 +89,9 @@ struct StrokeCanvas: View {
                     .position(x: rect.minX + start.x * rect.width, y: rect.minY + start.y * rect.height)
                     .opacity(progress < 0.98 ? 1 : 0.35)
             }
+            }
         }
+        .drawingGroup()
     }
 
     /// No stroke data for this script: trace the font glyph.
@@ -147,4 +142,40 @@ struct StrokeCanvas: View {
 struct OpsShape: Shape {
     let ops: [PathOp]
     func path(in rect: CGRect) -> Path { Path(ops.cgPath(in: rect)) }
+}
+
+/// One stroke of a character. Equatable so SwiftUI redraws only the stroke that is animating.
+private struct StrokeLayer: View, Equatable {
+    let uid: String
+    let n: Int
+    let stroke: StrokeData.Stroke
+    let key: Int          // 0 written, 1 current, 2 waiting
+    let color: Color
+    let trim: CGFloat
+    let rect: CGRect
+    let lineWidth: CGFloat
+
+    static func == (a: StrokeLayer, b: StrokeLayer) -> Bool {
+        a.uid == b.uid && a.n == b.n && a.key == b.key && a.trim == b.trim && a.rect == b.rect
+    }
+
+    var body: some View {
+        if let outline = stroke.outline {
+            // hanzi-writer: fill the outline, revealed along its median (like a brush moving).
+            OpsShape(ops: outline).fill(color)
+                .mask {
+                    OpsShape(ops: stroke.centerline)
+                        .trim(from: 0, to: trim)
+                        .stroke(style: StrokeStyle(lineWidth: rect.width * 0.16, lineCap: .round, lineJoin: .round))
+                }
+                .frame(width: rect.width, height: rect.height)
+                .position(x: rect.midX, y: rect.midY)
+        } else {
+            OpsShape(ops: stroke.centerline)
+                .trim(from: 0, to: trim)
+                .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+                .frame(width: rect.width, height: rect.height)
+                .position(x: rect.midX, y: rect.midY)
+        }
+    }
 }

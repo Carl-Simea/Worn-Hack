@@ -554,6 +554,14 @@ final class PracticeEngine {
     }
 
     private func handle(_ r: GradeResult, item: PracticeItem) {
+        if r.noWriting {
+            // Nothing to grade: say so, keep the photo for diagnosis, don't count a miss.
+            phase = .result(r)
+            reactionLine = r.feedback
+            app.say(r.feedback)
+            app.report("grade.no_writing", ["char": .string(item.char), "image": .opt(r.imageUrl)])
+            return
+        }
         attemptsOnCurrent += 1
         phase = .result(r)
         outcomes.removeAll { $0.item == item }
@@ -596,7 +604,9 @@ final class PracticeEngine {
         if r.correct {
             confettiBurst += 1
             app.report("confetti", ["char": .string(item.char), "score": .int(r.scoreInt)])
-            scheduleAdvance(after: milestone == nil ? 2.4 : 3.8, retry: false)
+            if !holdMode { scheduleAdvance(after: milestone == nil ? 2.4 : 3.8, retry: false) }
+        } else if holdMode {
+            // Phone: the learner reads the breakdown and decides (Try again / Next).
         } else {
             // The tutor agent decides retry vs. move on; without it, retry once (slower), then move on.
             let retry = r.next?.action.map { $0 == "retry" } ?? (attemptsOnCurrent < 2)

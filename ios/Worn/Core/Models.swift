@@ -178,8 +178,18 @@ struct GradeResult: Decodable, Equatable {
     }
 
     let correct: Bool
-    let score: Double
+    /// nil when the checker found no writing in the photo (status "no_writing").
+    let score: Double?
     let feedback: String
+    /// "ok" or "no_writing".
+    let status: String?
+    /// recognizable, proportions, placement, completeness, neatness (0-100 each).
+    let subscores: [String: Double]?
+    let weakest: String?
+    /// The part of the photo the checker actually looked at.
+    let cropUrl: String?
+    /// Shape-only score against the model letter, and what the rubric read the writing as.
+    let templateScore: Double?
     /// The tutor agent's spoken line ("Great job! Keep going.").
     let reaction: String?
     let mood: String?
@@ -192,12 +202,14 @@ struct GradeResult: Decodable, Equatable {
     let ts: Double?
     let latencyMs: Double?
 
-    var scoreInt: Int { Int(score.rounded()) }
+    var scoreInt: Int { Int((score ?? 0).rounded()) }
+    var noWriting: Bool { status == "no_writing" || score == nil }
     /// The agent wants another try at this character.
     var wantsRetry: Bool { next?.action == "retry" }
 
     init(correct: Bool, score: Double, feedback: String, reaction: String? = nil, seen: String? = nil) {
         self.correct = correct; self.score = score; self.feedback = feedback; self.reaction = reaction; self.seen = seen
+        status = nil; subscores = nil; weakest = nil; cropUrl = nil; templateScore = nil
         mood = nil; sound = nil; char = nil; lang = nil; imageUrl = nil; next = nil; ts = nil; latencyMs = nil
     }
 }

@@ -41,11 +41,17 @@ private struct PracticeContent: View {
 
     private func panels(_ item: PracticeItem) -> some View {
         VStack(spacing: 16) {
-            CharacterCard(engine: engine, item: item)
-            StatusPanel(engine: engine, item: item)
-            HStack(alignment: .top, spacing: 12) {
-                if engine.source == .glasses { GlassesMirror(engine: engine, item: item) }
-                if engine.source == .phone && !engine.holdMode { CameraCard(engine: engine) }
+            if case .result = engine.phase {
+                // The verdict: score, what's weak, and model next to what the checker saw.
+                StatusPanel(engine: engine, item: item)
+                CompareRow(engine: engine, item: item)
+            } else {
+                CharacterCard(engine: engine, item: item)
+                StatusPanel(engine: engine, item: item)
+                HStack(alignment: .top, spacing: 12) {
+                    if engine.source == .glasses { GlassesMirror(engine: engine, item: item) }
+                    if engine.source == .phone && !engine.holdMode { CameraCard(engine: engine) }
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -71,11 +77,8 @@ private struct PracticeContent: View {
                     .padding(.top, 8)
                 } else {
                     // Fits on one screen; scrolls only if a small phone really needs it.
-                    ViewThatFits(in: .vertical) {
-                        panels(item)
-                        ScrollView { panels(item) }
-                    }
-                    Spacer(minLength: 0)
+                    ScrollView { panels(item) }
+                        .scrollBounceBehavior(.basedOnSize)
                 }
                 if engine.aimCountdown == nil { Controls(engine: engine) }
             }
@@ -591,23 +594,110 @@ private struct ResultView: View {
     let engine: PracticeEngine
     @State private var shownScore = 0
 
+    private static let rows: [(String, String)] = [
+        ("recognizable", "Recognizable"), ("proportions", "Proportions"), ("placement", "Stroke placement"),
+        ("completeness", "Completeness"), ("neatness", "Neatness"),
+    ]
+
     var body: some View {
-        VStack(spacing: 8) {
+        if result.noWriting { noWriting } else { graded }
+    }
+
+    private var noWriting: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "eye.slash").font(.system(size: 32)).foregroundStyle(Theme.warn)
+            Text("I can't see your writing").font(Theme.display(24, weight: .medium))
+            Text("Hold the phone flat over the page, about 30 cm away, in good light. Write dark and big.")
+                .font(Theme.sans(15)).foregroundStyle(Theme.inkSoft).multilineTextAlignment(.center)
+            Button("Try again") { engine.again() }.buttonStyle(PrimaryButtonStyle())
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var graded: some View {
+        VStack(spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("\(shownScore)")
-                    .font(Theme.display(56, weight: .medium))
+                    .font(Theme.display(52, weight: .medium))
                     .foregroundStyle(result.correct ? Theme.good : Theme.warn)
                     .contentTransition(.numericText(value: Double(shownScore)))
                 Text("/ 100").font(Theme.sans(15)).foregroundStyle(Theme.inkSoft)
             }
-            if let reaction { Text(reaction).font(Theme.display(19)).multilineTextAlignment(.center) }
-            if !result.correct || reaction == nil {
-                Text(result.feedback).font(Theme.sans(14)).foregroundStyle(Theme.inkSoft).multilineTextAlignment(.center)
+            if let reaction { Text(reaction).font(Theme.display(18)).multilineTextAlignment(.center) }
+            if let sub = result.subscores {
+                VStack(spacing: 9) {
+                    ForEach(Self.rows, id: \.0) { key, label in
+                        if let v = sub[key] { row(label, v, weak: key == result.weakest && !result.correct) }
+                    }
+                }
             }
+            Text(result.feedback).font(Theme.sans(15)).foregroundStyle(Theme.inkSoft).multilineTextAlignment(.center)
+            if let seen = result.seen, !seen.isEmpty, seen != engine.current?.char, !result.correct {
+                Text("Scribi read it as “\(seen)”").font(Theme.sans(15, weight: .semibold)).foregroundStyle(Theme.warn)
+            }
+            if !result.correct { Button("Try again") { engine.again() }.buttonStyle(QuietButtonStyle()) }
         }
         .frame(maxWidth: .infinity)
         .onAppear {
             withAnimation(.spring(response: 0.9, dampingFraction: 0.9)) { shownScore = result.scoreInt }
+        }
+    }
+
+    private func row(_ label: String, _ value: Double, weak: Bool) -> some View {
+        HStack(spacing: 10) {
+            Text(label).font(Theme.sans(14, weight: weak ? .bold : .medium)).foregroundStyle(weak ? Theme.warn : Theme.ink)
+                .frame(width: 122, alignment: .leading)
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Theme.hairline)
+                    Capsule().fill(weak ? Theme.warn : (value >= 70 ? Theme.good : Theme.inkSoft.opacity(0.7)))
+                        .frame(width: max(6, g.size.width * min(1, value / 100)))
+                }
+            }
+            .frame(height: 8)
+            Text("\(Int(value.rounded()))").font(Theme.sans(14, weight: .semibold)).foregroundStyle(weak ? Theme.warn : Theme.ink)
+                .frame(width: 30, alignment: .trailing)
+        }
+    }
+}
+
+/// Model next to what the checker looked at, so you can see why a score came out the way it did.
+private struct CompareRow: View {
+    @Environment(AppModel.self) private var app
+    let engine: PracticeEngine
+    let item: PracticeItem
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            tile("Model") {
+                StrokeCanvas(lang: item.lang, char: item.char, strokes: engine.strokes, shown: 0, epoch: engine.strokeEpoch,
+                             showGrid: false).padding(10)
+            }
+            tile(noWriting ? "What the camera saw" : "What Scribi saw") { yours }
+        }
+    }
+
+    private var result: GradeResult? { if case .result(let r) = engine.phase { return r }; return nil }
+    private var noWriting: Bool { result?.noWriting ?? false }
+
+    @ViewBuilder
+    private var yours: some View {
+        if let r = result, let path = r.cropUrl ?? r.imageUrl, let url = app.api?.url(path) {
+            AsyncImage(url: url) { img in img.resizable().scaledToFit() } placeholder: { ProgressView() }
+        } else {
+            Image(systemName: "photo").font(.system(size: 28)).foregroundStyle(Theme.inkSoft)
+        }
+    }
+
+    private func tile<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {
+        VStack(spacing: 6) {
+            content()
+                .frame(maxWidth: .infinity)
+                .aspectRatio(1, contentMode: .fit)
+                .background(Theme.card)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.hairline))
+            Text(title).font(Theme.sans(14, weight: .semibold)).foregroundStyle(Theme.inkSoft)
         }
     }
 }
