@@ -1,13 +1,18 @@
 {
   "lang": "russian",
   "name": "Russian",
+  "script": "Cyrillic (print)",
+  "script_type": "alphabet",
   "rtl": false,
+  "about": "An alphabet like English, with some look-alike letters that sound different. Russian cursive looks quite different from print.",
+  "stroke_order": "suggested",
+  "stroke_source": "hand-authored for Worn (suggested stroke order)",
   "phrases": [
     {
       "id": "hello",
-      "text": "Привет",
+      "text": "привет",
       "chars": [
-        "П",
+        "п",
         "р",
         "и",
         "в",
@@ -16,13 +21,17 @@
       ],
       "romanization": "privet",
       "meaning": "hello",
-      "audio": "audio/russian/hello.m4a"
+      "audio": "audio/russian/hello.m4a",
+      "how": "Look-alikes trick you: р is 'r', в is 'v', and е is 'ye'.",
+      "why": "Greet someone in their own script on a card or a note.",
+      "dictation": "Six letters: п р и в е т. Informal hello.",
+      "stroke_order": "suggested"
     },
     {
       "id": "thank_you",
-      "text": "Спасибо",
+      "text": "спасибо",
       "chars": [
-        "С",
+        "с",
         "п",
         "а",
         "с",
@@ -32,48 +41,62 @@
       ],
       "romanization": "spasibo",
       "meaning": "thank you",
-      "audio": "audio/russian/thank_you.m4a"
+      "audio": "audio/russian/thank_you.m4a",
+      "how": "с is 's' and б is 'b'. We practise print; handwritten cursive looks different.",
+      "why": "Write a real thank-you card to a host or to family.",
+      "dictation": "Seven letters: с п а с и б о.",
+      "stroke_order": "suggested"
     },
     {
-      "id": "yes",
-      "text": "Да",
+      "id": "water",
+      "text": "вода",
       "chars": [
-        "Д",
+        "в",
+        "о",
+        "д",
         "а"
       ],
-      "romanization": "da",
-      "meaning": "yes",
-      "audio": "audio/russian/yes.m4a"
+      "romanization": "voda",
+      "meaning": "water",
+      "audio": "audio/russian/water.m4a",
+      "how": "Unstressed о often sounds like 'a': вода is said 'va-DA'.",
+      "why": "Spot it on a menu, a sign or a bottle label.",
+      "dictation": "Four letters: в о д а.",
+      "stroke_order": "suggested"
     },
     {
-      "id": "no",
-      "text": "Нет",
+      "id": "friend",
+      "text": "друг",
       "chars": [
-        "Н",
-        "е",
-        "т"
-      ],
-      "romanization": "nyet",
-      "meaning": "no",
-      "audio": "audio/russian/no.m4a"
-    },
-    {
-      "id": "bathroom",
-      "text": "Где туалет?",
-      "chars": [
-        "Г",
         "д",
-        "е",
-        "т",
+        "р",
         "у",
-        "а",
-        "л",
-        "е",
-        "т"
+        "г"
       ],
-      "romanization": "gde tualet?",
-      "meaning": "where is the bathroom?",
-      "audio": "audio/russian/bathroom.m4a"
+      "romanization": "drug",
+      "meaning": "friend",
+      "audio": "audio/russian/friend.m4a",
+      "how": "д is 'd', у is 'oo' and г is 'g'. In cursive, д and г look very different.",
+      "why": "Sign a note to a friend. Writing it by hand helps you remember it.",
+      "dictation": "Four letters: д р у г.",
+      "stroke_order": "suggested"
+    },
+    {
+      "id": "one",
+      "text": "один",
+      "chars": [
+        "о",
+        "д",
+        "и",
+        "н"
+      ],
+      "romanization": "odin",
+      "meaning": "one",
+      "audio": "audio/russian/one.m4a",
+      "how": "и is 'ee' and н is 'n', not 'h'. Stress the second syllable: a-DEEN.",
+      "why": "Read quantities and order one of something off a menu.",
+      "dictation": "Four letters: о д и н.",
+      "stroke_order": "suggested"
     }
   ]
 }

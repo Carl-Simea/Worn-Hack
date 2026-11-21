@@ -1,7 +1,12 @@
 {
   "lang": "mandarin",
   "name": "Mandarin Chinese",
+  "script": "Simplified Chinese characters",
+  "script_type": "logographic",
   "rtl": false,
+  "about": "Each character is one syllable with its own meaning. Pinyin with tone marks shows the sound.",
+  "stroke_order": "standard",
+  "stroke_source": "hanzi-writer-data (Make Me a Hanzi)",
   "phrases": [
     {
       "id": "hello",
@@ -12,7 +17,11 @@
       ],
       "romanization": "nǐ hǎo",
       "meaning": "hello",
-      "audio": "audio/mandarin/hello.m4a"
+      "audio": "audio/mandarin/hello.m4a",
+      "how": "Characters carry meaning, not single sounds: 你 'you' + 好 'good'.",
+      "why": "Greet someone in their own script on a card or a note.",
+      "dictation": "Two characters. 你 has the 'person' part 亻 on the left; 好 is 女 then 子.",
+      "stroke_order": "standard"
     },
     {
       "id": "thank_you",
@@ -23,41 +32,54 @@
       ],
       "romanization": "xièxie",
       "meaning": "thank you",
-      "audio": "audio/mandarin/thank_you.m4a"
+      "audio": "audio/mandarin/thank_you.m4a",
+      "how": "One character is one syllable; saying 谢 twice is the everyday 'thanks'.",
+      "why": "Write a real thank-you card to a host or to family.",
+      "dictation": "The same character twice. 谢 starts with the 'speech' part 讠 on the left.",
+      "stroke_order": "standard"
     },
     {
-      "id": "yes",
-      "text": "是",
+      "id": "water",
+      "text": "水",
       "chars": [
-        "是"
+        "水"
       ],
-      "romanization": "shì",
-      "meaning": "yes",
-      "audio": "audio/mandarin/yes.m4a"
+      "romanization": "shuǐ",
+      "meaning": "water",
+      "audio": "audio/mandarin/water.m4a",
+      "how": "水 began as a picture of flowing water; many water words contain a form of it (氵).",
+      "why": "Spot it on a menu, a sign or a bottle label.",
+      "dictation": "One character, four strokes: the hooked middle line comes first.",
+      "stroke_order": "standard"
     },
     {
-      "id": "no",
-      "text": "不",
+      "id": "friend",
+      "text": "朋友",
       "chars": [
-        "不"
+        "朋",
+        "友"
       ],
-      "romanization": "bù",
-      "meaning": "no",
-      "audio": "audio/mandarin/no.m4a"
+      "romanization": "péngyou",
+      "meaning": "friend",
+      "audio": "audio/mandarin/friend.m4a",
+      "how": "Two characters, two syllables: 朋 and 友 both carry the idea of 'friend'.",
+      "why": "Sign a note to a friend. Writing it by hand helps you remember it.",
+      "dictation": "朋 is two 月 side by side; 友 starts with a short horizontal line.",
+      "stroke_order": "standard"
     },
     {
-      "id": "bathroom",
-      "text": "厕所在哪里？",
+      "id": "one",
+      "text": "一",
       "chars": [
-        "厕",
-        "所",
-        "在",
-        "哪",
-        "里"
+        "一"
       ],
-      "romanization": "cèsuǒ zài nǎlǐ?",
-      "meaning": "where is the bathroom?",
-      "audio": "audio/mandarin/bathroom.m4a"
+      "romanization": "yī",
+      "meaning": "one",
+      "audio": "audio/mandarin/one.m4a",
+      "how": "Numbers are characters too: 一 is one stroke, 二 is two, 三 is three.",
+      "why": "Read quantities and order one of something off a menu.",
+      "dictation": "One horizontal stroke, left to right.",
+      "stroke_order": "standard"
     }
   ]
 }

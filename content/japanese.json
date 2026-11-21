@@ -1,7 +1,12 @@
 {
   "lang": "japanese",
   "name": "Japanese",
+  "script": "Hiragana",
+  "script_type": "syllabic",
   "rtl": false,
+  "about": "Each hiragana stands for a whole syllable. Romanized with Hepburn.",
+  "stroke_order": "standard",
+  "stroke_source": "KanjiVG (CC BY-SA 3.0)",
   "phrases": [
     {
       "id": "hello",
@@ -15,7 +20,11 @@
       ],
       "romanization": "konnichiwa",
       "meaning": "hello",
-      "audio": "audio/japanese/hello.m4a"
+      "audio": "audio/japanese/hello.m4a",
+      "how": "Each sign is a syllable (こ ko, ん n, に ni, ち chi); the final は is read 'wa' here.",
+      "why": "Greet someone in their own script on a card or a note.",
+      "dictation": "Five hiragana. It ends with は, even though you say 'wa'.",
+      "stroke_order": "standard"
     },
     {
       "id": "thank_you",
@@ -29,48 +38,58 @@
       ],
       "romanization": "arigatō",
       "meaning": "thank you",
-      "audio": "audio/japanese/thank_you.m4a"
+      "audio": "audio/japanese/thank_you.m4a",
+      "how": "が is か (ka) plus two small marks (dakuten) that turn it into 'ga'.",
+      "why": "Write a real thank-you card to a host or to family.",
+      "dictation": "Five hiragana: a-ri-ga-to-u. The long ō is written with う.",
+      "stroke_order": "standard"
     },
     {
-      "id": "yes",
-      "text": "はい",
+      "id": "water",
+      "text": "みず",
       "chars": [
-        "は",
-        "い"
+        "み",
+        "ず"
       ],
-      "romanization": "hai",
-      "meaning": "yes",
-      "audio": "audio/japanese/yes.m4a"
+      "romanization": "mizu",
+      "meaning": "water",
+      "audio": "audio/japanese/water.m4a",
+      "how": "ず is す (su) with dakuten, which makes it 'zu'.",
+      "why": "Spot it on a menu, a sign or a bottle label.",
+      "dictation": "Two hiragana: み then ず.",
+      "stroke_order": "standard"
     },
     {
-      "id": "no",
-      "text": "いいえ",
+      "id": "friend",
+      "text": "ともだち",
+      "chars": [
+        "と",
+        "も",
+        "だ",
+        "ち"
+      ],
+      "romanization": "tomodachi",
+      "meaning": "friend",
+      "audio": "audio/japanese/friend.m4a",
+      "how": "だ is た (ta) plus dakuten = 'da'. Hiragana spells words by sound.",
+      "why": "Sign a note to a friend. Writing it by hand helps you remember it.",
+      "dictation": "Four hiragana: to-mo-da-chi.",
+      "stroke_order": "standard"
+    },
+    {
+      "id": "one",
+      "text": "いち",
       "chars": [
         "い",
-        "い",
-        "え"
+        "ち"
       ],
-      "romanization": "iie",
-      "meaning": "no",
-      "audio": "audio/japanese/no.m4a"
-    },
-    {
-      "id": "bathroom",
-      "text": "トイレはどこですか？",
-      "chars": [
-        "ト",
-        "イ",
-        "レ",
-        "は",
-        "ど",
-        "こ",
-        "で",
-        "す",
-        "か"
-      ],
-      "romanization": "toire wa doko desu ka?",
-      "meaning": "where is the bathroom?",
-      "audio": "audio/japanese/bathroom.m4a"
+      "romanization": "ichi",
+      "meaning": "one",
+      "audio": "audio/japanese/one.m4a",
+      "how": "Any word can be spelled in hiragana; いち is also written with the kanji 一.",
+      "why": "Read quantities and order one of something off a menu.",
+      "dictation": "Two hiragana: い then ち.",
+      "stroke_order": "standard"
     }
   ]
 }

@@ -1,7 +1,12 @@
 {
   "lang": "hindi",
   "name": "Hindi",
+  "script": "Devanagari",
+  "script_type": "abugida",
   "rtl": false,
+  "about": "Each consonant carries a built-in 'a'; vowel signs attach to it. The top line is usually drawn last.",
+  "stroke_order": "suggested",
+  "stroke_source": "hand-authored for Worn (suggested stroke order)",
   "phrases": [
     {
       "id": "hello",
@@ -13,7 +18,11 @@
       ],
       "romanization": "namaste",
       "meaning": "hello",
-      "audio": "audio/hindi/hello.m4a"
+      "audio": "audio/hindi/hello.m4a",
+      "how": "स्ते joins a half स to त, plus the 'e' sign on top.",
+      "why": "Greet someone in their own script on a card or a note.",
+      "dictation": "Three blocks: न, म, then स्ते.",
+      "stroke_order": "suggested"
     },
     {
       "id": "thank_you",
@@ -26,44 +35,56 @@
       ],
       "romanization": "dhanyavād",
       "meaning": "thank you",
-      "audio": "audio/hindi/thank_you.m4a"
+      "audio": "audio/hindi/thank_you.m4a",
+      "how": "Vowel signs attach to consonants: वा is व plus the 'ā' sign ा.",
+      "why": "Write a real thank-you card to a host or to family.",
+      "dictation": "Four blocks: ध, न्य, वा, द.",
+      "stroke_order": "suggested"
     },
     {
-      "id": "yes",
-      "text": "हाँ",
+      "id": "water",
+      "text": "पानी",
       "chars": [
-        "हाँ"
+        "पा",
+        "नी"
       ],
-      "romanization": "hā̃",
-      "meaning": "yes",
-      "audio": "audio/hindi/yes.m4a"
+      "romanization": "pānī",
+      "meaning": "water",
+      "audio": "audio/hindi/water.m4a",
+      "how": "पा is प + ा ('ā'); नी is न + ी ('ī'), drawn to the right.",
+      "why": "Spot it on a menu, a sign or a bottle label.",
+      "dictation": "Two blocks: पा then नी.",
+      "stroke_order": "suggested"
     },
     {
-      "id": "no",
-      "text": "नहीं",
+      "id": "friend",
+      "text": "दोस्त",
       "chars": [
-        "न",
-        "हीं"
+        "दो",
+        "स्त"
       ],
-      "romanization": "nahī̃",
-      "meaning": "no",
-      "audio": "audio/hindi/no.m4a"
+      "romanization": "dost",
+      "meaning": "friend",
+      "audio": "audio/hindi/friend.m4a",
+      "how": "The last consonant drops its built-in 'a' in speech: दोस्त is said 'dost'.",
+      "why": "Sign a note to a friend. Writing it by hand helps you remember it.",
+      "dictation": "Two blocks: दो, then स्त (half स joined to त).",
+      "stroke_order": "suggested"
     },
     {
-      "id": "bathroom",
-      "text": "शौचालय कहाँ है?",
+      "id": "one",
+      "text": "एक",
       "chars": [
-        "शौ",
-        "चा",
-        "ल",
-        "य",
-        "क",
-        "हाँ",
-        "है"
+        "ए",
+        "क"
       ],
-      "romanization": "śaucālay kahā̃ hai?",
-      "meaning": "where is the bathroom?",
-      "audio": "audio/hindi/bathroom.m4a"
+      "romanization": "ek",
+      "meaning": "one",
+      "audio": "audio/hindi/one.m4a",
+      "how": "ए is a vowel letter used at the start of a word; inside words vowels become signs.",
+      "why": "Read quantities and order one of something off a menu.",
+      "dictation": "Two letters: ए then क.",
+      "stroke_order": "suggested"
     }
   ]
 }

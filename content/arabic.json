@@ -1,7 +1,12 @@
 {
   "lang": "arabic",
   "name": "Arabic",
+  "script": "Arabic script",
+  "script_type": "abjad",
   "rtl": true,
+  "about": "Written right to left. Letters join and change shape; short vowels are usually not written.",
+  "stroke_order": "suggested",
+  "stroke_source": "hand-authored for Worn (suggested stroke order)",
   "phrases": [
     {
       "id": "hello",
@@ -11,11 +16,16 @@
         "ر",
         "ح",
         "ب",
-        "ا"
+        "ا",
+        "مرحبا"
       ],
       "romanization": "marḥaban",
       "meaning": "hello",
-      "audio": "audio/arabic/hello.m4a"
+      "audio": "audio/arabic/hello.m4a",
+      "how": "Right to left, and letters join: each has a separate, start, middle and end form.",
+      "why": "Greet someone in their own script on a card or a note.",
+      "dictation": "Five letters, right to left: م ر ح ب ا. Then write them joined.",
+      "stroke_order": "suggested"
     },
     {
       "id": "thank_you",
@@ -24,51 +34,69 @@
         "ش",
         "ك",
         "ر",
-        "ا"
+        "ا",
+        "شكرا"
       ],
       "romanization": "shukran",
       "meaning": "thank you",
-      "audio": "audio/arabic/thank_you.m4a"
+      "audio": "audio/arabic/thank_you.m4a",
+      "how": "Dots tell letters apart: ش has three dots, added after the main stroke.",
+      "why": "Write a real thank-you card to a host or to family.",
+      "dictation": "Four letters: ش ك ر ا. ش has three dots on top.",
+      "stroke_order": "suggested"
     },
     {
-      "id": "yes",
-      "text": "نعم",
+      "id": "water",
+      "text": "ماء",
       "chars": [
-        "ن",
-        "ع",
-        "م"
-      ],
-      "romanization": "naʿam",
-      "meaning": "yes",
-      "audio": "audio/arabic/yes.m4a"
-    },
-    {
-      "id": "no",
-      "text": "لا",
-      "chars": [
-        "لا"
-      ],
-      "romanization": "lā",
-      "meaning": "no",
-      "audio": "audio/arabic/no.m4a"
-    },
-    {
-      "id": "bathroom",
-      "text": "أين الحمام؟",
-      "chars": [
-        "أ",
-        "ي",
-        "ن",
-        "ا",
-        "ل",
-        "ح",
         "م",
         "ا",
-        "م"
+        "ء",
+        "ماء"
       ],
-      "romanization": "ayna al-ḥammām?",
-      "meaning": "where is the bathroom?",
-      "audio": "audio/arabic/bathroom.m4a"
+      "romanization": "māʾ",
+      "meaning": "water",
+      "audio": "audio/arabic/water.m4a",
+      "how": "ء (hamza) marks a short catch in the throat; the long 'ā' is written with ا.",
+      "why": "Spot it on a menu, a sign or a bottle label.",
+      "dictation": "Three letters: م ا ء. Hamza sits on the line, on its own.",
+      "stroke_order": "suggested"
+    },
+    {
+      "id": "friend",
+      "text": "صديق",
+      "chars": [
+        "ص",
+        "د",
+        "ي",
+        "ق",
+        "صديق"
+      ],
+      "romanization": "ṣadīq",
+      "meaning": "friend",
+      "audio": "audio/arabic/friend.m4a",
+      "how": "Some letters (ا د ذ ر ز و) never join the next one, so words can have gaps: صد يق.",
+      "why": "Sign a note to a friend. Writing it by hand helps you remember it.",
+      "dictation": "Four letters: ص د ي ق. There's a gap after د.",
+      "stroke_order": "suggested"
+    },
+    {
+      "id": "one",
+      "text": "واحد",
+      "chars": [
+        "و",
+        "ا",
+        "ح",
+        "د",
+        "واحد"
+      ],
+      "romanization": "wāḥid",
+      "meaning": "one",
+      "audio": "audio/arabic/one.m4a",
+      "how": "و and ا don't connect forward, so واحد is written in pieces: و, ا, then حد.",
+      "why": "Read quantities and order one of something off a menu.",
+      "dictation": "Four letters: و ا ح د. Only ح and د join.",
+      "stroke_order": "suggested"
     }
   ]
 }
