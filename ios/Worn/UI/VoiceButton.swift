@@ -34,7 +34,7 @@ struct AppBar: View {
 
     var body: some View {
         HStack {
-            Color.clear.frame(width: 48, height: 48)
+            AssistantButton()
             Spacer()
             VStack(spacing: 4) {
                 VoiceButton(size: 60)

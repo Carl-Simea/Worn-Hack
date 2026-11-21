@@ -125,6 +125,18 @@ struct API: Sendable {
     @discardableResult
     func startSession(_ body: SessionRequest) async throws -> SessionState { try await postJSON("session", body) }
 
+    /// Scribi's brain: text in, spoken reply out. (No `screen`, so the shared glasses screen state stays untouched.)
+    func ask(_ text: String) async throws -> VoiceReply {
+        let boundary = "worn-\(UUID().uuidString)"
+        var body = Data()
+        body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"text\"\r\n\r\n\(text)\r\n--\(boundary)--\r\n".utf8))
+        var req = URLRequest(url: endpoint("voice"))
+        req.httpMethod = "POST"
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        req.httpBody = body
+        return try Self.decoder.decode(VoiceReply.self, from: try await send(req, slow: true))
+    }
+
     func grade(jpeg: Data, char: String, lang: String) async throws -> GradeResult {
         try await postMultipart("grade", fields: ["char": char, "lang": lang], jpeg: jpeg, slow: true)
     }

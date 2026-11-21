@@ -25,6 +25,7 @@ struct PracticeView: View {
         }
         .onDisappear { engine?.stop() }
         .onChange(of: app.closePracticeRequest) { _, _ in close() }
+        .sheet(isPresented: Binding(get: { app.assistant.isOpen }, set: { if !$0 { app.assistant.close() } })) { AssistantView() }
         .sheet(item: Binding(get: { app.feedbackDraft }, set: { if $0 == nil { app.feedbackDraft = nil } })) { FeedbackSheet(draft: $0) }
     }
 
@@ -138,6 +139,7 @@ private struct TopBar: View {
                 QueueDots(total: engine.queue.count, index: engine.index, outcomes: engine.outcomes)
             }
             Spacer()
+            AssistantButton(size: 40)
             FeedbackButton(size: 40)
             SourceBadge(source: engine.source)
         }

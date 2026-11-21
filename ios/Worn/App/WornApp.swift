@@ -33,6 +33,7 @@ struct RootView: View {
                 }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) { AppBar().ignoresSafeArea(.keyboard) }
+        .sheet(isPresented: Binding(get: { app.pendingLaunch == nil && app.assistant.isOpen }, set: { if !$0 { app.assistant.close() } })) { AssistantView() }
         .sheet(item: Binding(get: { app.pendingLaunch == nil ? app.feedbackDraft : nil },
                              set: { if $0 == nil { app.feedbackDraft = nil } })) { FeedbackSheet(draft: $0) }
         .fullScreenCover(item: $app.pendingLaunch) { PracticeView(launch: $0) }

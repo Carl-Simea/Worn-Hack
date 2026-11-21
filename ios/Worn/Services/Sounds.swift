@@ -26,14 +26,36 @@ final class Sounds {
         p.playImmediately(atRate: rate)
     }
 
-    func say(_ text: String, language: String = "en-US", rate: Float = 0.48) {
+    /// Best installed voice for a language: Premium > Enhanced > default, preferring the calm natural ones.
+    static func bestVoice(_ language: String) -> AVSpeechSynthesisVoice? {
+        let prefer = ["Ava", "Zoe", "Samantha", "Evan", "Nathan", "Allison", "Tom"]
+        let all = AVSpeechSynthesisVoice.speechVoices().filter { $0.language == language }
+        func rank(_ v: AVSpeechSynthesisVoice) -> Int {
+            let q = v.quality == .premium ? 300 : v.quality == .enhanced ? 200 : 0
+            let n = prefer.firstIndex { v.name.hasPrefix($0) }.map { 50 - $0 } ?? 0
+            return q + n
+        }
+        return all.max { rank($0) < rank($1) } ?? AVSpeechSynthesisVoice(language: language)
+    }
+
+    /// `onDone` fires when the line has actually been spoken (or was cut off).
+    func say(_ text: String, language: String = "en-US", rate: Float = 0.5, onDone: (() -> Void)? = nil) {
         AudioSessionConfig.activate()
         let u = AVSpeechUtterance(string: text)
-        u.voice = AVSpeechSynthesisVoice(language: language)
+        u.voice = Self.bestVoice(language)
         u.rate = rate
+        u.pitchMultiplier = 1.04
+        u.preUtteranceDelay = 0.05
+        synthDelegate.onDone = nil
+        synth.delegate = synthDelegate
         synth.stopSpeaking(at: .immediate)
+        synthDelegate.current = u
+        synthDelegate.onDone = onDone
         synth.speak(u)
     }
+
+    func stopSpeaking() { synth.stopSpeaking(at: .immediate) }
+    private let synthDelegate = SynthDelegate()
 
     /// Download the team's sound effects once so reactions play instantly.
     func preload(_ names: [String]) {
@@ -127,4 +149,17 @@ final class Sounds {
         samples.withUnsafeBytes { d.append(contentsOf: $0) }
         return d
     }
+}
+
+
+final class SynthDelegate: NSObject, AVSpeechSynthesizerDelegate, @unchecked Sendable {
+    var onDone: (() -> Void)?
+    var current: AVSpeechUtterance?
+    private func done(_ u: AVSpeechUtterance) {
+        guard u === current else { return }          // a cancelled older line must not end the new one
+        let f = onDone; onDone = nil; current = nil
+        DispatchQueue.main.async { f?() }
+    }
+    func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish u: AVSpeechUtterance) { done(u) }
+    func speechSynthesizer(_ s: AVSpeechSynthesizer, didCancel u: AVSpeechUtterance) { done(u) }
 }

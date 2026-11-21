@@ -15,6 +15,19 @@ final class VoiceListener {
     private(set) var lastCommand: VoiceCommand?
     var onCommand: ((VoiceCommand) -> Void)?
 
+    /// Conversation mode (assistant chat): free speech instead of commands. Words appear live in `partial`;
+    /// after a short pause the whole sentence goes to `onUtterance`.
+    private(set) var partial = ""
+    var onUtterance: ((String) -> Void)?
+    private var silenceWork: Task<Void, Never>?
+    var conversation = false {
+        didSet {
+            guard conversation != oldValue else { return }
+            partial = ""; silenceWork?.cancel()
+            if state == .listening, let r = recognizer { try? begin(r) }
+        }
+    }
+
     private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
     private let engine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
@@ -63,8 +76,13 @@ final class VoiceListener {
         AudioSessionConfig.activate()
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
-        if recognizer.supportsOnDeviceRecognition { req.requiresOnDeviceRecognition = true }
-        req.taskHint = .confirmation
+        if conversation {
+            req.taskHint = .dictation
+            req.addsPunctuation = true
+        } else {
+            if recognizer.supportsOnDeviceRecognition { req.requiresOnDeviceRecognition = true }
+            req.taskHint = .confirmation
+        }
         req.contextualStrings = ["next", "back", "again", "slower", "check", "switch to", "help me write",
                                  "Mandarin", "Hindi", "Arabic", "Russian", "Hebrew", "Greek"]
         request = req
@@ -97,6 +115,20 @@ final class VoiceListener {
 
     private func heard(_ text: String) {
         lastHeard = text
+        if conversation {
+            partial = text
+            silenceWork?.cancel()
+            silenceWork = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(1.4))
+                guard let self, !Task.isCancelled, self.conversation else { return }
+                let said = self.partial.trimmingCharacters(in: .whitespacesAndNewlines)
+                self.partial = ""
+                guard !said.isEmpty else { return }
+                self.onUtterance?(said)
+                self.scheduleRestart(after: 0.1)
+            }
+            return
+        }
         guard let cmd = VoiceCommandParser.parse(text) else { return }
         // Fire once per distinct command per utterance (partials repeat the same words).
         let key = "\(cmd)"

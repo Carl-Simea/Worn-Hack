@@ -62,6 +62,7 @@ final class AppModel {
     let glasses: GlassesLink
     let camera = PhoneCamera()
     let voice = VoiceListener()
+    @ObservationIgnored lazy var assistant: Assistant = Assistant(app: self)
     private(set) var api: API?
     private var pollTask: Task<Void, Never>?
     private var handoffTask: Task<Void, Never>?
@@ -328,7 +329,7 @@ final class AppModel {
 
     // MARK: voice
 
-    private func handle(_ cmd: VoiceCommand) {
+    func handle(_ cmd: VoiceCommand) {
         report("voice", ["command": .string("\(cmd)"), "heard": .string(voice.lastHeard)])
         switch cmd {
         case .next, .back, .again, .slower, .check:
