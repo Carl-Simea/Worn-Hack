@@ -161,6 +161,7 @@ public class MainActivity extends Activity {
         String dbg = intent == null ? null : intent.getStringExtra("js");   // debug: run page script
         if (dbg != null && pageReady) js(dbg);
         if (intent != null) intent.removeExtra("js");
+        if (intent != null && intent.getBooleanExtra("stockhome", false)) { intent.removeExtra("stockhome"); openStockLauncher(); }
         String key = intent == null ? null : intent.getStringExtra("key");
         if (key != null && pageReady) js("worn.key(" + JSONObject.quote(key) + ")");
         if (intent != null) { intent.removeExtra("say"); intent.removeExtra("key"); }
@@ -352,11 +353,44 @@ public class MainActivity extends Activity {
 
     // ------------------------------------------------------------------ keys (backup)
 
+    /** Way out of demo mode: hold Back for 3 s → the glasses' own launcher. A short Back = back inside Worn. */
+    private static final String STOCK_HOME = "com.mlaixr.launcher/.MainActivity";
+    private boolean backHeld, backFired;
+    private final Runnable backLong = () -> {
+        backFired = true;
+        Log.i(TAG, "Back held 3 s: opening the stock launcher");
+        openStockLauncher();
+    };
+
+    private void openStockLauncher() {
+        try {
+            Intent i = new Intent(Intent.ACTION_MAIN);
+            i.addCategory(Intent.CATEGORY_HOME);
+            i.setComponent(android.content.ComponentName.unflattenFromString(STOCK_HOME));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+        } catch (Exception ex) {
+            Log.w(TAG, "stock launcher", ex);
+            js("worn.toastMsg && worn.toastMsg('Could not open the glasses launcher')");
+        }
+    }
+
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         int code = e.getKeyCode();
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
             Log.i(KEYS, "down " + KeyEvent.keyCodeToString(code) + " (" + code + ") repeat=" + e.getRepeatCount());
+        }
+        if (code == KeyEvent.KEYCODE_BACK) {
+            if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
+                backHeld = true; backFired = false;
+                ui.postDelayed(backLong, 3000);
+            } else if (e.getAction() == KeyEvent.ACTION_UP) {
+                ui.removeCallbacks(backLong);
+                if (backHeld && !backFired && !e.isCanceled()) js("worn.key('double')");   // short press: back in Worn
+                backHeld = false;
+            }
+            return true;   // never finish: Worn may be the home app
         }
         String name = keyName(code);
         if (name == null) return super.dispatchKeyEvent(e); // back, home, volume, power behave normally

@@ -27,7 +27,23 @@ The tutor's voice is **Scribi**; the app is **Worn**.
   every 5 s, with a `connected:true` heartbeat so `GET /health` shows `glasses.connected`.
 - **Button (backup)**: press = next / open the highlighted item, hold = check (I'm done), double tap = back.
 
-## Run
+## Install (one command)
+
+    cd glasses-android && ./install.sh            # build → adb install -r → set as the glasses' home app → launch
+    ./install.sh 10.0.221.236                      # same, backend over Wi-Fi at that IP
+    NOBUILD=1 ./install.sh                         # after a glasses reboot: restores the USB tunnels (adb reverse)
+
+What it does: `./gradlew assembleDebug`, `adb install -r -g`, `adb shell cmd package set-home-activity
+com.worn.glasses/.MainActivity`, `svc power stayon usb`, `adb reverse` for :8000 (backend) and :8790 (camera
+relay), starts `tools/camera_relay.py` if it isn't running, then launches Worn.
+
+**Demo mode:** Worn is the glasses' launcher and also starts on boot (`BootReceiver`), so turning the glasses on opens
+Worn (verified with `adb reboot`: Worn was in front ~14 s after boot). A reboot drops `adb reverse`, so run
+`NOBUILD=1 ./install.sh` once after it. **Way out:** hold Back for 3 s (opens the MicroLumin launcher), or
+`adb shell cmd package set-home-activity com.mlaixr.launcher/.MainActivity`. A short Back is "back" inside Worn.
+The app appears as **Worn** (white W on black) in the glasses' app list.
+
+## Run (without changing the home app)
 
     scripts/run.sh usb          # backend over the USB cable (adb reverse); most reliable at the table
     scripts/run.sh 10.0.221.236 # backend over Wi-Fi (USB stays as fallback while plugged in)
