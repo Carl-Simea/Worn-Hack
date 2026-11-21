@@ -149,6 +149,7 @@
   .chip { cursor: pointer; height: 36px; font-size: 14px; }
   .out { margin-top: 18px; }
   .out .native { font-size: clamp(40px, 6vw, 68px); line-height: 1.3; margin: 4px 0; word-break: break-word; }
+  .out .native.faint { font-family: var(--display); font-size: 34px; }
   .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; align-items: start; }
   .skeleton { border-radius: 10px; background: linear-gradient(90deg, var(--paper-2), var(--rule), var(--paper-2)); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
   @keyframes shimmer { to { background-position: -200% 0; } }
@@ -157,6 +158,7 @@
   .ncard .n { font-size: 42px; line-height: 1.35; word-break: break-word; }
   .ncard .ink-box { aspect-ratio: 2.4; position: relative; display: none; }
   .ncard.tracing .ink-box { display: block; }
+  #cOk { color: var(--ok); background: var(--ok-soft); border-color: transparent; cursor: default; height: 28px; font-size: 12.5px; }
   .err { color: var(--bad); font-size: 15px; margin-top: 12px; min-height: 1.4em; }
 
   /* daily */
@@ -308,9 +310,9 @@
         <div class="row" style="margin-top:18px"><button class="btn primary" id="cGo">Show me how</button><span class="faint" style="font-size:13px">Runs on the laptop. Takes a few seconds.</span></div>
         <div class="err" id="cErr"></div>
       </div>
-      <div class="card panel" id="cOut">
-        <div class="eyebrow">Your message</div>
-        <div class="native script faint" id="cNative" style="font-size:34px">It appears here</div>
+      <div class="card panel out" id="cOut" style="margin-top:0">
+        <div class="row" style="justify-content:space-between"><span class="eyebrow">Your message</span><span class="chip" id="cOk" hidden title="An independent read-back matched your English">Checked ✓</span></div>
+        <div class="native script faint" id="cNative">It appears here</div>
         <div class="roman" id="cRoman"></div>
         <p class="muted" id="cBack"></p>
         <div class="note" id="cNote" hidden></div>
@@ -734,14 +736,16 @@
     $("cErr").textContent = "";
     $("cGo").disabled = true; $("cGo").textContent = "Writing it…";
     $("cNative").className = "native script skeleton"; $("cNative").innerHTML = "&nbsp;";
-    $("cRoman").textContent = ""; $("cBack").textContent = ""; $("cNote").hidden = true; $("cWrite").disabled = true;
+    $("cRoman").textContent = ""; $("cBack").textContent = ""; $("cNote").hidden = true; $("cWrite").disabled = true; $("cOk").hidden = true;
     req("POST", "/compose", { text: text, lang: cLang }).then(function (c) {
       composed = { text: text, lang: cLang, out: c };
       $("cNative").className = "native script"; $("cNative").setAttribute("data-lang", cLang);
       $("cNative").setAttribute("dir", LANGS[cLang] && LANGS[cLang].rtl ? "rtl" : "ltr");
       $("cNative").textContent = c.native || c.text;
       $("cRoman").textContent = c.romanization || "";
-      $("cBack").textContent = c.back_translation ? "Reads back as: “" + c.back_translation + "”" : "";
+      var back = c.check || c.back_translation;
+      $("cBack").textContent = back ? "Reads back as: “" + back + "”" : "";
+      $("cOk").hidden = !c.verified;
       $("cNote").hidden = !c.note; $("cNote").textContent = c.note || "";
       $("cWrite").disabled = false;
     }).catch(function (e) {
