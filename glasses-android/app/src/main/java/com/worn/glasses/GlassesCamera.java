@@ -55,6 +55,42 @@ final class GlassesCamera {
     private boolean opening;
     private Callback pending; // one capture at a time
 
+    /** 64×64 grayscale thumbnails from the preview stream, for the on-device ink check. */
+    interface LumaListener { void onLuma(byte[] gray64); }
+    private volatile LumaListener luma;
+    private long lastLuma;
+    static final int THUMB = 64;
+    void setLumaListener(LumaListener l) { luma = l; }
+
+    /** Centre square of the Y plane, box-sampled to 64×64, at most ~3 per second. */
+    private void feedLuma(Image f) {
+        LumaListener l = luma;
+        if (l == null) return;
+        long now = System.currentTimeMillis();
+        if (now - lastLuma < 330) return;
+        lastLuma = now;
+        Image.Plane y = f.getPlanes()[0];
+        java.nio.ByteBuffer buf = y.getBuffer();
+        int rs = y.getRowStride(), ps = y.getPixelStride();
+        int w = f.getWidth(), h = f.getHeight();
+        int side = Math.min(w, h);                 // centre square: where the page is when you look down at it
+        int x0 = (w - side) / 2, y0 = (h - side) / 2;
+        int step = side / THUMB;
+        byte[] out = new byte[THUMB * THUMB];
+        for (int ty = 0; ty < THUMB; ty++) {
+            for (int tx = 0; tx < THUMB; tx++) {
+                int sum = 0, n = 0;
+                int sy = y0 + ty * step, sx = x0 + tx * step;
+                for (int dy = 0; dy < step; dy += 2) {
+                    int row = (sy + dy) * rs;
+                    for (int dx = 0; dx < step; dx += 2) { sum += buf.get(row + (sx + dx) * ps) & 0xff; n++; }
+                }
+                out[ty * THUMB + tx] = (byte) (n == 0 ? 0 : sum / n);
+            }
+        }
+        l.onLuma(out);
+    }
+
     GlassesCamera(Context ctx) {
         manager = (CameraManager) ctx.getSystemService(Context.CAMERA_SERVICE);
         thread.start();
@@ -107,7 +143,7 @@ final class GlassesCamera {
             previewReader = ImageReader.newInstance(ps.getWidth(), ps.getHeight(), ImageFormat.YUV_420_888, 2);
             previewReader.setOnImageAvailableListener(pr -> {
                 Image f = pr.acquireLatestImage();
-                if (f != null) f.close();
+                if (f != null) { try { feedLuma(f); } catch (Exception e) { Log.w(TAG, "luma", e); } f.close(); }
             }, handler);
             previewSurface = previewReader.getSurface();
             opening = true;

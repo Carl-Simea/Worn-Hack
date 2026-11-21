@@ -6,74 +6,74 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.MediaActionSound;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.speech.tts.TextToSpeech;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.ConsoleMessage;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
-import android.webkit.WebResourceError;
-import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
-import android.widget.TextView;
 
 import org.json.JSONObject;
 
-import java.util.Locale;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.util.ArrayDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Worn on the M6 glasses (agent B).
+ * Worn on the M6 glasses: a voice-first app (agent D).
  *
- * The display is agent C's page (GET /glasses) in a full-screen WebView. This activity adds what a
- * web page can't do on the glasses: the touchpad/button, the camera, the upload to POST /grade, and
- * text-to-speech. Contract with web/glasses.html:
- *   - window.WornNative.speak(text)   page -> native, spoken with Android TTS
- *   - worn.capturing()                native -> page, shows "Checking..."
- *   - worn.graded(json)               native -> page, shows the check / fix and speaks it
- *   - worn.error(msg)                 native -> page
- *   - worn.replay()                   native -> page, re-runs the stroke animation + audio
+ * The screens are our own page, assets/ui/index.html, loaded with the backend as its base URL so it can
+ * call the backend directly and use B's shared scripts (/static/web/worn-ink.js …). This activity adds
+ * what a page can't do on the glasses:
+ *   - the microphone: always listening, cut into utterances, POST /voice  -> worn.voice(json)
+ *   - the speaker: /say lines and pronunciation clips, one at a time (the mic is muted meanwhile)
+ *   - the camera: Native.capture() -> POST /grade -> worn.graded(json)
+ *   - the button / touchpad -> worn.key(name)   (backup only; voice drives everything)
+ *   - which backend to use (Wi-Fi first, USB/adb reverse as fallback) and the connected heartbeat
  *
- * Keys (M6 Android SDK guide, section 12.8): tap = ENTER, double tap = F12, long press = F10,
- * swipe = DPAD_LEFT/RIGHT, photo button = CAMERA. Every key is logged under tag WornKeys.
+ * Test without speaking: adb shell am start -n com.worn.glasses/.MainActivity --es say "learn greek"
  */
 public class MainActivity extends Activity {
     private static final String TAG = "Worn";
     private static final String KEYS = "WornKeys";
     private static final String PREFS = "worn";
-
-    private final Handler ui = new Handler(Looper.getMainLooper());
-    private final ExecutorService net = Executors.newSingleThreadExecutor();
-    /** Heartbeat + backend choice, separate from `net` so a slow /grade never delays it. */
-    private final ExecutorService beat = Executors.newSingleThreadExecutor();
     private static final String USB_FALLBACK = "http://127.0.0.1:8000"; // adb reverse tcp:8000 tcp:8000
     private static final long BEAT_MS = 5000;
 
+    private final Handler ui = new Handler(Looper.getMainLooper());
+    private final ExecutorService net = Executors.newSingleThreadExecutor();   // /grade
+    private final ExecutorService talk = Executors.newSingleThreadExecutor();  // /voice
+    private final ExecutorService beat = Executors.newSingleThreadExecutor();  // heartbeat, backend choice
+
     private WebView web;
-    private TextView status;
     private GlassesCamera camera;
-    private TextToSpeech tts;
-    private boolean ttsReady;
     private MediaActionSound shutter;
+    private VoiceListener mic;
+    private InkWatcher inkWatch;
     private volatile String api;      // the backend in use right now
     private volatile String primary;  // Wi-Fi backend (intent extra `api`, remembered)
     private volatile String fallback; // used only while the primary can't be reached (USB / adb reverse)
+    private volatile String screen = "home";
+    private volatile boolean wantMic = true;
     private boolean busy;
-    private boolean pageLoaded;
-    private String lastKey = "none";
+    private boolean pageReady;
+    private String pendingSay;
+
     private final Runnable retryLoad = this::chooseAndLoad;
     private final Runnable heartbeat = new Runnable() {
         @Override public void run() {
@@ -81,40 +81,35 @@ public class MainActivity extends Activity {
             ui.postDelayed(this, BEAT_MS);
         }
     };
-    private final Runnable hideStatus = () -> status.setVisibility(View.GONE);
 
     @Override
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
-
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK); // black = see-through on the waveguide
         web = new WebView(this);
         web.setBackgroundColor(Color.BLACK);
         root.addView(web, new FrameLayout.LayoutParams(-1, -1));
-        status = new TextView(this);
-        status.setTextColor(0xFFFFC23D);
-        status.setTextSize(20);
-        status.setBackgroundColor(0xE0000000);
-        status.setPadding(24, 16, 24, 16);
-        status.setGravity(Gravity.CENTER);
-        status.setVisibility(View.GONE);
-        root.addView(status, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
         setContentView(root);
         hideSystemUi();
-
         setupWebView();
-        tts = new TextToSpeech(this, st -> {
-            ttsReady = st == TextToSpeech.SUCCESS;
-            if (ttsReady) tts.setLanguage(Locale.US);
-            Log.i(TAG, "tts ready=" + ttsReady);
-        });
         shutter = new MediaActionSound();
         shutter.load(MediaActionSound.SHUTTER_CLICK);
         camera = new GlassesCamera(this);
-
+        inkWatch = new InkWatcher((frac, ms) -> {
+            Log.i(TAG, "new ink " + frac + " (" + ms + " ms)");
+            js("worn.ink(" + frac + "," + ms + ")");
+        });
+        camera.setLumaListener(inkWatch::onFrame);
+        mic = new VoiceListener(new VoiceListener.Callback() {
+            @Override public void onState(String s) { js("worn.mic(" + JSONObject.quote(s) + ")"); }
+            @Override public void onUtterance(byte[] wav, int ms) { sendVoice(wav, ms); }
+            @Override public void onLevel(float rms, float floor) {
+                Log.v("WornVoice", "rms " + (int) rms + " floor " + (int) floor);
+            }
+        });
         applyIntent(getIntent());
     }
 
@@ -124,27 +119,44 @@ public class MainActivity extends Activity {
         applyIntent(intent);
     }
 
-    /** `am start ... --es api http://10.0.0.5:8000` switches the backend; the choice is remembered. */
+    /**
+     * Extras: `api` (Wi-Fi backend, remembered), `fallback`, `say` (pretend the wearer said this),
+     * `key` (pretend a button: tap|double|long|left|right).
+     */
     private void applyIntent(Intent intent) {
         SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
         String fromIntent = intent == null ? null : intent.getStringExtra("api");
-        if (fromIntent != null && !fromIntent.trim().isEmpty()) {
-            p.edit().putString("api", fromIntent.trim()).apply();
-        }
+        if (fromIntent != null && !fromIntent.trim().isEmpty()) p.edit().putString("api", fromIntent.trim()).apply();
         String fb = intent == null ? null : intent.getStringExtra("fallback");
         if (fb != null) p.edit().putString("fallback", fb.trim()).apply();
-        primary = p.getString("api", BuildConfig.DEFAULT_API).replaceAll("/+$", "");
-        fallback = p.getString("fallback", USB_FALLBACK).replaceAll("/+$", "");
-        Log.i(TAG, "backend " + primary + " (fallback " + fallback + ")");
-        chooseAndLoad();
+        String nextPrimary = p.getString("api", BuildConfig.DEFAULT_API).replaceAll("/+$", "");
+        String nextFallback = p.getString("fallback", USB_FALLBACK).replaceAll("/+$", "");
+        boolean changed = !nextPrimary.equals(primary) || !nextFallback.equals(fallback);
+        primary = nextPrimary;
+        fallback = nextFallback;
+        if (changed || !pageReady) {
+            Log.i(TAG, "backend " + primary + " (fallback " + fallback + ")");
+            chooseAndLoad();
+        }
+        if (intent != null && intent.hasExtra("loud")) p.edit().putInt("loud", intent.getIntExtra("loud", 1800)).apply();
+        mic.minLoud = p.getInt("loud", 1800);
+        String say = intent == null ? null : intent.getStringExtra("say");
+        if (say != null && !say.isEmpty()) {
+            if (pageReady) js("worn.heard(" + JSONObject.quote(say) + ")"); else pendingSay = say;
+        }
+        String key = intent == null ? null : intent.getStringExtra("key");
+        if (key != null && pageReady) js("worn.key(" + JSONObject.quote(key) + ")");
+        if (intent != null) { intent.removeExtra("say"); intent.removeExtra("key"); }
     }
 
-    /** Wi-Fi backend when it answers, else the USB fallback, else keep trying the Wi-Fi one. */
+    // ------------------------------------------------------------------ backend choice + heartbeat
+
+    /** Wi-Fi backend when it answers, else the USB fallback; null when neither answers. */
     private String pickApi() {
         String a = primary, b = fallback;
         if (new Backend(a).reachable()) return a;
         if (b != null && !b.isEmpty() && !b.equals(a) && new Backend(b).reachable()) return b;
-        return a;
+        return null;
     }
 
     private void chooseAndLoad() {
@@ -152,18 +164,20 @@ public class MainActivity extends Activity {
         beat.execute(() -> {
             String pick = pickApi();
             ui.post(() -> {
-                boolean changed = !pick.equals(api);
+                if (pick == null) { showOffline(); return; }
+                Log.i(TAG, "using backend " + pick + (pick.equals(primary) ? " (wifi)" : " (fallback)"));
                 api = pick;
-                Log.i(TAG, "using backend " + api + (pick.equals(primary) ? " (wifi)" : " (fallback)"));
-                if (changed || !pageLoaded) loadPage();
+                loadPage();
             });
         });
     }
 
-    /** Runs on `beat`: tells the backend the glasses are on (GET /health shows glasses.connected), and
-     *  moves to the other backend if the current one stops answering or the Wi-Fi one comes back. */
     private void beatOnce() {
         String pick = pickApi();
+        if (pick == null) {
+            if (pageReady) ui.post(() -> { if (pageReady) { pageReady = false; showOffline(); } });
+            return;
+        }
         try {
             JSONObject d = new JSONObject().put("connected", true)
                     .put("via", pick.equals(primary) ? "wifi" : "usb").put("backend", pick);
@@ -171,29 +185,14 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             Log.w(TAG, "heartbeat to " + pick + " failed: " + e.getMessage());
         }
-        if (!pick.equals(api)) ui.post(() -> {
+        if (!pick.equals(api) || !pageReady) ui.post(() -> {
             Log.i(TAG, "switching backend " + api + " -> " + pick);
             api = pick;
             loadPage();
         });
     }
 
-    private void sayGoodbye() {
-        String a = api;
-        if (a == null) return;
-        beat.execute(() -> {
-            try { new Backend(a).event("glasses_disconnected", null); } catch (Exception ignored) { }
-        });
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        hideSystemUi();
-        web.onResume();
-        if (hasCamera()) camera.open();
-        else flash("No camera permission. Reinstall with: adb install -r -g", 8000);
-    }
+    // ------------------------------------------------------------------ lifecycle
 
     @Override
     protected void onStart() {
@@ -203,26 +202,41 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    protected void onStop() {
-        ui.removeCallbacks(heartbeat);
-        sayGoodbye();
-        super.onStop();
+    protected void onResume() {
+        super.onResume();
+        hideSystemUi();
+        web.onResume();
+        if (has(Manifest.permission.CAMERA)) camera.open();
+        if (wantMic) startMic();
     }
 
     @Override
     protected void onPause() {
+        mic.stop();
         camera.close(); // let the built-in camera app have it when we're not in front
         web.onPause();
         super.onPause();
     }
 
     @Override
+    protected void onStop() {
+        ui.removeCallbacks(heartbeat);
+        String a = api;
+        if (a != null) beat.execute(() -> {
+            try { new Backend(a).event("glasses_disconnected", null); } catch (Exception ignored) { }
+        });
+        super.onStop();
+    }
+
+    @Override
     protected void onDestroy() {
         ui.removeCallbacksAndMessages(null);
+        mic.stop();
+        stopAudio();
         camera.release();
         net.shutdownNow();
+        talk.shutdownNow();
         beat.shutdown();
-        if (tts != null) tts.shutdown();
         if (shutter != null) shutter.release();
         web.destroy();
         super.onDestroy();
@@ -234,48 +248,111 @@ public class MainActivity extends Activity {
         if (hasFocus) hideSystemUi();
     }
 
-    // ------------------------------------------------------------------ keys
+    // ------------------------------------------------------------------ voice
+
+    private void startMic() {
+        if (!has(Manifest.permission.RECORD_AUDIO)) { Log.w(TAG, "no RECORD_AUDIO (install with adb install -g)"); return; }
+        mic.start();
+    }
+
+    private void sendVoice(byte[] wav, int ms) {
+        final String a = api, s = screen;
+        if (a == null) return;
+        js("worn.mic('thinking')");
+        talk.execute(() -> {
+            long t0 = System.currentTimeMillis();
+            try {
+                String json = new Backend(a).voice(wav, s);
+                Log.i(TAG, "voice " + ms + "ms audio -> " + (System.currentTimeMillis() - t0) + "ms: " + json);
+                js("worn.voice(" + JSONObject.quote(json) + ")");
+            } catch (Backend.HttpError e) {
+                Log.w(TAG, "voice http " + e.code);
+                js("worn.voiceError(" + e.code + ")");
+            } catch (Exception e) {
+                Log.w(TAG, "voice failed: " + e.getMessage());
+                js("worn.voiceError(0)");
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------ speaker
+
+    private final ArrayDeque<String> audioQueue = new ArrayDeque<>();
+    private MediaPlayer player;
+
+    private void playUrl(String url) {
+        audioQueue.add(url);
+        if (player == null) playNext();
+    }
+
+    private void playNext() {
+        String url = audioQueue.poll();
+        if (url == null) {
+            mic.resume(350);
+            js("worn.audioDone()");
+            return;
+        }
+        mic.pause();
+        MediaPlayer mp = new MediaPlayer();
+        player = mp;
+        try {
+            mp.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build());
+            mp.setDataSource(url);
+            mp.setOnPreparedListener(MediaPlayer::start);
+            mp.setOnCompletionListener(m -> finishPlayer(m));
+            mp.setOnErrorListener((m, what, extra) -> { Log.w(TAG, "audio error " + what + " " + url); finishPlayer(m); return true; });
+            mp.prepareAsync();
+        } catch (Exception e) {
+            Log.w(TAG, "audio failed " + url, e);
+            finishPlayer(mp);
+        }
+    }
+
+    private void finishPlayer(MediaPlayer m) {
+        try { m.release(); } catch (Exception ignored) { }
+        if (player == m) player = null;
+        ui.post(() -> { if (player == null) playNext(); });
+    }
+
+    private void stopAudio() {
+        audioQueue.clear();
+        MediaPlayer m = player;
+        player = null;
+        if (m != null) { try { m.stop(); } catch (Exception ignored) { } try { m.release(); } catch (Exception ignored) { } }
+        mic.resume(250);
+    }
+
+    private String abs(String u) {
+        if (u == null) return null;
+        if (u.startsWith("http://") || u.startsWith("https://")) return u;
+        return api + (u.startsWith("/") ? u : "/" + u);
+    }
+
+    // ------------------------------------------------------------------ keys (backup)
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         int code = e.getKeyCode();
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
-            Log.i(KEYS, "down " + KeyEvent.keyCodeToString(code) + " (" + code + ") repeat=" + e.getRepeatCount()
-                    + " source=0x" + Integer.toHexString(e.getSource()));
+            Log.i(KEYS, "down " + KeyEvent.keyCodeToString(code) + " (" + code + ") repeat=" + e.getRepeatCount());
         }
-        Action a = actionFor(code);
-        if (a == Action.NONE) return super.dispatchKeyEvent(e); // back, home, volume, power behave normally
-        // Act on key-up so a held key doesn't fire twice; swallow the down so the WebView doesn't scroll or click.
-        if (e.getAction() == KeyEvent.ACTION_UP && !e.isCanceled()) {
-            lastKey = KeyEvent.keyCodeToString(code);
-            switch (a) {
-                case CAPTURE: capture(); break;
-                case REPLAY: js("worn.replay()"); break;
-                case STATUS: showStatus(); break;
-                default: break;
-            }
-        }
+        String name = keyName(code);
+        if (name == null) return super.dispatchKeyEvent(e); // back, home, volume, power behave normally
+        if (e.getAction() == KeyEvent.ACTION_UP && !e.isCanceled()) js("worn.key(" + JSONObject.quote(name) + ")");
         return true;
     }
 
-    private enum Action { NONE, CAPTURE, REPLAY, STATUS }
-
-    private static Action actionFor(int code) {
+    private static String keyName(int code) {
         switch (code) {
-            case KeyEvent.KEYCODE_ENTER:        // touchpad tap
-            case KeyEvent.KEYCODE_DPAD_CENTER:
-            case KeyEvent.KEYCODE_NUMPAD_ENTER:
-            case KeyEvent.KEYCODE_CAMERA:       // photo button (if the system doesn't keep it for its camera app)
-            case KeyEvent.KEYCODE_SPACE:        // `adb shell input keyevent 62` while testing
-                return Action.CAPTURE;
-            case KeyEvent.KEYCODE_F12:          // double tap
-            case KeyEvent.KEYCODE_DPAD_LEFT:    // swipe left / right
-            case KeyEvent.KEYCODE_DPAD_RIGHT:
-                return Action.REPLAY;
-            case KeyEvent.KEYCODE_F10:          // long press
-                return Action.STATUS;
-            default:
-                return Action.NONE;
+            case KeyEvent.KEYCODE_ENTER: case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_NUMPAD_ENTER:
+            case KeyEvent.KEYCODE_CAMERA: case KeyEvent.KEYCODE_SPACE:
+                return "tap";
+            case KeyEvent.KEYCODE_F12: return "double";
+            case KeyEvent.KEYCODE_F10: return "long";
+            case KeyEvent.KEYCODE_DPAD_LEFT: case KeyEvent.KEYCODE_DPAD_UP: return "left";
+            case KeyEvent.KEYCODE_DPAD_RIGHT: case KeyEvent.KEYCODE_DPAD_DOWN: return "right";
+            default: return null;
         }
     }
 
@@ -283,9 +360,8 @@ public class MainActivity extends Activity {
 
     private void capture() {
         if (busy) { Log.i(TAG, "capture ignored, still busy"); return; }
-        if (!hasCamera()) { js("worn.error(" + JSONObject.quote("No camera permission") + ")"); return; }
+        if (!has(Manifest.permission.CAMERA)) { js("worn.error(" + JSONObject.quote("No camera permission") + ")"); return; }
         busy = true;
-        js("worn.capturing()");
         camera.takePicture(new GlassesCamera.Callback() {
             @Override public void onJpeg(byte[] jpeg) {
                 ui.post(() -> shutter.play(MediaActionSound.SHUTTER_CLICK));
@@ -298,40 +374,23 @@ public class MainActivity extends Activity {
         });
     }
 
-    /** Runs on the network thread. */
     private void grade(byte[] jpeg) {
-        Backend b = new Backend(api);
-        String ch = null, lang = null;
-        try {
-            JSONObject s = b.session();
-            if (s != null) {
-                ch = str(s, "char");
-                lang = str(s, "lang");
-                if ("asl".equals(s.optString("mode"))) { done("worn.error(" + JSONObject.quote("ASL mode: nothing to grade") + ")"); return; }
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "GET /session failed, letting the backend use its session", e);
-        }
         try {
             long t0 = System.currentTimeMillis();
-            String json = b.grade(jpeg, ch, lang);
+            String json = new Backend(api).grade(jpeg, null, null); // the backend uses the active session
             Log.i(TAG, "graded in " + (System.currentTimeMillis() - t0) + "ms: " + json);
-            new JSONObject(json); // make sure it parses before handing it to the page
+            new JSONObject(json);
             done("worn.graded(" + JSONObject.quote(json) + ")");
         } catch (Backend.HttpError e) {
             Log.e(TAG, "grade http error", e);
-            String msg = e.code == 503 ? "Grader is down, try again" :
-                         e.code == 400 ? "Pick a phrase on your phone first" : "Server error " + e.code;
-            done("worn.error(" + JSONObject.quote(msg) + ")");
+            done("worn.error(" + JSONObject.quote(e.code == 503 ? "The checker is busy. Say check again." : "Server error " + e.code) + ")");
         } catch (Exception e) {
             Log.e(TAG, "grade failed", e);
-            done("worn.error(" + JSONObject.quote("Can't reach the server, press again") + ")");
+            done("worn.error(" + JSONObject.quote("Can't reach the server. Say check again.") + ")");
         }
     }
 
-    private void done(String script) {
-        ui.post(() -> { busy = false; js(script); });
-    }
+    private void done(String script) { ui.post(() -> { busy = false; js(script); }); }
 
     // ------------------------------------------------------------------ web view
 
@@ -339,14 +398,12 @@ public class MainActivity extends Activity {
         WebSettings ws = web.getSettings();
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
-        ws.setMediaPlaybackRequiresUserGesture(false); // pronunciation audio + ASL video autoplay
+        ws.setMediaPlaybackRequiresUserGesture(false);
         ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
-        ws.setUseWideViewPort(true);
-        ws.setLoadWithOverviewMode(true);
         web.setVerticalScrollBarEnabled(false);
         web.setHorizontalScrollBarEnabled(false);
         web.setFocusable(false); // keys come to the activity, not the page
-        web.addJavascriptInterface(new Bridge(), "WornNative");
+        web.addJavascriptInterface(new Bridge(), "Native");
         web.setWebChromeClient(new WebChromeClient() {
             @Override public boolean onConsoleMessage(ConsoleMessage m) {
                 Log.i("WornWeb", m.message() + " @" + m.sourceId() + ":" + m.lineNumber());
@@ -354,86 +411,90 @@ public class MainActivity extends Activity {
             }
         });
         web.setWebViewClient(new WebViewClient() {
-            @Override public void onPageFinished(WebView v, String url) {
-                Log.i(TAG, "page loaded " + url);
-            }
-            @Override public void onReceivedError(WebView v, WebResourceRequest req, WebResourceError err) {
-                if (!req.isForMainFrame()) return;
-                pageLoaded = false;
-                Log.w(TAG, "page error " + err.getErrorCode() + " " + err.getDescription());
-                showOffline();
-            }
-            @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest req) {
-                return false;
-            }
+            @Override public void onPageFinished(WebView v, String url) { Log.i(TAG, "page loaded " + url); }
         });
     }
 
+    private String asset(String name) {
+        try (InputStream in = getAssets().open(name)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[16384];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            return out.toString("UTF-8");
+        } catch (Exception e) {
+            Log.e(TAG, "asset " + name, e);
+            return "<html><body style='background:#000;color:#fff'>missing " + name + "</body></html>";
+        }
+    }
+
+    /** Our page, with the backend as its origin (same-origin fetches, B's /static/web scripts). */
     private void loadPage() {
         ui.removeCallbacks(retryLoad);
-        pageLoaded = true; // cleared by onReceivedError
-        String url = api + "/glasses?api=" + Uri.encode(api);
-        Log.i(TAG, "loading " + url);
-        web.loadUrl(url);
+        pageReady = false;
+        web.loadDataWithBaseURL(api + "/", asset("ui/index.html"), "text/html", "utf-8", null);
+        Log.i(TAG, "loading app UI with base " + api);
     }
 
     private void showOffline() {
+        pageReady = false;
         web.loadDataWithBaseURL(null,
-                "<html><body style='background:#000;color:#8a8f98;font:26px sans-serif;text-align:center'>"
-                        + "<h1 style='color:#fff;font-size:60px;margin-top:130px;letter-spacing:4px'>WORN</h1>"
-                        + "<p>Looking for the server…</p><p style='font-size:18px'>" + escape(api) + "</p></body></html>",
+                "<html><body style='background:#000;color:#8a8f98;font:24px sans-serif;text-align:center'>"
+                        + "<h1 style='color:#fff;font-size:58px;margin-top:120px;letter-spacing:3px'>Worn</h1>"
+                        + "<p>Looking for the lesson server…</p><p style='font-size:17px'>" + primary + "<br>or USB " + fallback + "</p></body></html>",
                 "text/html", "utf-8", null);
         ui.removeCallbacks(retryLoad);
         ui.postDelayed(retryLoad, 3000);
     }
 
     private void js(String script) {
-        Log.d(TAG, "js " + (script.length() > 160 ? script.substring(0, 160) + "…" : script));
-        web.evaluateJavascript("window.worn && " + script, null);
+        ui.post(() -> {
+            if (!pageReady && !script.startsWith("worn.boot")) return;
+            web.evaluateJavascript("window.worn && " + script, null);
+        });
     }
 
     private final class Bridge {
-        @JavascriptInterface
-        public void speak(String text) {
-            if (text == null || text.isEmpty()) return;
-            if (!ttsReady) { Log.w(TAG, "tts not ready: " + text); return; }
-            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "worn");
+        /** The page is up; flush anything that waited for it. */
+        @JavascriptInterface public void ready() {
+            ui.post(() -> {
+                pageReady = true;
+                js("worn.mic(" + JSONObject.quote(mic.isRunning() ? "listening" : "off") + ")");
+                if (pendingSay != null) { js("worn.heard(" + JSONObject.quote(pendingSay) + ")"); pendingSay = null; }
+            });
         }
+        @JavascriptInterface public void setScreen(String s) { if (s != null) screen = s; }
+        @JavascriptInterface public void speak(String text) {
+            if (text == null || text.trim().isEmpty() || api == null) return;
+            String url = api + "/say?text=" + Uri.encode(text.trim());
+            ui.post(() -> playUrl(url));
+        }
+        @JavascriptInterface public void play(String url) {
+            String u = abs(url);
+            if (u != null) ui.post(() -> playUrl(u));
+        }
+        /** Mute the mic for a moment (the page is about to play a sound effect). */
+        @JavascriptInterface public void quiet(int ms) { mic.resume(Math.max(0, ms)); }
+        @JavascriptInterface public void stopAudio() { ui.post(MainActivity.this::stopAudio); }
+        @JavascriptInterface public void listen(boolean on) {
+            wantMic = on;
+            ui.post(() -> { if (on) startMic(); else mic.stop(); });
+        }
+        /** Watch the paper for new strokes (lesson "your turn"). */
+        @JavascriptInterface public void watchInk(boolean on) { inkWatch.enabled = on; if (on) inkWatch.reset(); }
+        @JavascriptInterface public void capture() { ui.post(MainActivity.this::capture); }
+        @JavascriptInterface public String backend() { return api; }
+        @JavascriptInterface public String via() { return api != null && api.equals(primary) ? "wifi" : "usb"; }
     }
 
     // ------------------------------------------------------------------ misc
 
-    private void showStatus() {
-        flash("server " + api + "\n" + camera.describe() + "  ·  tts " + (ttsReady ? "on" : "off")
-                + "  ·  last key " + lastKey, 5000);
-    }
-
-    private void flash(String text, long ms) {
-        status.setText(text);
-        status.setVisibility(View.VISIBLE);
-        ui.removeCallbacks(hideStatus);
-        ui.postDelayed(hideStatus, ms);
-    }
-
-    private boolean hasCamera() {
-        return checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
-    }
+    private boolean has(String perm) { return checkSelfPermission(perm) == PackageManager.PERMISSION_GRANTED; }
 
     private void hideSystemUi() {
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN
                 | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                 | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
-    }
-
-    /** optString() turns a JSON null into the string "null"; this returns a real null. */
-    private static String str(JSONObject o, String key) {
-        if (o.isNull(key)) return null;
-        String v = o.optString(key, "");
-        return v.isEmpty() ? null : v;
-    }
-
-    private static String escape(String s) {
-        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 }

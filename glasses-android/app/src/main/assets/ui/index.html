@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=640, initial-scale=1, user-scalable=no">
+<title>Worn</title>
+<link rel="stylesheet" href="/static/web/fonts.css">
+<style>
+  /* 640×480 waveguide: black is see-through. Bright text, one accent, big type. */
+  :root { --fg:#f4f1ea; --dim:#8b909a; --faint:#3a3f48; --say:#5ef08a; --acc:#ff6a4d; --blue:#9fb4ff; --gold:#ffd23d; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { width:640px; height:480px; overflow:hidden; background:#000; color:var(--fg);
+    font-family:"Inter", "Roboto", sans-serif; -webkit-font-smoothing:antialiased; }
+  #top { position:absolute; left:0; right:0; top:34px; height:30px; padding:0 22px; display:flex; align-items:center;
+    font-size:17px; color:var(--dim); white-space:nowrap; }
+  #crumb { flex:1; overflow:hidden; text-overflow:ellipsis; }
+  #crumb b { color:var(--fg); font-weight:600; }
+  #mic { display:flex; align-items:center; gap:8px; font-size:16px; color:var(--dim); }
+  #mic i { width:12px; height:12px; border-radius:50%; background:var(--faint); display:inline-block; }
+  #mic.listening i { background:var(--say); box-shadow:0 0 8px var(--say); }
+  #mic.hearing i { background:var(--gold); box-shadow:0 0 10px var(--gold); animation:pulse .5s infinite alternate; }
+  #mic.thinking i { background:var(--blue); animation:pulse .3s infinite alternate; }
+  #mic.speaking i { background:var(--blue); }
+  @keyframes pulse { to { transform:scale(1.35); } }
+  #main { position:absolute; left:0; right:0; top:68px; bottom:92px; padding:0 22px; }
+  #bottom { position:absolute; left:0; right:0; bottom:0; height:92px; padding:8px 22px 12px; border-top:1px solid #1d2127; }
+  #hint { font-size:23px; color:var(--say); font-weight:600; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #hint2 { font-size:17px; color:var(--dim); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #heard { position:absolute; right:22px; bottom:12px; font-size:16px; color:var(--blue); max-width:300px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:0; transition:opacity .3s; }
+  #heard.on { opacity:1; }
+  #toast { position:absolute; left:22px; right:22px; top:200px; text-align:center; font-size:26px; color:var(--fg);
+    background:rgba(0,0,0,.92); border:2px solid var(--blue); border-radius:16px; padding:18px; display:none; z-index:50; }
+
+  /* menus */
+  .title { font-family:"Newsreader", Georgia, serif; font-size:40px; line-height:1.1; margin:4px 0 10px; }
+  .title small { font-family:"Inter", sans-serif; font-size:18px; color:var(--dim); margin-left:10px; }
+  .menu { list-style:none; }
+  .menu li { display:flex; align-items:center; height:44px; padding:0 14px; border-radius:12px; font-size:24px; color:var(--fg); }
+  .menu li .n { width:30px; color:var(--dim); font-size:18px; }
+  .menu li .k { flex:1; }
+  .menu li .x { color:var(--dim); font-size:19px; }
+  .menu li.sel { background:#16302099; outline:2px solid var(--say); }
+  .menu.two { columns:2; column-gap:14px; }
+  .menu.two li { break-inside:avoid; }
+  .hero { font-size:28px; margin-right:12px; min-width:92px; display:inline-block; }
+
+  /* lesson */
+  #lesson { display:flex; height:100%; }
+  #board { position:relative; width:300px; height:300px; flex:none; }
+  #board .grid { position:absolute; inset:0; border:1px solid #20242b; }
+  #board .grid:before, #board .grid:after { content:""; position:absolute; background:#20242b; }
+  #board .grid:before { left:50%; top:0; bottom:0; width:1px; }
+  #board .grid:after { top:50%; left:0; right:0; height:1px; }
+  #ink { position:absolute; inset:0; }
+  #side { flex:1; padding-left:22px; display:flex; flex-direction:column; min-width:0; }
+  #strip { font-size:34px; letter-spacing:4px; white-space:nowrap; overflow:hidden; color:var(--faint); padding-left:2px; }
+  #strip .done { color:var(--dim); } #strip .cur { color:var(--fg); border-bottom:3px solid var(--say); }
+  #rom { font-size:32px; color:var(--blue); font-weight:600; margin-top:6px; }
+  #meaning { font-size:24px; margin-top:2px; }
+  #phase { margin-top:auto; font-size:20px; color:var(--dim); text-transform:uppercase; letter-spacing:2px; }
+  #step { font-size:34px; font-weight:700; color:var(--fg); margin-top:2px; }
+  #bar { height:6px; background:#1d2127; border-radius:3px; margin-top:8px; overflow:hidden; }
+  #bar i { display:block; height:100%; width:0; background:var(--say); }
+  #res { position:absolute; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; text-align:center; background:#000; }
+  #res .score { font-size:96px; font-weight:800; line-height:1; }
+  #res .line { font-size:28px; margin-top:10px; max-width:560px; }
+  #res .fix { font-size:22px; color:var(--gold); margin-top:12px; max-width:560px; }
+  #res.ok .score { color:var(--say); } #res.no .score { color:var(--acc); }
+  .spin { width:54px; height:54px; border:5px solid #222; border-top-color:var(--blue); border-radius:50%; animation:sp 0.8s linear infinite; margin:0 auto 14px; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+
+  /* name / compose */
+  .big { font-size:54px; line-height:1.15; margin:6px 0; }
+  .rows div { font-size:30px; height:48px; display:flex; align-items:center; }
+  .rows div span { width:150px; color:var(--dim); font-size:18px; }
+  .rows div.sel { outline:2px solid var(--say); border-radius:10px; padding-left:8px; }
+  .muted { color:var(--dim); font-size:21px; line-height:1.35; }
+  .say { color:var(--say); }
+  .jgrid { display:flex; flex-wrap:wrap; gap:10px; }
+  .jgrid figure { width:140px; text-align:center; font-size:15px; color:var(--dim); }
+  .jgrid img { width:140px; height:105px; object-fit:cover; border-radius:8px; border:2px solid #222; }
+  .jgrid figure.ok img { border-color:var(--say); } .jgrid figure.no img { border-color:var(--acc); }
+  .jgrid b { color:var(--fg); font-size:22px; margin-right:6px; }
+  .cmds div { font-size:21px; height:33px; } .cmds b { color:var(--say); font-weight:600; }
+</style>
+</head>
+<body>
+<div id="top"><div id="crumb"></div><div id="mic"><i></i><span id="micText">…</span></div></div>
+<div id="main"></div>
+<div id="bottom"><div id="hint"></div><div id="hint2"></div><div id="heard"></div></div>
+<div id="toast"></div>
+
+<script src="/static/web/worn-ink.js"></script>
+<script src="/static/web/worn-confetti.js"></script>
+<script src="/static/web/worn-sfx.js"></script>
+<script>
+(function () {
+  "use strict";
+  var N = window.Native || { ready: function () {}, setScreen: function () {}, speak: function (t) { console.log("SAY " + t); },
+    play: function () {}, stopAudio: function () {}, listen: function () {}, capture: function () {}, quiet: function () {}, watchInk: function () {},
+    backend: function () { return location.origin; }, via: function () { return "web"; } };
+  var $ = function (id) { return document.getElementById(id); };
+  var LANGS = ["mandarin", "hindi", "arabic", "russian", "hebrew", "greek"];
+  var LANG_NAMES = { mandarin: "Mandarin", hindi: "Hindi", arabic: "Arabic", russian: "Russian", hebrew: "Hebrew", greek: "Greek" };
+  var SCRIPT_OF = { hindi: "devanagari", arabic: "arabic", russian: "cyrillic", hebrew: "hebrew", greek: "greek" };
+  var HOME_MENU = [
+    { k: "Learn", s: "learn", x: "six scripts" },
+    { k: "Write my name", s: "name", x: "in five scripts" },
+    { k: "Help me write", s: "compose", x: "any message" },
+    { k: "Daily 5", s: "daily5", x: "quick review" },
+    { k: "Journal", s: "journal", x: "your pages" },
+    { k: "How to use", s: "howto", x: "what to say" }
+  ];
+  var NUMS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, to: 2, too: 2, for: 4, won: 1 };
+
+  // ------------------------------------------------------------------ state
+  var content = {};           // lang -> lesson (from /content)
+  var st = { screen: "home", sel: 0, lang: null, items: [], itemIdx: 0, charIdx: 0, phase: null, session: null,
+             stroke: 0, strokeCount: 0, speed: 1, tries: 0, daily: null, name: null, compose: null, from: null };
+  var stack = [];             // screens to go "back" to
+  var micState = "off", voiceDown = false, lastHeard = "";
+  var timers = {};
+  var ink = null;
+
+  function clear(name) { if (timers[name]) { clearTimeout(timers[name]); clearInterval(timers[name]); timers[name] = null; } }
+  function later(name, ms, fn) { clear(name); timers[name] = setTimeout(function () { timers[name] = null; fn(); }, ms); }
+  function clearAll() { Object.keys(timers).forEach(clear); }
+
+  function getJSON(p) { return fetch(p, { cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); }
+  function postJSON(p, body) {
+    return fetch(p, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) { var e = new Error(j.message || j.detail || r.status); e.status = r.status; throw e; } return j; }); });
+  }
+  function event(type, data) { postJSON("/event", { type: type, data: data || {} }).catch(function () {}); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function langName(l) { return LANG_NAMES[l] || l; }
+
+  // ------------------------------------------------------------------ chrome: breadcrumb, hint, mic, app-state
+  var crumbs = [], hint = "", hint2 = "";
+  function chrome(c, h, h2) {
+    crumbs = c; hint = h || ""; hint2 = h2 || "";
+    $("crumb").innerHTML = c.map(function (x, i) { return i === c.length - 1 ? "<b>" + esc(x) + "</b>" : esc(x); }).join(" › ");
+    $("hint").textContent = hint;
+    $("hint2").textContent = hint2;
+    report();
+  }
+  var reportTimer = null;
+  function report() {
+    clearTimeout(reportTimer);
+    reportTimer = setTimeout(function () {
+      var s = st.session || {};
+      postJSON("/app-state", {
+        screen: st.screen, breadcrumb: crumbs, hint: hint, hint2: hint2, listening: micState === "listening" || micState === "hearing",
+        mic: micState, phase: st.screen === "lesson" ? st.phase : null, lang: st.lang, item_id: st.screen === "lesson" ? s.item_id : null,
+        char: st.screen === "lesson" ? s.char : null, char_index: st.screen === "lesson" ? st.charIdx : null,
+        stroke: st.stroke, stroke_count: st.strokeCount, last_heard: lastHeard, via: N.via(), source: "glasses"
+      }).catch(function () {});
+    }, 60);
+  }
+  function setMic(s) {
+    micState = s;
+    var el = $("mic"); el.className = s;
+    $("micText").textContent = voiceDown && s === "listening" ? "voice offline" :
+      { listening: "Listening", hearing: "Hearing you…", thinking: "Thinking…", speaking: "Speaking", off: "Mic off" }[s] || s;
+    report();
+  }
+  function showHeard(t) {
+    lastHeard = t;
+    var h = $("heard"); h.textContent = t ? "“" + t + "”" : ""; h.className = t ? "on" : "";
+    later("heard", 5000, function () { h.className = ""; });
+  }
+  function toast(t, ms) {
+    var el = $("toast"); el.textContent = t; el.style.display = "block";
+    later("toast", ms || 2600, function () { el.style.display = "none"; });
+  }
+  function say(t) { if (t) N.speak(t); }
+
+  // ------------------------------------------------------------------ navigation
+  var SCREEN_ALIAS = { daily: "daily5", help: "howto", words: "words", lesson: "lesson" };
+  function go(screen, opts, noPush) {
+    screen = SCREEN_ALIAS[screen] || screen;
+    opts = opts || {};
+    if (!noPush && st.screen !== screen) stack.push({ screen: st.screen, lang: st.lang, sel: st.sel });
+    if (stack.length > 12) stack.shift();
+    leaveLesson();
+    clearAll();
+    st.screen = screen; st.sel = opts.sel || 0;
+    N.setScreen(screen);
+    var r = RENDER[screen] || RENDER.home;
+    r(opts);
+  }
+  function back() {
+    var prev = stack.pop();
+    if (st.screen === "lesson" && st.from === "daily5") prev = { screen: "daily5" };
+    if (!prev) { go("home", {}, true); return; }
+    if (prev.lang) st.lang = prev.lang;
+    go(prev.screen, { sel: prev.sel, lang: prev.lang }, true);
+  }
+
+  // ------------------------------------------------------------------ screens
+  var RENDER = {};
+
+  function menu(list, cls) {
+    return "<ul class='menu " + (cls || "") + "'>" + list.map(function (m, i) {
+      return "<li class='" + (i === st.sel ? "sel" : "") + "'><span class='n'>" + (i + 1) + "</span><span class='k'>" + m.html +
+        "</span><span class='x'>" + esc(m.x || "") + "</span></li>";
+    }).join("") + "</ul>";
+  }
+  function moveSel(d, n) { st.sel = (st.sel + d + n) % n; RENDER[st.screen]({ sel: st.sel, keep: true }); }
+
+  RENDER.home = function (o) {
+    $("main").innerHTML = "<div class='title'>Worn <small>write the world's scripts</small></div>" +
+      menu(HOME_MENU.map(function (m) { return { html: esc(m.k), x: m.x }; }));
+    chrome(["Home"], "Say “learn Greek” or “write my name, Sam”", "“Daily five” · “journal” · “help” for everything");
+    if (!o.keep && !o.quiet) say(o.greet || "");
+  };
+
+  RENDER.learn = function (o) {
+    var list = LANGS.map(function (l) { var c = content[l] || {}; return { html: "<span class='hero'>" + esc(c.hero || "") + "</span>" + esc(langName(l)), x: c.script || "" }; });
+    $("main").innerHTML = "<div class='title'>Learn</div>" + menu(list);
+    chrome(["Home", "Learn"], "Say a language: “Hindi”, “Hebrew”…", "“next” / “previous” to move · “back” · “home”");
+    if (!o.keep) say("Which language? Say Mandarin, Hindi, Arabic, Russian, Hebrew or Greek.");
+  };
+
+  RENDER.words = function (o) {
+    var l = o.lang || st.lang; st.lang = l;
+    var c = content[l]; if (!c) { go("learn", {}, true); return; }
+    st.items = c.phrases || c.items || [];
+    var list = st.items.map(function (p) { return { html: "<span class='hero' dir='auto'>" + esc(p.text) + "</span>" + esc(p.meaning), x: p.romanization }; });
+    $("main").innerHTML = "<div class='title'>" + esc(langName(l)) + " <small>" + esc(c.script || "") + "</small></div>" + menu(list);
+    var first = st.items[0] ? st.items[0].meaning : "hello";
+    chrome(["Home", "Learn", langName(l)], "Say a word: “" + first + "” or “number two”", "“next” to move · “start” to open · “back”");
+    if (!o.keep) say(langName(l) + ". Say a word to learn, like " + first + ".");
+  };
+
+  RENDER.howto = function () {
+    $("main").innerHTML = "<div class='title'>What you can say</div><div class='cmds'>" + [
+      ["learn Greek", "pick a language"], ["next · previous", "move, or next stroke"], ["show me again · slower", "replay the strokes"],
+      ["check · I'm done", "I look at your paper"], ["what does this mean", "meaning + sound"],
+      ["how do I write thank you in Hindi", "any message"], ["write my name, Sam", "your name in five scripts"],
+      ["back · home", "anywhere"]
+    ].map(function (c) { return "<div><b>“" + esc(c[0]) + "”</b> &nbsp;" + esc(c[1]) + "</div>"; }).join("") + "</div>";
+    chrome(["Home", "How to use"], "Say “home” or “learn Mandarin”", "The button also works: tap = select, double tap = back");
+    say("Just talk to me. Say learn, then a language. In a lesson say next, check, or show me again. Say home anytime.");
+  };
+
+  RENDER.name = function (o) {
+    var n = o.name || st.name;
+    if (!n) {
+      $("main").innerHTML = "<div class='title'>Write my name</div><p class='muted'>Tell me your name and I'll show it in<br>Hindi, Arabic, Russian, Hebrew and Greek.</p>" +
+        "<p class='big say' style='font-size:34px;margin-top:26px'>“My name is Sam”</p>";
+      chrome(["Home", "Write my name"], "Say “my name is …”", "“back” · “home”");
+      say("What's your name? Say, my name is, then your name.");
+      return;
+    }
+    st.name = n;
+    if (!o.result) {
+      $("main").innerHTML = "<div class='title'>" + esc(n.text || n) + "</div><div class='spin'></div><p class='muted' style='text-align:center'>Spelling it by sound…</p>";
+      chrome(["Home", "Write my name", n.text || n], "One moment…", "");
+      getJSON("/name?text=" + encodeURIComponent(n.text || n)).then(function (r) { if (st.screen === "name") RENDER.name({ name: n, result: r }); })
+        .catch(function () { if (st.screen === "name") { $("main").innerHTML = "<p class='big'>I couldn't spell that.</p>"; chrome(["Home", "Write my name"], "Say “my name is …” again", ""); say("Sorry, try saying your name again."); } });
+      return;
+    }
+    var r = o.result; st.nameResult = r;
+    var rows = ["hindi", "arabic", "russian", "hebrew", "greek"].map(function (l) { return { l: l, t: r[SCRIPT_OF[l]] || r[l] || "" }; }).filter(function (x) { return x.t; });
+    st.nameRows = rows;
+    $("main").innerHTML = "<div class='title'>" + esc(r.text || n) + "</div><div class='rows'>" + rows.map(function (x, i) {
+      return "<div class='" + (i === st.sel ? "sel" : "") + "'><span>" + esc(langName(x.l)) + "</span><bdi>" + esc(x.t) + "</bdi></div>"; }).join("") + "</div>";
+    chrome(["Home", "Write my name", r.text || n], "Say “write it in Hindi” to practice", "Names are spelled by sound · “back” · “home”");
+    if (!o.keep) say("Here's " + (r.text || n) + " in five scripts. Say a language to write it.");
+  };
+
+  RENDER.compose = function (o) {
+    var c = o.compose || st.compose;
+    if (!c) {
+      $("main").innerHTML = "<div class='title'>Help me write</div><p class='muted'>Any short message, in any of the six languages.</p>" +
+        "<p class='big say' style='font-size:30px;margin-top:24px'>“How do I write<br>good luck in Greek?”</p>";
+      chrome(["Home", "Help me write"], "Say “how do I write … in …”", "“back” · “home”");
+      say("What would you like to write? Say, how do I write good luck in Greek.");
+      return;
+    }
+    st.compose = c;
+    if (!c.result) {
+      $("main").innerHTML = "<div class='title'>“" + esc(c.text) + "”</div><div class='spin'></div><p class='muted' style='text-align:center'>Writing it in " + esc(langName(c.lang)) + "…</p>";
+      chrome(["Home", "Help me write", langName(c.lang)], "One moment…", "");
+      postJSON("/session", { lang: c.lang, mode: "compose", text: c.text, char_index: 0 }).then(function (s) {
+        c.result = { native: s.item ? s.item.text : s.text, romanization: s.romanization, back_translation: s.back_translation, note: s.note, chars: (s.item || {}).chars };
+        c.session = s;
+        if (st.screen === "compose") RENDER.compose({ compose: c });
+      }).catch(function (e) {
+        if (st.screen !== "compose") return;
+        $("main").innerHTML = "<p class='big' style='font-size:34px'>I couldn't write that one.</p><p class='muted'>" + esc(e.message) + "</p>";
+        chrome(["Home", "Help me write"], "Try a shorter message", "“how do I write … in …”");
+        say("Sorry, I couldn't write that. Try something shorter.");
+      });
+      return;
+    }
+    var r = c.result;
+    $("main").innerHTML = "<div class='muted'>“" + esc(c.text) + "” in " + esc(langName(c.lang)) + "</div>" +
+      "<div class='big' dir='auto' style='font-size:" + ((r.native || "").length > 8 ? 44 : 62) + "px'>" + esc(r.native) + "</div>" +
+      "<div style='font-size:28px;color:var(--blue)'>" + esc(r.romanization || "") + "</div>" +
+      (r.back_translation ? "<div class='muted' style='margin-top:8px'>Reads back as: “" + esc(r.back_translation) + "”</div>" : "");
+    chrome(["Home", "Help me write", langName(c.lang)], "Say “start” to write it with me", "“what does this mean” · “back” · “home”");
+    if (!o.keep) say("Here it is. Say start, and I'll guide you stroke by stroke.");
+  };
+
+  RENDER.daily5 = function (o) {
+    if (!st.daily || o.reload) {
+      $("main").innerHTML = "<div class='title'>Daily 5</div><div class='spin'></div>";
+      chrome(["Home", "Daily 5"], "One moment…", "");
+      getJSON("/review").then(function (r) { st.daily = (r.items || []).slice(0, 5); if (st.screen === "daily5") RENDER.daily5({}); })
+        .catch(function () { st.daily = fallbackDaily(); if (st.screen === "daily5") RENDER.daily5({}); });
+      return;
+    }
+    var list = st.daily.map(function (d) { return { html: "<span class='hero' dir='auto'>" + esc(d.char) + "</span>" + esc(d.meaning || ""), x: langName(d.lang) }; });
+    $("main").innerHTML = "<div class='title'>Daily 5 <small>the ones worth another go</small></div>" + menu(list);
+    chrome(["Home", "Daily 5"], "Say “start” for the first one", "or say “number three” · “back”");
+    if (!o.keep) say("Your daily five. Say start.");
+  };
+  function fallbackDaily() {
+    var out = [];
+    LANGS.forEach(function (l) { var c = content[l]; if (c && c.phrases && c.phrases[0] && out.length < 5) { var p = c.phrases[0]; out.push({ lang: l, item_id: p.id, char_index: 0, char: p.chars[0], meaning: p.meaning }); } });
+    return out;
+  }
+
+  RENDER.journal = function (o) {
+    $("main").innerHTML = "<div class='title'>Journal</div><div class='spin'></div>";
+    chrome(["Home", "Journal"], "One moment…", "");
+    getJSON("/journal" + (st.lang ? "?lang=" + st.lang : "")).then(function (j) {
+      if (st.screen !== "journal") return;
+      var e = (j.entries || []).filter(function (x) { return x.image_url; }).slice(-8).reverse();
+      $("main").innerHTML = "<div class='title'>Journal <small>" + (e.length ? "your latest pages" : "") + "</small></div>" + (e.length ?
+        "<div class='jgrid'>" + e.map(function (x) { return "<figure class='" + (x.correct ? "ok" : "no") + "'><img src='" + esc(x.image_url) + "'><figcaption><b>" + esc(x.char) + "</b>" + (x.score != null ? x.score : "") + "</figcaption></figure>"; }).join("") + "</div>"
+        : "<p class='muted'>Nothing yet. Every page I check lands here.</p>");
+      chrome(["Home", "Journal"], e.length ? "Say “learn” to practice more" : "Say “learn Mandarin” to start", "“back” · “home”");
+      if (!o.keep) say(e.length ? "Here are your latest pages." : "Your journal is empty. Let's learn something.");
+    }).catch(function () {
+      $("main").innerHTML = "<p class='muted'>I couldn't open the journal.</p>";
+      chrome(["Home", "Journal"], "Say “home”", "");
+    });
+  };
+
+  // ------------------------------------------------------------------ lesson
+  // phases: watch → your_turn → check → result → (next char | next word)
+  RENDER.lesson = function (o) {
+    st.from = o.from || st.from;
+    $("main").innerHTML = "<div id='lesson'><div id='board'><div class='grid'></div><div id='ink'></div></div>" +
+      "<div id='side'><div id='strip'></div><div id='rom'></div><div id='meaning'></div><div id='phase'></div><div id='step'></div><div id='bar'><i></i></div></div>" +
+      "<div id='res'></div></div>";
+    ink = window.WornInk ? WornInk.create($("ink"), { theme: "glasses", numbers: true }) : null;
+    if (o.session) { startSession(o.session); return; }
+    var body = { lang: o.lang || st.lang, item_id: o.item_id, char_index: o.char_index || 0, mode: "write" };
+    st.lang = body.lang;
+    phaseUI("Loading…", "", 0);
+    chrome(lessonCrumbs(), "One moment…", "");
+    postJSON("/session", body).then(startSession).catch(function (e) {
+      $("main").innerHTML = "<p class='big' style='font-size:32px'>I couldn't open that lesson.</p><p class='muted'>" + esc(e.message) + "</p>";
+      chrome(["Home", "Learn"], "Say “back” or “home”", "");
+      say("Sorry, I couldn't open that lesson.");
+    });
+  };
+  function lessonCrumbs() {
+    var s = st.session || {};
+    var c = st.from === "daily5" ? ["Home", "Daily 5"] : st.from === "compose" ? ["Home", "Help me write"] : st.from === "name" ? ["Home", "Write my name"] : ["Home", "Learn", langName(st.lang)];
+    if (s.text) c.push(s.text);
+    return c;
+  }
+  function startSession(s) {
+    st.session = s; st.lang = s.lang; st.charIdx = s.char_index || 0;
+    st.strokeCount = s.stroke_count || 0; st.stroke = 0; st.tries = 0;
+    if (st.from !== "daily5" && st.from !== "compose" && st.from !== "name") {
+      var c = content[s.lang]; st.items = (c && (c.phrases || c.items)) || st.items;
+      for (var i = 0; i < st.items.length; i++) if (st.items[i].id === s.item_id) st.itemIdx = i;
+    }
+    // strip of characters, current underlined
+    var chars = (s.item && s.item.chars) || [s.char];
+    $("strip").setAttribute("dir", s.rtl ? "rtl" : "ltr");
+    $("strip").innerHTML = chars.map(function (ch, i) { return "<span class='" + (i < st.charIdx ? "done" : i === st.charIdx ? "cur" : "") + "'>" + esc(ch) + "</span>"; }).join("");
+    $("rom").textContent = s.char_romanization || s.romanization || "";
+    $("meaning").textContent = s.meaning ? "“" + s.meaning + "”" : "";
+    watch();
+  }
+  function phaseUI(phase, step, frac) {
+    if (!$("phase")) return;
+    $("phase").textContent = phase; $("step").textContent = step;
+    $("bar").firstChild.style.width = Math.round((frac || 0) * 100) + "%";
+  }
+  function inkLoad() {
+    if (!ink) return Promise.resolve(0);
+    if (st.inkFor === st.session) return Promise.resolve(st.strokeCount);
+    st.inkFor = st.session;
+    return ink.load(st.session).then(function (n) { if (n) st.strokeCount = n; return n; }).catch(function () { return 0; });
+  }
+
+  function watch(again) {
+    st.phase = "watch"; clearLessonTimers(); hideRes();
+    var s = st.session;
+    phaseUI("Watch", "Strokes of " + s.char, 0);
+    chrome(lessonCrumbs(), "Say “next” when you're ready to write", "“what does this mean” · “slower” · “back”");
+    inkLoad().then(function (n) {
+      if (st.phase !== "watch") return;
+      if (ink) ink.loop();
+      var total = Math.min(16000, Math.max(5500, (n || 4) * 900 * st.speed + 1800));
+      var t0 = Date.now();
+      timers.watchBar = setInterval(function () { phaseUI("Watch", "Strokes of " + s.char, Math.min(1, (Date.now() - t0) / total)); }, 200);
+      later("watch", total, yourTurn);
+    });
+    if (s.audio_url && !again) N.play(s.audio_url);
+    if (!again) say(st.charIdx === 0 && s.meaning ? s.meaning + ". Watch the strokes, then write along." : "Next character. Watch.");
+    event("glasses.show", { phase: "watch", stroke: 0, stroke_count: st.strokeCount, source: "glasses" });
+    report();
+  }
+
+  function yourTurn() {
+    st.phase = "your_turn"; clearLessonTimers();
+    st.stroke = 0;
+    if (ink) ink.stop();
+    N.watchInk(true);
+    say("Your turn. Stroke one.");
+    showStroke("start");
+  }
+  function showStroke(trigger) {
+    var n = st.strokeCount || 1;
+    clear("stroke");
+    if (st.stroke >= n) { lastStrokeDone(); return; }
+    if (ink) ink.sync(st.stroke + 1, "write");
+    phaseUI("Your turn", "Stroke " + (st.stroke + 1) + " of " + n, st.stroke / n);
+    chrome(lessonCrumbs(), "Write stroke " + (st.stroke + 1) + " · say “next”", "“previous” · “show me again” · “slower” · “I'm done”");
+    event("glasses.show", { phase: "write", stroke: st.stroke, stroke_number: st.stroke + 1, stroke_count: n, trigger: trigger, source: "glasses" });
+    var ms = Math.round(4200 * st.speed);
+    later("stroke", ms, function () { nextStroke("timeout"); });
+  }
+  function nextStroke(trigger) { if (st.phase !== "your_turn") return; st.stroke++; showStroke(trigger); }
+  function prevStroke() { if (st.phase !== "your_turn") return; st.stroke = Math.max(0, st.stroke - 1); showStroke("voice"); }
+  function lastStrokeDone() {
+    st.phase = "your_turn"; clear("stroke");
+    if (ink) ink.full();
+    phaseUI("Your turn", "All strokes done", 1);
+    chrome(lessonCrumbs(), "Say “check” when you're done", "“show me again” · “skip”");
+    say("Say check when you're done.");
+    later("autocheck", 9000, check);
+    report();
+  }
+
+  function check() {
+    if (st.screen !== "lesson" || st.phase === "check") return;
+    clearLessonTimers();
+    st.phase = "check";
+    $("res").className = ""; $("res").style.display = "flex";
+    $("res").innerHTML = "<div class='spin'></div><div class='line'>Looking at your paper…</div><div class='fix' style='color:var(--dim)'>Hold still for a second</div>";
+    chrome(lessonCrumbs(), "Hold the paper still…", "");
+    say("Let me look.");
+    event("grade.start", { source: "glasses" });
+    N.capture();
+    later("gradeTimeout", 45000, function () { if (st.phase === "check") gradeError("That took too long. Say check to try again."); });
+    report();
+  }
+  function hideRes() { var r = $("res"); if (r) { r.style.display = "none"; r.innerHTML = ""; } }
+
+  function graded(r) {
+    if (st.phase !== "check") return;
+    clear("gradeTimeout");
+    st.phase = "result"; st.tries++;
+    var ok = !!r.correct;
+    var pick = window.WornSfx ? WornSfx.forResult(r) : null;
+    N.quiet(1800);
+    var line = r.reaction || (pick && pick.line) || (ok ? "Nailed it!" : "Close!");
+    var fix = !ok ? (r.feedback || r.fix || "") : "";
+    $("res").className = ok ? "ok" : "no";
+    $("res").innerHTML = "<div class='score'>" + (r.score != null ? r.score : ok ? "✓" : "✗") + "</div><div class='line'>" + esc(line) + "</div>" + (fix ? "<div class='fix'>" + esc(fix) + "</div>" : "");
+    if (ok && window.WornConfetti) WornConfetti.burst({ x: 0.5, y: 0.35, count: 140 });
+    var wantRetry = !ok && st.tries < 2 && !(r.next && r.next.action && r.next.action !== "retry");
+    chrome(lessonCrumbs(), ok ? "Say “next” for the next one" : wantRetry ? "Say “again” to try once more" : "Say “next” to move on",
+      ok ? "“again” · “back” · “home”" : "“next” to move on · “show me again”");
+    say(ok ? line : line + ". " + fix);
+    later("afterResult", ok ? 7000 : 12000, function () { if (wantRetry) watch(true); else nextChar(); });
+    report();
+  }
+  function gradeError(msg) {
+    clear("gradeTimeout");
+    st.phase = "result";
+    $("res").className = "no"; $("res").style.display = "flex";
+    $("res").innerHTML = "<div class='line'>" + esc(msg) + "</div>";
+    chrome(lessonCrumbs(), "Say “check” to try again", "“next” to move on");
+    say(msg);
+    later("afterResult", 12000, nextChar);
+    report();
+  }
+
+  function nextChar() {
+    var s = st.session; if (!s) return;
+    clearLessonTimers();
+    var total = s.total_chars || ((s.item && s.item.chars) || [1]).length;
+    if (st.charIdx + 1 < total) { openLesson(s.lang, s.item_id, st.charIdx + 1); return; }
+    nextWord();
+  }
+  function nextWord() {
+    if (st.from === "daily5" && st.daily) {
+      st.dailyIdx = (st.dailyIdx || 0) + 1;
+      if (st.dailyIdx < st.daily.length) { var d = st.daily[st.dailyIdx]; openLesson(d.lang, d.item_id, d.char_index || 0); return; }
+      say("That's your daily five. Well done!"); if (window.WornConfetti) WornConfetti.burst({ x: .5, y: .4, count: 160 });
+      go("home", { quiet: true }, true); return;
+    }
+    if (st.from === "compose" || st.from === "name") { say("All written. Nice work."); back(); return; }
+    var i = st.itemIdx + 1;
+    if (i >= st.items.length) { say("You finished every " + langName(st.lang) + " word!"); go("words", { lang: st.lang }, true); return; }
+    st.itemIdx = i; openLesson(st.lang, st.items[i].id, 0);
+  }
+  function prevWord() {
+    if (st.charIdx > 0) { openLesson(st.lang, st.session.item_id, st.charIdx - 1); return; }
+    if (st.itemIdx > 0) { st.itemIdx--; openLesson(st.lang, st.items[st.itemIdx].id, 0); }
+  }
+  function openLesson(lang, itemId, charIdx) {
+    clearLessonTimers(); hideRes();
+    st.lang = lang;
+    phaseUI("Loading…", "", 0);
+    postJSON("/session", { lang: lang, item_id: itemId, char_index: charIdx, mode: "write" }).then(function (s) {
+      if (st.screen === "lesson") { st.inkFor = null; startSession(s); }
+    }).catch(function () { say("I couldn't open the next one."); });
+  }
+  function clearLessonTimers() {
+    N.watchInk(false); ["watch", "watchBar", "stroke", "autocheck", "afterResult", "gradeTimeout"].forEach(clear); }
+  function leaveLesson() { if (st.screen === "lesson") { clearLessonTimers(); if (ink) ink.stop(); st.phase = null; } }
+  function meaning() {
+    var s = st.session;
+    if (st.screen === "lesson" && s) { say(s.text + " means " + s.meaning + "."); if (s.audio_url) later("meanAudio", 1800, function () { N.play(s.audio_url); }); toast("“" + s.meaning + "” · " + (s.romanization || ""), 3500); return; }
+    if (st.screen === "compose" && st.compose && st.compose.result) { say("It reads back as: " + (st.compose.result.back_translation || st.compose.text)); return; }
+    say("Open a lesson first, then ask what it means.");
+  }
+
+  // ------------------------------------------------------------------ starting things
+  function startLang(lang) { st.lang = lang; go("words", { lang: lang }); }
+  function startItem(lang, itemId, charIdx, from) { st.from = from || "learn"; st.lang = lang; go("lesson", { lang: lang, item_id: itemId, char_index: charIdx || 0, from: from || "learn" }); }
+  function startHere() {
+    // "start" / "okay" / button tap: open whatever is highlighted
+    switch (st.screen) {
+      case "home": go(HOME_MENU[st.sel].s); return;
+      case "learn": startLang(LANGS[st.sel]); return;
+      case "words": var p = st.items[st.sel]; if (p) { st.itemIdx = st.sel; startItem(st.lang, p.id, 0, "learn"); } return;
+      case "daily5": if (st.daily && st.daily.length) { st.dailyIdx = st.sel; var d = st.daily[st.sel]; startItem(d.lang, d.item_id, d.char_index || 0, "daily5"); } return;
+      case "compose": if (st.compose && st.compose.session) { st.from = "compose"; go("lesson", { session: st.compose.session, from: "compose" }); } return;
+      case "name": var row = (st.nameRows || [])[st.sel]; if (row) composeLesson(row.l, row.t, "name"); return;
+      case "lesson": doLesson("next"); return;
+      default: go("home");
+    }
+  }
+  function composeLesson(lang, text, from) {
+    // practice an arbitrary native string (a name) via a compose session
+    st.from = from; st.lang = lang;
+    go("lesson", { from: from, lang: lang });
+    postJSON("/session", { lang: lang, mode: "compose", text: text, char_index: 0 }).then(function (s) { if (st.screen === "lesson") { st.inkFor = null; startSession(s); } })
+      .catch(function () { say("I couldn't set that up."); });
+  }
+  function pickNumber(n) {
+    var len = { home: HOME_MENU.length, learn: LANGS.length, words: st.items.length, daily5: (st.daily || []).length, name: (st.nameRows || []).length }[st.screen];
+    if (!len || n < 1 || n > len) return false;
+    st.sel = n - 1; startHere(); return true;
+  }
+
+  // ------------------------------------------------------------------ commands
+  function doLesson(intent) {
+    switch (intent) {
+      case "next":
+        if (st.phase === "watch") { yourTurn(); return true; }
+        if (st.phase === "your_turn") { if (st.stroke >= (st.strokeCount || 1)) check(); else nextStroke("voice"); return true; }
+        if (st.phase === "result") { nextChar(); return true; }
+        return true;
+      case "previous": if (st.phase === "your_turn") prevStroke(); else prevWord(); return true;
+      case "show_again": watch(true); return true;
+      case "again": if (st.phase === "result") { watch(true); return true; } watch(true); return true;
+      case "faster": st.speed = Math.max(0.5, st.speed / 1.4); toast("Faster", 1200); say("Faster."); if (st.phase === "your_turn") showStroke("voice"); return true;
+      case "slower": st.speed = Math.min(2.5, st.speed * 1.4); toast("Slower", 1200); say("Slower."); if (st.phase === "your_turn") showStroke("voice"); else watch(true); return true;
+      case "repeat": if (st.session && st.session.audio_url) N.play(st.session.audio_url); say(hint.replace(/[“”]/g, "")); return true;
+      case "check": check(); return true;
+      case "skip": nextChar(); return true;
+    }
+    return false;
+  }
+
+  var INTENT_ALIAS = { retry: "again", word: "select", practice: "select" };
+  function act(intent, args, nav) {
+    args = args || {};
+    if (intent === "word" && args.word && !args.item_id) args.item_id = args.word;
+    if (intent === "learn" && !args.lang && args.language) args.lang = args.language;
+    if ((intent === "compose" || intent === "write_name") && !args.lang && args.language) args.lang = args.language;
+    if (intent === "open" && !args.screen && args.target) args.screen = args.target;
+    intent = INTENT_ALIAS[intent] || intent;
+    if (intent === "open" && args.screen) { go(args.screen); return; }
+    switch (intent) {
+      case "home": go("home", { quiet: true }); say("Home."); return;
+      case "back": back(); return;
+      case "help": go("howto"); return;
+      case "learn": if (args.lang) startLang(args.lang); else go("learn"); return;
+      case "select":
+        if (args.item_id) { var l = args.lang || st.lang; var c = content[l]; if (c) { var ps = c.phrases || []; for (var i = 0; i < ps.length; i++) if (ps[i].id === args.item_id) st.itemIdx = i; } startItem(l, args.item_id, args.char_index || 0, st.screen === "daily5" ? "daily5" : "learn"); return; }
+        if (args.n) { pickNumber(args.n); return; }
+        if (args.lang && st.screen === "name") { pickNameLang(args.lang); return; }
+        if (args.lang) { startLang(args.lang); return; }
+        startHere(); return;
+      case "start": startHere(); return;
+      case "compose":
+        if (!args.text) { go("compose"); return; }
+        var cl = args.lang || st.lang || "mandarin";
+        var r = args.result;
+        go("compose", { compose: { text: args.text, lang: cl, result: r ? { native: r.native || r.text, romanization: r.romanization, back_translation: r.back_translation } : null, session: args.session || null } });
+        if (r && !args.session) { postJSON("/session", { lang: cl, mode: "compose", text: args.text, char_index: 0 }).then(function (s) { if (st.compose) st.compose.session = s; }).catch(function () {}); }
+        return;
+      case "write_name":
+        if (!args.name) { go("name"); return; }
+        go("name", { name: args.name, result: args.result || null }); return;
+      case "meaning": meaning(); return;
+    }
+    if (st.screen === "name" && args.lang) { pickNameLang(args.lang); return; }
+    if (st.screen === "lesson" && doLesson(intent)) return;
+    // list screens: next/previous move the highlight; check/start open it
+    var lens = { home: HOME_MENU.length, learn: LANGS.length, words: st.items.length, daily5: (st.daily || []).length, name: (st.nameRows || []).length };
+    if (lens[st.screen]) {
+      if (intent === "next") { moveSel(1, lens[st.screen]); return; }
+      if (intent === "previous") { moveSel(-1, lens[st.screen]); return; }
+      if (intent === "check" || intent === "skip") { startHere(); return; }
+    }
+    if (st.screen === "compose" && (intent === "next" || intent === "check")) { startHere(); return; }
+    if (intent === "repeat") { say(hint.replace(/[“”]/g, "")); return; }
+    say("Try saying: " + hint.replace(/^Say /, "").replace(/[“”]/g, ""));
+  }
+  function pickNameLang(l) {
+    var rows = st.nameRows || [];
+    for (var i = 0; i < rows.length; i++) if (rows[i].l === l) { st.sel = i; composeLesson(l, rows[i].t, "name"); return; }
+    say("Names work in Hindi, Arabic, Russian, Hebrew and Greek.");
+  }
+
+  // ------------------------------------------------------------------ on-device matcher (fallback when /voice has no intent)
+  var LANG_WORDS = [
+    ["mandarin", /\b(mandarin|mandarine|chinese|china|putonghua)\b/], ["hindi", /\b(hindi|hindu|indie|devanagari|hindy)\b/],
+    ["arabic", /\b(arabic|arabian|arab)\b/], ["russian", /\b(russian|russia|rushin|rushing|cyrillic)\b/],
+    ["hebrew", /\b(hebrew|hebrews|ivrit)\b/], ["greek", /\b(greek|greece|grease|greeks)\b/]
+  ];
+  function findLang(t) { for (var i = 0; i < LANG_WORDS.length; i++) if (LANG_WORDS[i][1].test(t)) return LANG_WORDS[i][0]; return null; }
+  function match(raw) {
+    var t = (" " + String(raw || "").toLowerCase().replace(/[^\w\s']/g, " ").replace(/\s+/g, " ") + " ");
+    var m;
+    if ((m = t.match(/(?:how (?:do|would|can|should) (?:i|you|we) (?:write|say|spell)|help me write|write|translate) (.+?) (?:in|into) (\w+)/))) {
+      var cl = findLang(m[2]); if (cl) return { intent: "compose", args: { text: m[1].trim(), lang: cl } };
+    }
+    if ((m = t.match(/(?:my name is|my name's|write my name|spell my name|name is|i am|i'm called)\s*(?:is\s*)?(.+)/)) && m[1].trim()) {
+      var nm = m[1].trim().split(" ").slice(0, 3).join(" ");
+      if (!/^(done|finished|ready)\b/.test(nm)) return { intent: "write_name", args: { name: nm.replace(/\b\w/g, function (c) { return c.toUpperCase(); }) } };
+    }
+    if (/\b(what can i say|help|commands|how (do i|to) use)\b/.test(t)) return { intent: "help" };
+    if (/\b(home|main menu|start over)\b/.test(t)) return { intent: "home" };
+    if (/\b(go back|back)\b/.test(t) && !/again/.test(t)) return { intent: "back" };
+    if (/\b(what does (this|that|it) mean|meaning|what is this|what's this|translate)\b/.test(t)) return { intent: "meaning" };
+    if (/\b(show (me )?(it )?again|show again|watch again|replay|one more time)\b/.test(t)) return { intent: "show_again" };
+    if (/\b(slower|slow down|too fast)\b/.test(t)) return { intent: "slower" };
+    if (/\b(check|i'?m done|i am done|done|finished|grade|look at (it|this))\b/.test(t)) return { intent: "check" };
+    if (/\b(skip|pass)\b/.test(t)) return { intent: "skip" };
+    if (/\b(try again|again|retry|redo)\b/.test(t)) return { intent: "again" };
+    if (/\b(repeat|say (it|that) again|pardon|what)\b/.test(t)) return { intent: "repeat" };
+    if (/\b(previous|go back one|last one|before)\b/.test(t)) return { intent: "previous" };
+    if (/\b(next|continue|go on|ready|move on|keep going)\b/.test(t)) return { intent: "next" };
+    if (/\b(daily|review|daily five|daily 5)\b/.test(t)) return { intent: "open", args: { screen: "daily5" } };
+    if (/\b(journal|my pages|history)\b/.test(t)) return { intent: "open", args: { screen: "journal" } };
+    if (/\b(write my name|my name|name)\b/.test(t)) return { intent: "write_name" };
+    if (/\b(help me write|compose|message)\b/.test(t)) return { intent: "compose" };
+    var lang = findLang(t);
+    if (lang) return { intent: st.screen === "name" ? "select" : "learn", args: { lang: lang } };
+    if (/\b(learn|lessons?|languages?)\b/.test(t)) return { intent: "open", args: { screen: "learn" } };
+    if ((m = t.match(/\b(?:number|option|item|no) (\w+)\b/)) || (m = t.match(/^ (one|two|three|four|five|six|first|second|third|fourth|fifth|sixth|\d) $/))) {
+      var n = NUMS[m[1]] || parseInt(m[1], 10); if (n) return { intent: "select", args: { n: n } };
+    }
+    if (st.screen === "words") {
+      for (var i = 0; i < st.items.length; i++) {
+        var it = st.items[i]; var mean = (it.meaning || "").toLowerCase();
+        if (mean && t.indexOf(" " + mean + " ") >= 0 || t.indexOf(" " + it.id.replace(/_/g, " ") + " ") >= 0) return { intent: "select", args: { item_id: it.id, lang: st.lang } };
+      }
+    }
+    if (/\b(start|open|okay|ok|yes|go|select|that one|this one|begin|let's go)\b/.test(t)) return { intent: "start" };
+    return { intent: "unknown" };
+  }
+
+  // ------------------------------------------------------------------ voice replies
+  function handleVoice(r) {
+    var heard = r.heard || r.text || "";
+    showHeard(heard);
+    if (!heard && !r.intent) { setMic("listening"); return; }
+    var intent = r.intent, args = r.args || {};
+    // trust the backend's intent, but fill gaps with ours (and our list context)
+    var mine = match(heard);
+    if (!intent || intent === "unknown") { intent = mine.intent; args = mine.args || {}; }
+    else if (intent === "select" && !args.item_id && !args.lang && mine.args) args = mine.args;
+    event("voice", { heard: heard, intent: intent, args: args, screen: st.screen, source: "glasses" });
+    console.log("voice heard=" + JSON.stringify(heard) + " -> " + intent + " " + JSON.stringify(args) + " on " + st.screen + " sel=" + st.sel);
+    if (intent === "unknown") {
+      // From the open mic this is often someone nearby: only a quiet nudge, never a spoken one.
+      if (r.typed) say(r.say || ("Try saying: " + hint.replace(/^Say /, "").replace(/[“”]/g, "")));
+      toast("Try: " + hint.replace(/^Say /, ""), 2600);
+      return;
+    }
+    var nav = r.nav;
+    // when the backend already started a lesson session for us, use it directly
+    if (nav && nav.screen === "lesson" && r.session) {
+      st.from = st.screen === "daily5" ? "daily5" : "learn"; st.lang = r.session.lang;
+      go("lesson", { session: r.session, from: st.from }); if (r.say && !/^(okay|ok)\.?$/i.test(r.say)) say(r.say); return;
+    }
+    act(intent, args, nav);
+  }
+
+  // ------------------------------------------------------------------ native → page
+  window.worn = {
+    mic: function (s) { setMic(s === "off" ? "off" : s); },
+    voice: function (json) {
+      voiceDown = false;
+      var r; try { r = typeof json === "string" ? JSON.parse(json) : json; } catch (e) { return; }
+      setMic("listening");
+      handleVoice(r);
+    },
+    voiceError: function (code) {
+      setMic("listening");
+      if (code === 404 || code === 0) { var first = !voiceDown; voiceDown = true; setMic("listening"); if (first) toast("Voice server isn't up yet. The button works.", 3000); }
+      else toast("I didn't catch that.", 1600);
+    },
+    heard: function (text) {
+      // test hook (adb --es say "…"): through /voice with text, else our matcher
+      var fd = new FormData(); fd.append("text", text); fd.append("screen", st.screen);
+      setMic("thinking");
+      fetch("/voice", { method: "POST", body: fd }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function (r) { setMic("listening"); r.heard = r.heard || text; r.typed = true; handleVoice(r); })
+        .catch(function () { setMic("listening"); handleVoice({ heard: text, typed: true }); });
+    },
+    key: function (k) {
+      if (k === "tap") { if (st.screen === "lesson") doLesson(st.phase === "your_turn" && st.stroke >= st.strokeCount ? "check" : "next"); else startHere(); }
+      else if (k === "double") back();
+      else if (k === "long") { if (st.screen === "lesson") doLesson("check"); else go("howto"); }
+      else if (k === "left") act("previous"); else if (k === "right") act("next");
+    },
+    ink: function (frac, ms) {
+      if (st.screen !== "lesson" || st.phase !== "your_turn" || st.stroke >= st.strokeCount) return;
+      event("ink", { tier1_ms: ms, frac: frac, source: "glasses" });
+      nextStroke("ink");
+    },
+    audioDone: function () { if (micState === "speaking") setMic("listening"); },
+    graded: function (json) { var r; try { r = typeof json === "string" ? JSON.parse(json) : json; } catch (e) { r = {}; } graded(r); },
+    error: function (msg) { if (st.phase === "check") gradeError(msg || "I couldn't check that. Say check to try again."); else toast(msg, 2500); },
+    state: function () { return JSON.stringify({ screen: st.screen, phase: st.phase, stroke: st.stroke, strokeCount: st.strokeCount, lang: st.lang, sel: st.sel }); },
+    go: go
+  };
+
+  // ------------------------------------------------------------------ boot
+  if (window.WornSfx) WornSfx.init("");
+  getJSON("/content").then(function (c) {
+    (c.langs || []).forEach(function (l) { content[l.lang] = l; });
+  }).catch(function () {}).then(function () {
+    go("home", { greet: "Hi, I'm Worn. Say learn Greek, or say help." }, true);
+    N.ready();
+  });
+})();
+</script>
+</body>
+</html>

@@ -73,6 +73,35 @@ final class Backend {
         HttpError(int code, String body) { super("HTTP " + code + ": " + body); this.code = code; }
     }
 
+    /** POST /voice multipart {audio (16 kHz mono WAV), screen}. Returns the raw JSON reply
+     *  {heard, intent, args, say, say_url, nav, hint, session?}. */
+    String voice(byte[] wav, String screen) throws IOException {
+        String boundary = "----wornv" + System.nanoTime();
+        HttpURLConnection c = open("/voice");
+        c.setConnectTimeout(3000);
+        c.setReadTimeout(30000);
+        c.setDoOutput(true);
+        c.setRequestMethod("POST");
+        c.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+        ByteArrayOutputStream body = new ByteArrayOutputStream(wav.length + 512);
+        if (screen != null) field(body, boundary, "screen", screen);
+        ascii(body, "--" + boundary + "\r\n"
+                + "Content-Disposition: form-data; name=\"audio\"; filename=\"voice.wav\"\r\n"
+                + "Content-Type: audio/wav\r\n\r\n");
+        body.write(wav);
+        ascii(body, "\r\n--" + boundary + "--\r\n");
+        c.setFixedLengthStreamingMode(body.size());
+        try {
+            try (OutputStream out = c.getOutputStream()) { body.writeTo(out); }
+            int code = c.getResponseCode();
+            String resp = read(code < 400 ? c.getInputStream() : c.getErrorStream());
+            if (code >= 400) throw new HttpError(code, resp);
+            return resp;
+        } finally {
+            c.disconnect();
+        }
+    }
+
     /** POST /event {type, data}. Short timeouts: used for the heartbeat. */
     void event(String type, JSONObject data) throws IOException {
         HttpURLConnection c = open("/event");
