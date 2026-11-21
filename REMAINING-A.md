@@ -22,6 +22,7 @@ Full table: `backend/test_data/eval_results.md` (re-run: `uv run python eval_han
 | 1: ink diff (new stroke?) | **18/18**: 0 false strokes under camera shift + rotation, shadow, dimming, recompression; every real stroke caught | ~40 ms |
 | 2: stroke match | **96%** final strokes accepted across print / cursive-ish / marker / mixed on 3 real papers; right char beats a confusable one 86% (the misses are all 水 vs 永, which differ by one dot) | ~13 ms (budget 300) |
 | 3: vision grade (qwen2.5vl:7b) | **87%** of 76 live grades. Real teammate letters: 94% as photographed, 75% tilted 8° + shadowed, 94% wrong-target rejections. Target scripts on real paper: 86% print, 57% slanted + tilted + shadowed, 100% wrong-char rejections. **0 harsh feedback lines.** | 1–5 s per read (GPU shared tonight) |
+| 3 + agent (full /grade: vision, template arbitration, guards) | Target scripts on real paper, print + slanted/tilted/shadowed: **14/14 right letters accepted, 14/14 wrong letters rejected**. Tier 2 settles the vision model's look-alike misreads (ש read as ע, ر as ن, λ as a backslash) and stops it echoing the target (a big X 'read' as 你). | + ~20 ms |
 
 Fixes this test set forced: grading counts capital/small forms and missing Greek accents as correct (with a kind note), an exact read is never failed for style, and LaTeX answers (`\lambda`) are understood (real letters went from 31% to 94%). Ink fixes: lighting-normalized ink (shadows), hysteresis thresholds measured on the photos,
 removal of ruled-line spurs, spiral-binding and hole-punch filters, slant search for cursive, and a template-coverage
@@ -48,8 +49,8 @@ check (no "done" on a half-written character).
   decide reply about 1–1.5 s, so expect ~2–3 s. Hard caps: 14b gets 3 s (7b starts in parallel at 1 s) and the whole decide
   step stops at 4.5 s, after which the rule policy decides (logged in `/live`). **At the table, close Xcode and the
   Simulator.** DEMO.md's "about a second" is optimistic; say "a couple of seconds".
-- **Hebrew ש** is sometimes read as ע or ב by qwen2.5vl (2 of 4 tries). If it trips during the demo, demo Hebrew with
-  another item, or just let the tutor's "retry" carry it.
+- **Hebrew ש** is often read as ע or ב by qwen2.5vl on its own; template arbitration now overturns that when the
+  strokes clearly match ש (logged in `/live` as "Template arbitration"). Real glasses photos are still untested.
 - **Help me write (compose):** qwen2.5 is weak at Hebrew, Greek and Hindi beyond basic phrases. The backend checks
   every answer independently and refuses rather than teach a wrong phrase. In the test set the check caught 5 of 5
   wrong phrases but also refused some valid requests while the GPU was busy. For the demo, use a lesson phrase or a

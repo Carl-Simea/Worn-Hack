@@ -89,3 +89,11 @@ def test_unicode_name_in_prompt():
 def test_latex_greek_answer_is_understood():
     assert vision.parse_grade({"seen": "\\lambda", "score": 70}, "λ", "greek")["correct"] is True
     assert vision.parse_grade({"seen": "\\Omega", "score": 70}, "Ω", "greek")["correct"] is True
+
+
+def test_reaction_always_matches_the_verdict():
+    r = agent.react("gentle", "Try again, you can do it!", correct=True)
+    assert r["mood"] in ("celebrate", "proud") and "again" not in r["reaction"].lower()
+    r = agent.react("celebrate", "Nailed it!", correct=False)
+    assert r["mood"] == "encourage" and "nailed" not in r["reaction"].lower()
+    assert agent.react("proud", "Lovely strokes!", correct=True)["reaction"] == "Lovely strokes!"

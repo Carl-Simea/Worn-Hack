@@ -149,8 +149,11 @@ def _from_phrasebook(text: str, lang: str) -> dict | None:
             e = langs[lang]
             units = scripts.split_units(e["native"], lang)
             if units:
-                return {"native": e["native"], "romanization": e.get("romanization", ""), "back_translation": phrase,
-                        "chars": units}
+                out = {"native": e["native"], "romanization": e.get("romanization", ""), "back_translation": phrase,
+                       "chars": units}
+                if e.get("note"):
+                    out["form_note"] = e["note"]  # e.g. gendered / formal form, from C's checked list
+                return out
     return None
 
 
@@ -253,7 +256,10 @@ async def compose_message(text: str, lang: str) -> tuple[dict, dict]:
     def done(d: dict, meta: dict) -> tuple[dict, dict]:
         if lang == "mandarin":
             d = {**d, "romanization": _pinyin(d["native"]) or d["romanization"]}
-        return {**d, "lang": lang, "text": text, "note": _note(lang, d["chars"])}, meta
+        note = _note(lang, d["chars"])
+        if d.get("form_note"):
+            note = f"{d['form_note']} {note}"
+        return {**d, "lang": lang, "text": text, "note": note}, meta
 
     if unsuitable(text):
         raise ComposeError("Let's keep it to everyday messages, like greetings or thanks.")

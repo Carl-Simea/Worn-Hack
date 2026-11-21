@@ -536,3 +536,38 @@ def test_compose_phrasebook_is_used_first(client, monkeypatch):
     monkeypatch.setattr(llm, "tutor_json", boom)
     d = client.post("/compose", json={"text": "Happy birthday!", "lang": "greek"}).json()
     assert d["native"] == "χρόνια πολλά" and "phrasebook" in d["model"] and d["verified"] is True
+
+
+def test_template_arbitration_overturns_lookalike_misread(client, monkeypatch):
+    """qwen2.5vl reads ש as ע: tier 2 compares both templates and the clear winner counts."""
+    start(client, "hebrew", "hello")
+
+    async def misread(jpeg, char, lang):
+        return vision.parse_grade({"seen": "ע", "score": 45, "fix": "make the top straight"}, char, lang), {"model": "f"}
+    monkeypatch.setattr(vision, "grade", misread)
+    monkeypatch.setattr(llm, "tutor_json", FakeModels().tutor_json)
+    g = client.post("/grade", files={"image": ("p.jpg", write_on_paper("ש"), "image/jpeg")}).json()
+    assert g["correct"] is True, g
+    steps = client.get("/live/state").json()["agent_steps"]
+    assert any("Template arbitration" in s["summary"] and "counts as" in s["summary"] for s in steps)
+
+
+def test_template_arbitration_keeps_a_real_wrong_letter_wrong(client, monkeypatch):
+    start(client, "hebrew", "hello")
+
+    async def reads_tav(jpeg, char, lang):
+        return vision.parse_grade({"seen": "ת", "score": 40, "fix": ""}, char, lang), {"model": "f"}
+    monkeypatch.setattr(vision, "grade", reads_tav)
+    monkeypatch.setattr(llm, "tutor_json", FakeModels().tutor_json)
+    g = client.post("/grade", files={"image": ("p.jpg", write_on_paper("ת"), "image/jpeg")}).json()
+    assert g["correct"] is False
+
+
+def test_phrasebook_form_note_is_shown(client, monkeypatch):
+    from conftest import CONTENT
+    (CONTENT / "phrases").mkdir(exist_ok=True)
+    (CONTENT / "phrases" / "examples.json").write_text(json.dumps({"phrases": {"good night": {
+        "arabic": {"native": "تصبح على خير", "romanization": "tusbih ala khayr",
+                   "note": "Said to a man; to a woman: تصبحين على خير."}}}}, ensure_ascii=False))
+    d = client.post("/compose", json={"text": "good night", "lang": "arabic"}).json()
+    assert d["form_note"].startswith("Said to a man") and d["note"].startswith("Said to a man")

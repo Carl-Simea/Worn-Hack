@@ -25,7 +25,7 @@ import time
 from typing import Any, Awaitable, Callable
 
 from . import compose as compose_mod
-from . import config, llm, memory, strokes, vision
+from . import config, llm, memory, scripts, strokes, vision
 from .live import LIVE
 
 log = logging.getLogger("worn.agent")
@@ -34,6 +34,9 @@ _run_ids = itertools.count(1)
 MOODS = ("celebrate", "proud", "encourage", "gentle")
 ECHO_MODEL_SCORE = 60     # below this the vision read is weak...
 ECHO_TEMPLATE_SCORE = 40  # ...and needs at least this template agreement to count
+ARBITRATE_MIN = 65        # target template score needed before tier 2 may overturn a vision misread
+ARBITRATE_MARGIN = 15     # ...and it must beat the template of the letter vision named by this much
+SYMBOL_TEMPLATE_SCORE = 75  # vision read a non-letter symbol: only a strong template match counts
 ACTIONS = ("advance", "retry", "review")
 HARSH = ("bad", "wrong", "ugly", "messy", "sloppy", "poor", "terrible", "awful", "fail", "stupid", "careless")
 
@@ -97,7 +100,18 @@ def kind(text: str, fallback: str) -> str:
     return t[:90]
 
 
+_RETRY_WORDS = ("try again", "again", "almost", "close", "one more", "not quite", "keep trying")
+_WIN_WORDS = ("nailed", "great job", "perfect", "got it", "well done", "you did it", "beautiful", "excellent")
+
+
 def react(mood: str, line: str, correct: bool) -> dict:
+    """The spoken line and mood must agree with the verdict (the LLM sometimes says
+    'try again' on a correct answer, or 'nailed it' on a miss)."""
+    low = (line or "").lower()
+    if correct and (mood not in ("celebrate", "proud") or any(w in low for w in _RETRY_WORDS)):
+        mood, line = ("proud" if mood == "proud" else "celebrate"), (line if not any(w in low for w in _RETRY_WORDS) else "")
+    elif not correct and (mood in ("celebrate", "proud") or any(w in low for w in _WIN_WORDS)):
+        mood, line = "encourage", (line if not any(w in low for w in _WIN_WORDS) else "")
     mood = mood if mood in MOODS else ("celebrate" if correct else "encourage")
     default = {"celebrate": "Beautiful, you got it!", "proud": "Yes! Nicely done.",
                "encourage": "So close, one more try!", "gentle": "Let's watch it once more together."}[mood]
@@ -212,6 +226,33 @@ async def run_grade(jpeg: bytes, char: str, lang: str, session: dict | None, ima
                   "feedback": f"Hmm, I'm not sure that's {char} yet. Watch the strokes, then try again."}
         run.step("evaluate", f"Echo guard: vision only {graded.get('model_score')}/100 and template {template_score}/100, "
                              f"so not counted", data={"guard": "echo"})
+    # Template arbitration: vision models confuse look-alike letters in less common scripts (qwen2.5vl
+    # reads ש as ע). When vision names a different single letter but the target's stroke template
+    # matches strongly, compare the photo against BOTH templates; a clear win for the target overturns it.
+    seen = graded.get("seen") or ""
+    same_script_letter = len(seen) == 1 and seen != char and lang in scripts._RANGES and scripts.in_script(seen, lang)
+    if (not graded["correct"] and same_script_letter and template_score is not None
+            and template_score >= ARBITRATE_MIN):
+        t_arb = time.perf_counter()
+        try:
+            other = (await asyncio.to_thread(strokes.compare_full, jpeg, lang, seen))["score"]
+        except Exception:
+            other = None
+        if other is not None and template_score - other >= ARBITRATE_MARGIN:
+            graded = {**graded, "correct": True, "score": max(min(template_score, 80), 65), "seen": char,
+                      "vision_seen": seen, "feedback": f"Got it, that's {char}!", "arbitrated": True}
+        run.step("evaluate", f"Template arbitration {char} vs {seen}: {template_score} vs {other}"
+                             + (" -> counts as " + char if graded.get("arbitrated") else " -> vision stands"),
+                 tool="compare_to_template", ms=(time.perf_counter() - t_arb) * 1000,
+                 data={"target": template_score, "seen": other, "overturned": bool(graded.get("arbitrated"))})
+    # Vision answered with a symbol, not a letter ('\\' for a slanted λ): no letter to compare against,
+    # so only a very strong stroke-template match counts.
+    if (not graded["correct"] and len(seen) == 1 and not seen.isalpha() and template_score is not None
+            and template_score >= SYMBOL_TEMPLATE_SCORE):
+        graded = {**graded, "correct": True, "score": max(min(template_score, 80), 65), "seen": char,
+                  "vision_seen": seen, "feedback": f"Got it, that's {char}!", "arbitrated": True}
+        run.step("evaluate", f"Vision saw only a symbol ({seen}); template {template_score}/100 says {char}",
+                 data={"guard": "symbol", "template": template_score})
     correct = bool(graded["correct"])
     tries_after = 0 if correct else LIVE.tries + 1
     weak = sorted(((memory.weakness(st), c) for c, st in memory.lang_stats(lang, user).items()
