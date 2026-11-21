@@ -24,6 +24,7 @@ struct PracticeView: View {
             e.start()
         }
         .onDisappear { engine?.stop() }
+        .onChange(of: app.closePracticeRequest) { _, _ in close() }
     }
 
     private func close() {

@@ -92,6 +92,7 @@ ios/Tests/run-core-tests.sh        # stroke parsing (all content/strokes), ink d
 Simulator, end to end: run the backend, then
 `xcrun simctl launch booted com.worn.phone -wornOpen practice:mandarin:hello` (deep links: `lesson:LANG`,
 `practice:LANG:ITEM[:dictation]`, `compose:TEXT:LANG`, `name:NAME`, `daily`, `journal:LANG`, `connect`).
+Voice without a microphone: add `-wornSay "switch to Hebrew" -wornSayAfter 9` (runs the phrase through the same parser).
 Screenshots: `screenshots/ios/`.
 
 ## Compile / runtime risks I couldn't verify (no glasses or iPhone here)

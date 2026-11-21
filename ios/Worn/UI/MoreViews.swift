@@ -128,10 +128,11 @@ struct LangPicker: View {
     @Binding var selection: String
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(app.lessons) { l in
-                    Button { selection = l.lang } label: {
+                    Button { withAnimation(.snappy) { selection = l.lang } } label: {
                         VStack(spacing: 2) {
                             Text(ScriptInfo.hero(l.lang)).font(Theme.script(l.lang, size: 16)).lineLimit(1)
                             Text(l.name).font(Theme.sans(11, weight: .medium))
@@ -142,8 +143,12 @@ struct LangPicker: View {
                         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.hairline, lineWidth: selection == l.lang ? 0 : 1))
                     }
                     .buttonStyle(PressableStyle())
+                    .id(l.lang)
                 }
             }
+        }
+        .onAppear { proxy.scrollTo(selection, anchor: .center) }
+        .onChange(of: selection) { _, new in withAnimation(.snappy) { proxy.scrollTo(new, anchor: .center) } }
         }
     }
 }

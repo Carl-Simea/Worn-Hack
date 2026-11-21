@@ -54,6 +54,8 @@ final class AppModel {
     var pendingCompose: (text: String, lang: String?)?
     /// Practice opened from outside a screen (deep link / voice); RootView presents it.
     var pendingLaunch: PracticeLaunch?
+    /// Bumped to ask any open practice screen to close (voice navigation).
+    private(set) var closePracticeRequest = 0
 
     let glasses: GlassesLink
     let camera = PhoneCamera()
@@ -99,6 +101,14 @@ final class AppModel {
         if voiceEnabled { Task { await voice.start() } }
         report("app.open", ["demo_mode": .bool(demoMode), "glasses": .string(glassesStatus.title)])
         if let open = UserDefaults.standard.string(forKey: "wornOpen") { Task { await deepLink(open) } }
+        // Test hook for the voice path (no microphone in the Simulator): `-wornSay "switch to Hebrew" -wornSayAfter 9`
+        if let phrase = UserDefaults.standard.string(forKey: "wornSay") {
+            let delay = UserDefaults.standard.object(forKey: "wornSayAfter") as? Double ?? 8
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(delay))
+                if let cmd = VoiceCommandParser.parse(phrase) { self?.handle(cmd) }
+            }
+        }
     }
 
     /// Launch argument `-wornOpen <route>` (demo shortcuts, screenshots, end-to-end runs):
@@ -319,12 +329,26 @@ final class AppModel {
             practice?.voice(cmd)
         case .switchTo(let lang):
             guard lesson(lang) != nil else { return }
-            practice?.stop()
-            route = [.lesson(lang)]
+            navigateAfterClosingPractice { $0.route = [.lesson(lang)] }
         case .helpMeWrite(let message, let lang):
-            practice?.stop()
-            pendingCompose = (message, lang ?? practice?.current?.lang)
-            route = [.compose]
+            let target = lang ?? practice?.current?.lang
+            navigateAfterClosingPractice {
+                $0.pendingCompose = (message, target)
+                $0.route = [.compose]
+            }
+        }
+    }
+
+    /// Voice navigation: close an open practice first (it's a full-screen cover), then move.
+    private func navigateAfterClosingPractice(_ go: @escaping (AppModel) -> Void) {
+        guard practice != nil || pendingLaunch != nil else { go(self); return }
+        practice?.stop()
+        pendingLaunch = nil
+        closePracticeRequest += 1
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(650))
+            guard let self else { return }
+            go(self)
         }
     }
 }
