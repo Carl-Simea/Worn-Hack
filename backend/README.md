@@ -7,7 +7,7 @@ view, `/live` and `/app` all read.
 ollama serve                                  # models: qwen2.5vl:7b, qwen2.5:14b, qwen2.5:7b
 cd backend && uv run uvicorn app:app --host 0.0.0.0 --port 8000
 ipconfig getifaddr en0                        # the IP the phone uses
-uv run pytest                                 # 59 fast tests (models mocked)
+uv run pytest                                 # 65 fast tests (models mocked)
 uv run pytest -m live                         # + real qwen2.5vl on teammates' handwriting
 uv run python eval_handwriting.py --live      # writes test_data/eval_results.md
 ```
@@ -16,10 +16,17 @@ All three models are warmed at startup with small fixed contexts (2k tutor, 4k v
 on a 32 GB Mac at once. Every minute any model Ollama has unloaded (e.g. after an Ollama restart) is
 loaded again, so a grade never pays a cold start.
 
-`/compose` and `/name` keep 14b quality: every qwen2.5:14b answer is cached in `data/llm_cache.json`.
-When a request falls back to 7b, 14b redoes it in the background, so the next identical request gets the
-14b answer instantly. About 45 s after startup, six likely demo phrases × six languages and six names are
-precomputed with 14b. Names in `content/names/examples.json` (checked by hand) never touch a model.
+**`/compose` never teaches an unchecked phrase.** The order is:
+1. The deterministic word list refuses religious, political, violent or slang messages.
+2. If the message is a lesson phrase ("thank you", "water"), the checked lesson content answers it.
+3. If `content/phrases/examples.json` (hand-checked, optional) has it, that answers it.
+4. Otherwise qwen2.5:14b (patient hedge with 7b) writes it, and an **independent 14b check** back-translates
+   it and judges the meaning. A mismatch gets one retry that is told what the text actually said; a second
+   mismatch returns an honest "not confident, try something simpler". Only checked answers are cached
+   (`data/llm_cache.json`). Mandarin pinyin is computed with pypinyin.
+
+About 45 s after startup, likely demo phrases are prepared in all six languages this way. `/name` answers
+from `content/names/examples.json` first, otherwise asks 14b by sound (cached).
 
 ## Contract
 

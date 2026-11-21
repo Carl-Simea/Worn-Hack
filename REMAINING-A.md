@@ -11,7 +11,7 @@ _Last updated 2026-11-21, overnight. Everything below is pushed to origin/main._
   `/live/state.agent_steps`. 14b → 7b hedged fallback, guardrails, and a rule policy if both models are down.
 - **3-tier perception** with per-tier latency in `/live/state.latency`.
 - **6 languages** (Mandarin, Hindi, Arabic, Russian, Hebrew, Greek). Japanese and ASL are filtered out even if a file returns.
-- **Tests:** `uv run pytest` (54 fast, models mocked) and `uv run pytest -m live` (real qwen2.5vl on teammates' handwriting).
+- **Tests:** `uv run pytest` (65 fast, models mocked) and `uv run pytest -m live` (real qwen2.5vl on teammates' handwriting).
 
 ## Real-world handwriting eval (teammate notebook photos, `backend/test_data/handwriting`)
 Full table: `backend/test_data/eval_results.md` (re-run: `uv run python eval_handwriting.py --live`).
@@ -50,4 +50,9 @@ check (no "done" on a half-written character).
   Simulator.** DEMO.md's "about a second" is optimistic; say "a couple of seconds".
 - **Hebrew ש** is sometimes read as ע or ב by qwen2.5vl (2 of 4 tries). If it trips during the demo, demo Hebrew with
   another item, or just let the tutor's "retry" carry it.
+- **Help me write (compose):** qwen2.5 is weak at Hebrew, Greek and Hindi beyond basic phrases. The backend checks
+  every answer independently and refuses rather than teach a wrong phrase. In the test set the check caught 5 of 5
+  wrong phrases but also refused some valid requests while the GPU was busy. For the demo, use a lesson phrase or a
+  phrase from C's checked phrasebook (`content/phrases/examples.json`, if C adds it), e.g. "thank you, friend" in
+  Russian or Mandarin.
 - **Slanted Arabic م** matches C's authored template less well than the others (tier-2 hint only; grading is unaffected).
