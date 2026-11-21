@@ -25,6 +25,17 @@ class FakeModels:
         data = {"seen": seen, "score": 92 if seen == char else 30, "fix": "" if seen == char else "Close the top loop."}
         return vision.parse_grade(data, char), {"model": "fake-vision", "ms": 5}
 
+    async def vision_rubric(self, image, char, lang):
+        """The rubric on the crop: a confident 9s for the target, 1s for anything else."""
+        self.vision_calls += 1
+        seen = char if self.seen is None else self.seen
+        good = seen == char
+        v = 9 if good else 1
+        d = {"recognizable": v, "proportions": 8 if good else 3, "stroke_placement": 8 if good else 2,
+             "completeness": 9 if good else 3, "neatness": 8 if good else 4, "seen": seen,
+             "fix": "" if good else "Close the top loop."}
+        return d, {"model": "fake-vision", "ms": 5}
+
     async def tutor_json(self, prompt, *, system=None, validate=None, num_predict=256, temperature=0.3, **kw):
         self.tutor_calls.append(prompt)
         if "Translate this short message" in prompt:
@@ -46,6 +57,7 @@ class FakeModels:
 def fake(monkeypatch):
     f = FakeModels()
     monkeypatch.setattr(vision, "grade", f.vision_grade)
+    monkeypatch.setattr(vision, "rubric", f.vision_rubric)
     monkeypatch.setattr(llm, "tutor_json", f.tutor_json)
 
     async def check(model, prompt, **kw):  # the independent translation check: always agrees here
@@ -134,7 +146,11 @@ def test_grade_correct_runs_full_agent_loop(client, fake):
     g = r.json()
     for k in ("correct", "score", "feedback", "reaction"):
         assert k in g
-    assert g["correct"] is True and g["reaction"] == "You did it!" and g["mood"] == "celebrate"
+    assert g["correct"] is True and g["status"] == "ok" and g["reaction"] and g["mood"] == "celebrate"
+    assert set(g["subscores"]) == {"recognizable", "proportions", "placement", "completeness", "neatness"}
+    assert all(0 <= v <= 100 for v in g["subscores"].values()) and isinstance(g["score"], int)
+    assert g["crop_url"].startswith("/captures/crops/") and client.get(g["crop_url"]).status_code == 200
+    assert len(g["crop_box"]) == 4
     assert g["next"]["char"] == "好" and g["next"]["action"] == "advance"
     assert g["image_url"].startswith("/captures/") and client.get(g["image_url"]).status_code == 200
     assert client.get("/session/result").json()["ts"] == g["ts"]
@@ -144,7 +160,7 @@ def test_grade_correct_runs_full_agent_loop(client, fake):
     steps = live["agent_steps"]
     run = [s for s in steps if s["run_id"] == g["agent"]["run_id"]]
     assert [s["phase"] for s in run][:1] == ["observe"]
-    assert {"grade_character", "compare_to_template", "choose_next_item", "react"} <= {s["tool"] for s in run}
+    assert {"find_writing", "grade_character", "compare_to_template", "choose_next_item", "react"} <= {s["tool"] for s in run}
     assert any(s["phase"] == "decide" for s in run)
     assert all(s["ms"] is not None for s in run if s["tool"])
 
@@ -157,10 +173,8 @@ def test_grade_miss_guardrail_forces_retry_then_moves_on(client, fake):
     for _ in range(3):
         g = client.post("/grade", files={"image": ("p.jpg", img, "image/jpeg")}).json()
         actions.append(g["agent"]["action"])
-        assert g["correct"] is False and g["score"] <= 45
-    assert actions == ["retry", "retry", "advance"]  # the fake LLM always says advance; guardrail holds 2x
-    steps = client.get("/live/state").json()["agent_steps"]
-    assert any("guardrail" in s["summary"] for s in steps)
+        assert g["correct"] is False and g["score"] < 70
+    assert actions == ["retry", "retry", "advance"]  # 3 misses, then move on (memory brings it back)
 
 
 def test_grade_feedback_is_never_harsh(client, fake, monkeypatch):
@@ -173,14 +187,27 @@ def test_grade_feedback_is_never_harsh(client, fake, monkeypatch):
     assert "messy" not in g["feedback"].lower() and "wrong" not in g["feedback"].lower()
 
 
-def test_grade_vision_down_is_friendly_503(client, monkeypatch):
+def test_grade_rubric_down_still_grades_by_shape(client, monkeypatch):
     start(client)
 
     async def down(*a, **k):
         raise llm.LLMError("connection refused")
-    monkeypatch.setattr(vision, "grade", down)
+    monkeypatch.setattr(vision, "rubric", down)
     r = client.post("/grade", files={"image": ("p.jpg", write_on_paper("你"), "image/jpeg")})
-    assert r.status_code == 503 and "moment" in r.json()["message"]
+    g = r.json()
+    assert r.status_code == 200 and g["status"] == "ok" and g["score"] == g["shape"]["score"]
+    assert "error" in g["rubric"]
+
+
+def test_blank_paper_is_no_writing_not_zero(client, fake):
+    from conftest import paper_crop
+    import io
+    start(client)
+    b = io.BytesIO()
+    paper_crop(2).save(b, "JPEG")
+    g = client.post("/grade", files={"image": ("p.jpg", b.getvalue(), "image/jpeg")}).json()
+    assert g["status"] == "no_writing" and g["score"] is None and "30 cm" in g["feedback"]
+    assert client.get("/journal").json()["total"] == 0  # not counted as an attempt
 
 
 def test_grade_rules_when_both_tutor_models_fail(client, fake, monkeypatch):
@@ -538,29 +565,19 @@ def test_compose_phrasebook_is_used_first(client, monkeypatch):
     assert d["native"] == "χρόνια πολλά" and "phrasebook" in d["model"] and d["verified"] is True
 
 
-def test_template_arbitration_overturns_lookalike_misread(client, monkeypatch):
-    """qwen2.5vl reads ש as ע: tier 2 compares both templates and the clear winner counts."""
+def test_lookalike_misread_is_overruled_by_a_clear_shape_match(client, fake):
+    """qwen2.5vl reads ש as ע: when the strokes clearly match ש (and not the other letters), it counts."""
     start(client, "hebrew", "hello")
-
-    async def misread(jpeg, char, lang):
-        return vision.parse_grade({"seen": "ע", "score": 45, "fix": "make the top straight"}, char, lang), {"model": "f"}
-    monkeypatch.setattr(vision, "grade", misread)
-    monkeypatch.setattr(llm, "tutor_json", FakeModels().tutor_json)
+    fake.seen = "ע"
     g = client.post("/grade", files={"image": ("p.jpg", write_on_paper("ש"), "image/jpeg")}).json()
-    assert g["correct"] is True, g
-    steps = client.get("/live/state").json()["agent_steps"]
-    assert any("Template arbitration" in s["summary"] and "counts as" in s["summary"] for s in steps)
+    assert g["shape"]["score"] >= 70 and g["subscores"]["recognizable"] >= 60
 
 
-def test_template_arbitration_keeps_a_real_wrong_letter_wrong(client, monkeypatch):
+def test_a_real_wrong_letter_stays_wrong(client, fake):
     start(client, "hebrew", "hello")
-
-    async def reads_tav(jpeg, char, lang):
-        return vision.parse_grade({"seen": "ת", "score": 40, "fix": ""}, char, lang), {"model": "f"}
-    monkeypatch.setattr(vision, "grade", reads_tav)
-    monkeypatch.setattr(llm, "tutor_json", FakeModels().tutor_json)
+    fake.seen = "ת"
     g = client.post("/grade", files={"image": ("p.jpg", write_on_paper("ת"), "image/jpeg")}).json()
-    assert g["correct"] is False
+    assert g["correct"] is False and g["score"] < 70
 
 
 def test_phrasebook_form_note_is_shown(client, monkeypatch):

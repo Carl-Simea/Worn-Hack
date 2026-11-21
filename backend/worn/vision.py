@@ -119,3 +119,40 @@ def unicode_name(char: str) -> str:
             pass
     return " + ".join(names) or "character"
 
+
+
+# ------------------------------------------------------------------ rubric (measured grading, worn/grading.py)
+
+RUBRIC_PROMPT = """This image has two panels. LEFT: a beginner's handwriting (photo, cropped). RIGHT: the target {lang_name} character "{char}" ({uname}) in print.
+Rate the LEFT handwriting as an attempt at the RIGHT character. Personal style (print vs cursive, slant, line thickness) is never a fault.
+
+Reply with JSON only:
+{{"seen": "the character you read on the LEFT", "rec": 0-10, "prop": 0-10, "place": 0-10, "comp": 0-10, "neat": 0-10, "fix": "ONE fix, max 7 words, or empty"}}
+
+rec = recognizable as {char} (0-2 if it is a different character or unreadable). prop = proportions. place = parts in the right places relative to each other. comp = all strokes/parts present. neat = clean lines."""
+
+RUBRIC_KEYS = ("recognizable", "proportions", "stroke_placement", "completeness", "neatness")
+
+
+def _rubric_validator(d: dict) -> dict:
+    out = {}
+    short = {"recognizable": "rec", "proportions": "prop", "stroke_placement": "place", "completeness": "comp",
+             "neatness": "neat"}
+    for k in RUBRIC_KEYS:
+        v = d.get(short[k], d.get(k))
+        out[k] = int(round(max(0.0, min(10.0, float(v)))))
+    out["seen"] = _unlatex(str(d.get("seen") or "").strip())[:8]
+    fix = str(d.get("fix") or "").strip()
+    out["fix"] = fix.splitlines()[0][:120] if fix else ""
+    return out
+
+
+async def rubric(image_jpeg: bytes, char: str, lang: str) -> tuple[dict, dict]:
+    """qwen2.5vl scores the cropped writing next to the reference → ({5 sub-scores 0-10, seen, fix}, meta)."""
+    import time
+    t0 = time.perf_counter()
+    prompt = RUBRIC_PROMPT.format(lang_name=LANG_NAMES.get(lang, lang), char=char, uname=unicode_name(char))
+    data = await llm.json_call(llm.config.VISION_MODEL, prompt, images=[base64.b64encode(image_jpeg).decode()],
+                               timeout=llm.config.GRADE_TIMEOUT, validate=_rubric_validator, temperature=0.1,
+                               num_predict=70)
+    return data, {"model": llm.config.VISION_MODEL, "ms": int((time.perf_counter() - t0) * 1000)}

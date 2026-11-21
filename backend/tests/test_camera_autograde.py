@@ -102,7 +102,7 @@ def test_auto_grade_scores_each_stroke_then_grades_itself(auto, fake):
     res = _wait_phase(auto, "result")
     assert res["score"] is not None
     last = auto.get("/live/state").json()["last_result"]
-    assert last["source"] == "preview" and last["correct"] is True
+    assert last["source"] == "preview" and last["status"] == "ok" and last["subscores"]
     steps = [s for s in auto.get("/live/state").json()["agent_steps"] if s.get("tool") == "t2"]
     assert steps and "Stroke" in steps[0]["summary"]
 

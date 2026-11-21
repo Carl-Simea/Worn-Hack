@@ -24,7 +24,7 @@ import logging
 import time
 from typing import Any, Awaitable, Callable
 
-from . import compose as compose_mod
+from . import grading, compose as compose_mod
 from . import config, llm, memory, scripts, strokes, vision
 from .live import LIVE
 
@@ -175,6 +175,17 @@ def guardrails(dec: dict, correct: bool, tries_after: int) -> tuple[dict, str | 
 
 # ------------------------------------------------------------------ grade run
 
+LLM_DECIDE = __import__("os").environ.get("WORN_LLM_DECIDE", "0") == "1"
+
+
+def _save_crop(jpeg: bytes, image_url: str | None) -> str:
+    d = config.CAPTURE_DIR / "crops"
+    d.mkdir(parents=True, exist_ok=True)
+    name = (image_url or "").rsplit("/", 1)[-1] or f"{int(time.time() * 1000)}.jpg"
+    (d / name).write_bytes(jpeg)
+    return f"/captures/crops/{name}"
+
+
 async def run_grade(jpeg: bytes, char: str, lang: str, session: dict | None, image_url: str | None,
                     user: str = memory.DEFAULT_USER, progress=None) -> dict:
     """The full loop for one handwriting photo. Returns the /grade response body."""
@@ -193,66 +204,48 @@ async def run_grade(jpeg: bytes, char: str, lang: str, session: dict | None, ima
              data={"char": char, "lang": lang, "item_id": item_id, "char_index": char_index,
                    "image_url": image_url, "memory": {k: mem.get(k) for k in ("attempts", "fails", "streak")}})
 
-    # EVALUATE: vision (tier 3) and template (tier 2 machinery) in parallel
-    async def _vision():
-        try:
-            return await vision.grade(jpeg, char, lang)
-        except Exception:
-            if config.FAKE_GRADE:
-                return {"correct": True, "score": 80, "seen": char, "feedback": "Nice work, keep going!"}, \
-                       {"model": "fake (WORN_FAKE_GRADE=1)"}
-            raise
-
-    async def _template():
-        return await asyncio.to_thread(strokes.compare_full, jpeg, lang, char)
-
-    vis_task = run.tool("evaluate", "grade_character", _vision,
-                        lambda r: f"Vision read \"{r.get('seen') or '?'}\": {r['score']}/100, "
-                                  f"{'correct' if r['correct'] else 'not yet'}")
-    tmp_task = run.tool("evaluate", "compare_to_template", _template,
-                        lambda r: f"Template match {r['score']}/100 ({r['template']})")
-    vis_res, tmp_res = await asyncio.gather(vis_task, tmp_task, return_exceptions=True)
-    if isinstance(vis_res, BaseException):
-        raise vis_res  # /grade turns this into a friendly 503
-    graded, vmeta, vision_ms = vis_res
-    template_score = None if isinstance(tmp_res, BaseException) else tmp_res[0]["score"]
-    LIVE.latency("tier3", vision_ms)
-
-    # Echo guard: a vision model told the target can "read" it in anything (a big X read as 你).
-    # A weak read (model's own score < 60) only counts when the stroke template agrees.
-    if (graded["correct"] and graded.get("model_score", 100) < ECHO_MODEL_SCORE and template_score is not None
-            and template_score < ECHO_TEMPLATE_SCORE):
-        graded = {**graded, "correct": False, "score": min(graded["score"], 40),
-                  "feedback": f"Hmm, I'm not sure that's {char} yet. Watch the strokes, then try again."}
-        run.step("evaluate", f"Echo guard: vision only {graded.get('model_score')}/100 and template {template_score}/100, "
-                             f"so not counted", data={"guard": "echo"})
-    # Template arbitration: vision models confuse look-alike letters in less common scripts (qwen2.5vl
-    # reads ש as ע). When vision names a different single letter but the target's stroke template
-    # matches strongly, compare the photo against BOTH templates; a clear win for the target overturns it.
-    seen = graded.get("seen") or ""
-    same_script_letter = len(seen) == 1 and seen != char and lang in scripts._RANGES and scripts.in_script(seen, lang)
-    if (not graded["correct"] and same_script_letter and template_score is not None
-            and template_score >= ARBITRATE_MIN):
-        t_arb = time.perf_counter()
-        try:
-            other = (await asyncio.to_thread(strokes.compare_full, jpeg, lang, seen))["score"]
-        except Exception:
-            other = None
-        if other is not None and template_score - other >= ARBITRATE_MARGIN:
-            graded = {**graded, "correct": True, "score": max(min(template_score, 80), 65), "seen": char,
-                      "vision_seen": seen, "feedback": f"Got it, that's {char}!", "arbitrated": True}
-        run.step("evaluate", f"Template arbitration {char} vs {seen}: {template_score} vs {other}"
-                             + (" -> counts as " + char if graded.get("arbitrated") else " -> vision stands"),
-                 tool="compare_to_template", ms=(time.perf_counter() - t_arb) * 1000,
-                 data={"target": template_score, "seen": other, "overturned": bool(graded.get("arbitrated"))})
-    # Vision answered with a symbol, not a letter ('\\' for a slanted λ): no letter to compare against,
-    # so only a very strong stroke-template match counts.
-    if (not graded["correct"] and len(seen) == 1 and not seen.isalpha() and template_score is not None
-            and template_score >= SYMBOL_TEMPLATE_SCORE):
-        graded = {**graded, "correct": True, "score": max(min(template_score, 80), 65), "seen": char,
-                  "vision_seen": seen, "feedback": f"Got it, that's {char}!", "arbitrated": True}
-        run.step("evaluate", f"Vision saw only a symbol ({seen}); template {template_score}/100 says {char}",
-                 data={"guard": "symbol", "template": template_score})
+    # EVALUATE: find the writing → measure its shape → Scribi's rubric (worn/grading.py)
+    t_eval = time.perf_counter()
+    try:
+        g = await grading.grade(jpeg, char, lang, progress=progress)
+    except Exception as e:
+        run.step("evaluate", f"grade failed: {str(e)[:100]}", tool="grade_character", status="error")
+        raise
+    eval_ms = (time.perf_counter() - t_eval) * 1000
+    crop_url = None
+    if g.get("crop"):
+        crop_url = _save_crop(g["crop"], image_url)
+    if g["status"] == "no_writing":
+        run.step("evaluate", "No writing found in the photo", tool="find_writing", ms=g["ms"]["find"])
+        result = {"status": "no_writing", "correct": False, "score": None, "subscores": None, "feedback": g["feedback"],
+                  "reaction": g["feedback"], "mood": "gentle", "emoji": "👀", "sound": "hint", "seen": "",
+                  "template_score": None, "crop_url": None, "crop_box": None, "char": char, "lang": lang,
+                  "item_id": item_id, "char_index": char_index, "image_url": image_url, "next": None,
+                  "tries": LIVE.tries, "agent": {"run_id": run.id, "decided_by": "rules", "fallback": False,
+                                                  "thought": "nothing to grade", "action": "retry"},
+                  "latency_ms": run.total_ms(), "tier3_ms": 0, "ts": time.time()}
+        LIVE.latency("grade", result["latency_ms"])
+        run.step("act", "Asked to show the paper again", ms=result["latency_ms"])
+        return result
+    shp, rub = g["shape"] or {}, g["rubric"] or {}
+    run.step("evaluate", f"Found the writing ({g['crop_box'][2]}x{g['crop_box'][3]} px"
+             + (f", deskewed {g['deskew_deg']}°" if g.get("deskew_deg") else "") + ")",
+             tool="find_writing", ms=g["ms"]["find"], data={"crop_url": crop_url, "crop_box": g["crop_box"]})
+    run.step("evaluate", f"Shape {shp.get('score')}/100 vs {shp.get('ref')} "
+             f"(coverage {shp.get('coverage')}, precision {shp.get('precision')}"
+             + (f", closest other: {shp['other_char']}" if shp.get("other_char") else "") + ")",
+             tool="compare_to_template", ms=shp.get("ms"), data={k: shp.get(k) for k in ("score", "metrics", "margin")})
+    if rub.get("score") is not None:
+        run.step("evaluate", f"Scribi's rubric {rub['score']}/100, reads \"{rub.get('seen') or '?'}\""
+                 + (f"; fix: {rub['fix']}" if rub.get("fix") else ""), tool="grade_character",
+                 ms=rub.get("ms"), model=config.VISION_MODEL, data={k: rub.get(k) for k in grading.RW})
+        LIVE.latency("tier3", rub.get("ms") or 0)
+    else:
+        run.step("evaluate", f"Rubric unavailable ({rub.get('error')}); shape only", tool="grade_character",
+                 status="error")
+    graded = {"correct": g["correct"], "score": g["score"], "seen": g["seen"], "feedback": g["feedback"]}
+    template_score = shp.get("score")
+    vision_ms = rub.get("ms") or 0
     correct = bool(graded["correct"])
     tries_after = 0 if correct else LIVE.tries + 1
     weak = sorted(((memory.weakness(st), c) for c, st in memory.lang_stats(lang, user).items()
@@ -267,12 +260,17 @@ async def run_grade(jpeg: bytes, char: str, lang: str, session: dict | None, ima
         mem=(f"{mem.get('attempts', 0)} tries, {mem.get('fails', 0)} misses" if mem else "never tried before"),
         tries=tries_after, weak=", ".join(c for _, c in weak) or "none")
     t = time.perf_counter()
-    try:
-        dec, dmeta = await llm.tutor_json(prompt, system=DECIDE_SYSTEM, validate=_decide_validator,
-                                          num_predict=48, temperature=0.5)
-        via = dmeta["model"] + (" (fallback: " + dmeta.get("reason", "") + ")" if dmeta.get("fallback") else "")
-    except llm.LLMError as e:
-        dec, dmeta, via = rule_policy(correct, tries_after, bool(weak)), {"model": "rules"}, f"rules ({e})"
+    if not LLM_DECIDE:  # the grade stays under 3 s; the rule policy is the documented fast path
+        dec, dmeta, via = rule_policy(correct, tries_after, bool(weak)), {"model": "rules"}, "rules (fast path)"
+        if not correct and graded.get("feedback"):
+            dec = {**dec, "reaction": "Almost! " + graded["feedback"].split(":")[-1].strip()[:70]}
+    else:
+        try:
+            dec, dmeta = await llm.tutor_json(prompt, system=DECIDE_SYSTEM, validate=_decide_validator,
+                                              num_predict=48, temperature=0.5)
+            via = dmeta["model"] + (" (fallback: " + dmeta.get("reason", "") + ")" if dmeta.get("fallback") else "")
+        except llm.LLMError as e:
+            dec, dmeta, via = rule_policy(correct, tries_after, bool(weak)), {"model": "rules"}, f"rules ({e})"
     decide_ms = (time.perf_counter() - t) * 1000
     LIVE.latency("decide", decide_ms)
     dec, guard = guardrails(dec, correct, tries_after)
@@ -305,6 +303,15 @@ async def run_grade(jpeg: bytes, char: str, lang: str, session: dict | None, ima
         "sound": rx["sound"],
         "seen": graded.get("seen", ""),
         "template_score": template_score,
+        "status": "ok",
+        "subscores": g["subscores"],
+        "weakest": g.get("weakest"),
+        "crop_url": crop_url,
+        "crop_box": g["crop_box"],
+        "frame": g.get("frame"),
+        "shape": shp,
+        "rubric": rub,
+        "grade_ms": g["ms"],
         "char": char,
         "lang": lang,
         "item_id": item_id,
