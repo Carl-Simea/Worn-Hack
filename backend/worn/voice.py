@@ -335,6 +335,11 @@ def _clean_name(raw: str) -> str:
     return " ".join(w.capitalize() for w in n.split()[:4])
 
 
+MAX_COMMAND_WORDS = 6
+FILLER_WORDS = {"is", "it", "this", "that", "what", "a", "the", "so", "was", "i", "you", "there", "they", "we", "he",
+                "she", "and", "or", "but", "well", "yeah", "um", "uh", "like", "be", "are", "its", "it's", "that's"}
+
+
 def parse(text: str, screen: str | None, ctx: dict) -> dict:
     """→ {intent, args}. ctx: {"lang", "items": [lesson items of ctx lang], "langs": {...}}"""
     t = norm(text)
@@ -362,6 +367,11 @@ def parse(text: str, screen: str | None, ctx: dict) -> dict:
         body = re.sub(r"^(?:the word|the phrase|a|the)\s+", "", body).strip(" ?")
         if body and body not in ("it", "this", "that"):
             return {"intent": "compose", "args": {"text": body, "lang": lang}}
+
+    # room chatter ("that's the thing, that's definitely ...") is never a command: commands are short
+    n_words = len(t.split())
+    if n_words > MAX_COMMAND_WORDS:
+        return {"intent": "unknown", "args": {"reason": "chatter"}}
 
     # 2. on the word list (or in a lesson), a bare word picks it: "water", "number two"
     lang = find_lang(t)
@@ -402,10 +412,10 @@ def parse(text: str, screen: str | None, ctx: dict) -> dict:
     # 5. single-word fuzzy rescue for mishearings ("chek", "nex", "skipp")
     words = {p: i for i, ps in PHRASES for p in ps if " " not in p}
     for tok in t.split():
-        hit = _fuzzy_word(tok, list(words), cutoff=0.8) if len(tok) >= 4 else None
+        hit = _fuzzy_word(tok, list(words), cutoff=0.8) if len(tok) >= 4 and n_words <= 2 else None
         if hit:
             return {"intent": words[hit], "args": {"fuzzy": tok}}
-    if lang:
+    if lang and n_words <= 3:
         return {"intent": "learn", "args": {"lang": lang}}
     return {"intent": "unknown", "args": {}}
 
@@ -488,8 +498,8 @@ def parse_any(text: str, screen: str | None, ctx: dict) -> dict:
                     intent, a = "open", {"screen": menu[k - 1]}
                 else:
                     intent = None
-            if intent == "compose" and not a.get("text"):
-                intent = None
+            if intent == "compose" and (not a.get("text") or set(norm(a["text"]).split()) <= FILLER_WORDS):
+                intent = None  # "is it in Hindi" is chatter, not a phrase to translate
             if intent:
                 return {"intent": intent, "args": a, "matcher": "content"}
     r = parse(text, screen, ctx)

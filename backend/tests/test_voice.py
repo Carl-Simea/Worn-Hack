@@ -246,3 +246,11 @@ def test_back_works_with_display_name_breadcrumbs(vc):
     assert say(vc, "back", "words")["nav"] == {"screen": "learn"}
     vc.post("/app-state", json={"screen": "lesson", "breadcrumb": ["Home", "Daily 5", "你"]})
     assert say(vc, "back", "lesson")["nav"]["screen"] in ("words", "daily5")
+
+
+@pytest.mark.parametrize("chatter", ["that's the thing, that's definitely", "yeah I think we should go back to the hotel later",
+                                     "I was in Greece last summer it was great", "okay so the next thing on the agenda is lunch"])
+def test_room_chatter_is_harmless(vc, chatter):
+    for screen in ("home", "lesson", "words"):
+        d = say(vc, chatter, screen)
+        assert d["intent"] == "unknown" and d["nav"] is None and d["session"] is None, (screen, d)
