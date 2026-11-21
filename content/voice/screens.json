@@ -1,0 +1,267 @@
+{
+ "_about": "What each glasses screen shows and says (agent C). Every screen tells the wearer what to say next. 'hint'/'hint2' are on-screen lines (<= 40 chars); 'say' is spoken on entry. {placeholders} are filled at runtime.",
+ "screens": {
+  "home": {
+   "title": "Worn",
+   "say": "Hi! Say learn, write my name, or help.",
+   "hint": "Say “learn”, “daily five” or “help”",
+   "suggestions": [
+    "learn Mandarin",
+    "write my name, Maria",
+    "daily five",
+    "how to use"
+   ],
+   "menu": [
+    {
+     "label": "Learn",
+     "say": "learn",
+     "screen": "learn"
+    },
+    {
+     "label": "Write my name",
+     "say": "write my name",
+     "screen": "name"
+    },
+    {
+     "label": "Help me write",
+     "say": "help me write",
+     "screen": "compose"
+    },
+    {
+     "label": "Daily 5",
+     "say": "daily five",
+     "screen": "daily5"
+    },
+    {
+     "label": "Journal",
+     "say": "journal",
+     "screen": "journal"
+    },
+    {
+     "label": "How to use",
+     "say": "how to use",
+     "screen": "howto"
+    }
+   ]
+  },
+  "learn": {
+   "title": "Learn",
+   "breadcrumb": [
+    "Home",
+    "Learn"
+   ],
+   "say": "Which language? Say its name.",
+   "hint": "Say a language, like “Greek”",
+   "suggestions": [
+    "Mandarin",
+    "Hindi",
+    "Arabic",
+    "Russian",
+    "Hebrew",
+    "Greek"
+   ]
+  },
+  "words": {
+   "title": "{language}",
+   "breadcrumb": [
+    "Home",
+    "Learn",
+    "{language}"
+   ],
+   "say": "{language}. Say a word: hello, thank you, water, friend, or one.",
+   "hint": "Say a word, like “hello”",
+   "suggestions": [
+    "hello",
+    "thank you",
+    "water",
+    "friend",
+    "one",
+    "back"
+   ]
+  },
+  "lesson": {
+   "title": "{word}",
+   "breadcrumb": [
+    "Learn",
+    "{language}",
+    "{word}"
+   ],
+   "suggestions": [
+    "check",
+    "show me again",
+    "slower",
+    "skip",
+    "what does this mean"
+   ],
+   "phases": {
+    "watch": {
+     "say": "{word}. {romanization}. Watch.",
+     "hint": "Watch… say “show me again”",
+     "after": "Your turn. Say next when you're ready."
+    },
+    "your_turn": {
+     "say": "Stroke {n} of {m}.",
+     "hint": "Write stroke {n} of {m}",
+     "hint2": "Say “next” or “I'm done”",
+     "last": "Last stroke! Say done when it's on paper."
+    },
+    "check": {
+     "say": "Let me look.",
+     "hint": "Checking your writing…"
+    },
+    "result": {
+     "pass": {
+      "say": "{reaction} Say next for the next word.",
+      "hint": "Say “next” or “try again”"
+     },
+     "retry": {
+      "say": "{fix} Say try again, or skip.",
+      "hint": "Say “try again” or “skip”"
+     },
+     "word_done": {
+      "say": "That's {word} in {language}! Say next.",
+      "hint": "Say “next word” or “home”"
+     },
+     "language_done": {
+      "say": "You've done every {language} word! Say home, or a new language.",
+      "hint": "Say “home” or a language"
+     }
+    }
+   }
+  },
+  "name": {
+   "title": "Write my name",
+   "breadcrumb": [
+    "Home",
+    "Write my name"
+   ],
+   "say": "Say your name, like: my name is Maria.",
+   "hint": "Say “my name is …”",
+   "hint2": "Then a language, like “Greek”",
+   "after_name": "{name}. Say a language: Hindi, Arabic, Russian, Hebrew, or Greek.",
+   "shown": "That's {name} in {language}. Write it, then say done.",
+   "suggestions": [
+    "my name is Maria",
+    "Greek",
+    "check",
+    "back"
+   ]
+  },
+  "compose": {
+   "title": "Help me write",
+   "breadcrumb": [
+    "Home",
+    "Help me write"
+   ],
+   "say": "What do you want to write? Say: how do I write good morning in Greek.",
+   "hint": "Say “how do I write … in …”",
+   "hint2": "e.g. “good night in Hebrew”",
+   "shown": "{text} in {language}. Write it, then say done.",
+   "failed": "I couldn't write that one. Try a shorter phrase.",
+   "suggestions": [
+    "how do I write good morning in Greek",
+    "happy birthday in Hindi",
+    "check",
+    "back"
+   ]
+  },
+  "daily5": {
+   "title": "Daily 5",
+   "breadcrumb": [
+    "Home",
+    "Daily 5"
+   ],
+   "say": "Five quick words from memory. Here's the first.",
+   "hint": "Write it from memory",
+   "hint2": "Say “I'm done” or “show me”",
+   "item": "Word {n} of 5: {meaning}. Write it in {language}.",
+   "done": "Daily five done! {score} of 5. Say home.",
+   "empty": "Learn a few words first. Say learn.",
+   "suggestions": [
+    "I'm done",
+    "show me again",
+    "skip",
+    "home"
+   ]
+  },
+  "journal": {
+   "title": "Journal",
+   "breadcrumb": [
+    "Home",
+    "Journal"
+   ],
+   "say": "Your journal. Say next or previous to flip pages.",
+   "hint": "Say “next”, “previous” or “home”",
+   "empty": "Nothing here yet. Say learn to write your first word.",
+   "suggestions": [
+    "next",
+    "previous",
+    "home"
+   ]
+  },
+  "howto": {
+   "title": "How to use",
+   "breadcrumb": [
+    "Home",
+    "How to use"
+   ],
+   "say": "Here's how Worn works. Say next for each tip.",
+   "hint": "Say “next” or “home”",
+   "pages": [
+    {
+     "title": "Just talk",
+     "lines": [
+      "Say what you want.",
+      "“Learn Greek”, “home”, “back”."
+     ],
+     "say": "Just talk. Say what you want, like learn Greek, home, or back."
+    },
+    {
+     "title": "Watch, then write",
+     "lines": [
+      "Watch each stroke.",
+      "Write it on paper, big and dark."
+     ],
+     "say": "Watch each stroke, then write it on paper with a dark pen."
+    },
+    {
+     "title": "Say done",
+     "lines": [
+      "Look at your paper.",
+      "Say “I'm done” to check it."
+     ],
+     "say": "Look at your paper and say I'm done. I'll check it."
+    },
+    {
+     "title": "Stuck?",
+     "lines": [
+      "“Show me again”, “slower”,",
+      "“skip”, or “what can I say”."
+     ],
+     "say": "Stuck? Say show me again, slower, skip, or what can I say."
+    },
+    {
+     "title": "Button",
+     "lines": [
+      "Press: same as “next”.",
+      "Hold: same as “I'm done”."
+     ],
+     "say": "The button is a backup. Press for next, hold to check."
+    },
+    {
+     "title": "Your name",
+     "lines": [
+      "Say “my name is …”.",
+      "Then a script."
+     ],
+     "say": "Say my name is, then your name, and I'll spell it in a new script."
+    }
+   ],
+   "suggestions": [
+    "next",
+    "previous",
+    "home"
+   ]
+  }
+ }
+}

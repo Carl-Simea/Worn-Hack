@@ -1,0 +1,531 @@
+{
+ "_about": "heard → expected intent (null = not understood). Run: python3 content/tools/voice_match.py --test",
+ "cases": [
+  {
+   "screen": "home",
+   "heard": "home",
+   "intent": "home",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "take me home",
+   "intent": "home",
+   "args": {}
+  },
+  {
+   "screen": "words",
+   "heard": "go back",
+   "intent": "back",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "Back.",
+   "intent": "back",
+   "args": {}
+  },
+  {
+   "screen": "home",
+   "heard": "open learn",
+   "intent": "open",
+   "args": {
+    "screen": "learn"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "open journal",
+   "intent": "open",
+   "args": {
+    "screen": "journal"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "open daily five",
+   "intent": "open",
+   "args": {
+    "screen": "daily5"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "open daily 5",
+   "intent": "open",
+   "args": {
+    "screen": "daily5"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "open help",
+   "intent": "open",
+   "args": {
+    "screen": "howto"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "How to use",
+   "intent": "open",
+   "args": {
+    "screen": "howto"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "journal",
+   "intent": "open",
+   "args": {
+    "screen": "journal"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "Help me write",
+   "intent": "open",
+   "args": {
+    "screen": "compose"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "write my name",
+   "intent": "open",
+   "args": {
+    "screen": "name"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "learn Mandarin",
+   "intent": "learn",
+   "args": {
+    "language": "mandarin"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "Learn Hindi.",
+   "intent": "learn",
+   "args": {
+    "language": "hindi"
+   }
+  },
+  {
+   "screen": "learn",
+   "heard": "arabic",
+   "intent": "learn",
+   "args": {
+    "language": "arabic"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "teach me Russian",
+   "intent": "learn",
+   "args": {
+    "language": "russian"
+   }
+  },
+  {
+   "screen": "learn",
+   "heard": "Hebrew please",
+   "intent": "learn",
+   "args": {
+    "language": "hebrew"
+   }
+  },
+  {
+   "screen": "lesson",
+   "heard": "switch to Greek",
+   "intent": "learn",
+   "args": {
+    "language": "greek"
+   }
+  },
+  {
+   "screen": "learn",
+   "heard": "Chinese",
+   "intent": "learn",
+   "args": {
+    "language": "mandarin"
+   }
+  },
+  {
+   "screen": "learn",
+   "heard": "learn mandrin",
+   "intent": "learn",
+   "args": {
+    "language": "mandarin"
+   }
+  },
+  {
+   "screen": "learn",
+   "heard": "Indy",
+   "intent": "learn",
+   "args": {
+    "language": "hindi"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "hey worn, learn greek",
+   "intent": "learn",
+   "args": {
+    "language": "greek"
+   }
+  },
+  {
+   "screen": "words",
+   "heard": "hello",
+   "intent": "word",
+   "args": {
+    "word": "hello"
+   }
+  },
+  {
+   "screen": "words",
+   "heard": "Thank you!",
+   "intent": "word",
+   "args": {
+    "word": "thank_you"
+   }
+  },
+  {
+   "screen": "words",
+   "heard": "water please",
+   "intent": "word",
+   "args": {
+    "word": "water"
+   }
+  },
+  {
+   "screen": "words",
+   "heard": "friend",
+   "intent": "word",
+   "args": {
+    "word": "friend"
+   }
+  },
+  {
+   "screen": "words",
+   "heard": "one",
+   "intent": "word",
+   "args": {
+    "word": "one"
+   }
+  },
+  {
+   "screen": "words",
+   "heard": "number one",
+   "intent": "word",
+   "args": {
+    "word": "one"
+   }
+  },
+  {
+   "screen": "words",
+   "heard": "shalom",
+   "intent": "word",
+   "args": {
+    "word": "hello"
+   }
+  },
+  {
+   "screen": "words",
+   "heard": "namaste",
+   "intent": "word",
+   "args": {
+    "word": "hello"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "hello in hebrew",
+   "intent": "word",
+   "args": {
+    "word": "hello",
+    "language": "hebrew"
+   }
+  },
+  {
+   "screen": "lesson",
+   "heard": "next",
+   "intent": "next",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "Next one.",
+   "intent": "next",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "okay next",
+   "intent": "next",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "previous",
+   "intent": "previous",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "repeat",
+   "intent": "repeat",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "say it again",
+   "intent": "repeat",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "slower",
+   "intent": "slower",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "slow down please",
+   "intent": "slower",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "show me again",
+   "intent": "show_again",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "replay",
+   "intent": "show_again",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "check",
+   "intent": "check",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "I'm done",
+   "intent": "check",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "I'm done.",
+   "intent": "check",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "Czech",
+   "intent": "check",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "how did I do?",
+   "intent": "check",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "skip",
+   "intent": "skip",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "skip this one",
+   "intent": "skip",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "next word",
+   "intent": "skip",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "try again",
+   "intent": "retry",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "what does this mean?",
+   "intent": "meaning",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "What's this",
+   "intent": "meaning",
+   "args": {}
+  },
+  {
+   "screen": "home",
+   "heard": "help",
+   "intent": "help",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "what can I say",
+   "intent": "help",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "um, help",
+   "intent": "help",
+   "args": {}
+  },
+  {
+   "screen": "home",
+   "heard": "how do I write good morning in Greek",
+   "intent": "how_write",
+   "args": {
+    "text": "good morning",
+    "language": "greek"
+   }
+  },
+  {
+   "screen": "compose",
+   "heard": "How do I write happy birthday in Hindi?",
+   "intent": "how_write",
+   "args": {
+    "text": "happy birthday",
+    "language": "hindi"
+   }
+  },
+  {
+   "screen": "compose",
+   "heard": "how do you say thank you very much in Russian",
+   "intent": "how_write",
+   "args": {
+    "text": "thank you very much",
+    "language": "russian"
+   }
+  },
+  {
+   "screen": "compose",
+   "heard": "help me write good night",
+   "intent": "how_write",
+   "args": {
+    "text": "good night"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "write my name, Maria",
+   "intent": "write_name",
+   "args": {
+    "name": "Maria"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "Write my name Sam",
+   "intent": "write_name",
+   "args": {
+    "name": "Sam"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "my name is Anna",
+   "intent": "write_name",
+   "args": {
+    "name": "Anna"
+   }
+  },
+  {
+   "screen": "home",
+   "heard": "my name is Lina in Arabic",
+   "intent": "write_name",
+   "args": {
+    "name": "Lina",
+    "language": "arabic"
+   }
+  },
+  {
+   "screen": "name",
+   "heard": "write my name John in Greek",
+   "intent": "write_name",
+   "args": {
+    "name": "John",
+    "language": "greek"
+   }
+  },
+  {
+   "screen": "name",
+   "heard": "greek",
+   "intent": "learn",
+   "args": {
+    "language": "greek"
+   }
+  },
+  {
+   "screen": "lesson",
+   "heard": "nxt",
+   "intent": "next",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "chek",
+   "intent": "check",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "show me agin",
+   "intent": "show_again",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "",
+   "intent": null,
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "the",
+   "intent": null,
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "banana pancakes",
+   "intent": null,
+   "args": {}
+  },
+  {
+   "screen": "home",
+   "heard": "check",
+   "intent": null,
+   "args": {}
+  },
+  {
+   "screen": "home",
+   "heard": "learn klingon",
+   "intent": null,
+   "args": {}
+  }
+ ]
+}
