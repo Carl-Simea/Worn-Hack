@@ -29,6 +29,7 @@ If there's time, the strongest extra beat is **Arabic مرحبا**: isolated let
 - [ ] iPhone: Worn app opened and connected to `<laptop-ip>`. Local Network allowed.
 - [ ] Glasses charged and connected (see `ios/README.md`). If not: turn on **Demo Mode (phone camera)** in the app.
 - [ ] Paper: plain white, with a **thick black marker** (thin grey pencil is hard to see). Good light, no glare.
+- [ ] Optional: print a worksheet from `http://<laptop-ip>:8000/print/mandarin` (A4/Letter at 100%). The 3 cm boxes are sized for the glasses camera, and the stroke steps are printed next to each character.
 - [ ] Volume up on the phone and glasses (dings and pronunciation).
 - [ ] Warm-up run: write 你 once and see a check. The first grade warms the models.
 
@@ -37,9 +38,10 @@ If there's time, the strongest extra beat is **Arabic مرحبا**: isolated let
 | If this breaks | Do this |
 |---|---|
 | Glasses won't connect or the camera fails | In the iOS app, turn on **Demo Mode (phone camera)**: same lesson, the phone grades with its own camera. Keep `/live` on the iPad as the "glasses view". |
+| Nothing can drive the glasses, but you need `/live` to move | From the laptop: `uv run --with pillow python web/dev/sim_glasses.py http://127.0.0.1:8000 --lang mandarin --item hello`. It posts what the iPhone + glasses would (strokes, photos, grade, confetti) and `/live` shows it all. Say it's a replay. |
 | Grading feels slow (>5 s) | Quit Xcode, the Simulator and anything else using the GPU. The tutor falls back to rules after 4.5 s, so it always answers. |
 | Vision model is slow or down | Restart the backend with `WORN_FAKE_GRADE=1` (a canned pass instead of an error). Say "the model is warming up" and keep going. |
-| iPhone app misbehaves | Open `http://<laptop-ip>:8000/static/web/phone.html` on any phone: a web phone picker with the same handoff. |
+| iPhone app misbehaves | Open `http://<laptop-ip>:8000/app` in Safari on any phone: the whole learner flow on the web, same lesson and handoff (the glasses follow it). **Check with phone camera** grades a photo if the glasses camera fails. |
 | Venue wifi drops | Put the laptop, phone and iPad on the laptop's hotspot (or a phone hotspot), then use the new laptop IP. |
 | "Write your name" is slow or errors | Use a **checked name**: Maria, John, Emma, Anna, Sam, Mike, Lisa, Lina, Adam, David. They answer instantly from `content/names/examples.json`, even with the model off. |
 | Something looks wrong in a script | Switch to Mandarin 你好 (the most tested path). |
