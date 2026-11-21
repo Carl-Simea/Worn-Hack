@@ -182,13 +182,17 @@ private struct CharacterCard: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            StrokeCanvas(lang: item.lang, char: item.char, strokes: engine.strokes,
-                         shown: resultShowsAll ? 0 : engine.shownStroke, epoch: engine.strokeEpoch,
-                         speed: engine.speed, hidden: !engine.revealed, numbers: engine.manual && engine.revealed)
-                .frame(maxWidth: engine.manual ? 300 : 236)
-                .padding(.horizontal, 20)
-                .id(item.id)
-                .transition(.asymmetric(insertion: .scale(scale: 0.9).combined(with: .opacity), removal: .opacity))
+            HStack(spacing: 6) {
+                arrow("chevron.left", label: "Previous stroke", enabled: canBack) { engine.back() }
+                StrokeCanvas(lang: item.lang, char: item.char, strokes: engine.strokes,
+                             shown: resultShowsAll ? 0 : engine.shownStroke, epoch: engine.strokeEpoch,
+                             speed: engine.speed, hidden: !engine.revealed, numbers: engine.manual && engine.revealed)
+                    .frame(maxWidth: engine.manual ? 280 : 236)
+                    .id(item.id)
+                    .transition(.asymmetric(insertion: .scale(scale: 0.9).combined(with: .opacity), removal: .opacity))
+                arrow("chevron.right", label: "Next stroke", enabled: canNext) { engine.forward() }
+            }
+            .padding(.horizontal, 6)
 
             VStack(spacing: 4) {
                 PhraseLine(item: item, revealed: engine.revealed)
@@ -213,6 +217,29 @@ private struct CharacterCard: View {
         .frame(maxWidth: .infinity)
         .card(padding: 8)
         .animation(.spring(response: 0.5, dampingFraction: 0.85), value: item.id)
+    }
+
+    private var showArrows: Bool { engine.phase == .writing && engine.mode != .dictation }
+    private var canBack: Bool { engine.shownStroke > 1 }
+    private var canNext: Bool { !engine.pacer.isOnLastStroke }
+
+    /// Big round arrows beside the character: one stroke back / forward, any time.
+    @ViewBuilder
+    private func arrow(_ symbol: String, label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        if showArrows {
+            Button(action: action) {
+                Image(systemName: symbol).font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(enabled ? Theme.ink : Theme.inkSoft.opacity(0.35))
+                    .frame(width: 52, height: 52)
+                    .background(Theme.card, in: Circle())
+                    .overlay(Circle().strokeBorder(Theme.hairline))
+            }
+            .buttonStyle(PressableStyle())
+            .disabled(!enabled)
+            .accessibilityLabel(label)
+        } else {
+            Color.clear.frame(width: 52, height: 52)
+        }
     }
 
     private var resultShowsAll: Bool { if case .result = engine.phase { return true }; return false }
@@ -422,13 +449,22 @@ private struct PacingStrip: View {
                     }
                 }
             }
-            Text(engine.pacer.isOnLastStroke ? "Write it on paper, then tap Check." : "Tap Next, or say “next”.")
-                .font(Theme.sans(16)).foregroundStyle(Theme.inkSoft)
-            Button { engine.setStepByStep(false) } label: { Label("Follow my pen instead", systemImage: "pencil.tip") }
-                .font(Theme.sans(15, weight: .semibold))
+            Label(trackingLine, systemImage: engine.followPen ? (engine.trackState == .writing ? "pencil.line" : "eye") : "hand.tap")
+                .font(Theme.sans(16, weight: .medium)).foregroundStyle(engine.trackState == .writing && engine.followPen ? Theme.accent : Theme.inkSoft)
+                .contentTransition(.symbolEffect(.replace))
+            Button { engine.setFollowPen(!engine.followPen) } label: {
+                Label(engine.followPen ? "Pen tracking on" : "Pen tracking off", systemImage: engine.followPen ? "checkmark.circle.fill" : "circle")
+            }
+            .font(Theme.sans(15, weight: .semibold))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: engine.shownStroke)
+    }
+
+    private var trackingLine: String {
+        guard engine.followPen else { return "Use the arrows or say “next”." }
+        if engine.trackState == .writing { return "Writing… I move on when you lift the pen." }
+        return engine.pacer.isOnLastStroke ? "Write the last stroke, then tap Check." : "Watching your page. Arrows or “next” also work."
     }
 
     private var autoBody: some View {
@@ -538,9 +574,6 @@ private struct Controls: View {
     var body: some View {
         HStack(spacing: 10) {
             if engine.manual && engine.phase == .writing {
-                Button { engine.back() } label: { Label("Back", systemImage: "chevron.left").labelStyle(.iconOnly) }
-                    .buttonStyle(QuietButtonStyle())
-                    .disabled(engine.shownStroke <= 1)
                 Button { engine.replay() } label: { Label("Replay", systemImage: "arrow.counterclockwise").labelStyle(.iconOnly) }
                     .buttonStyle(QuietButtonStyle())
             } else {
