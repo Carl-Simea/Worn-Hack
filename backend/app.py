@@ -44,7 +44,8 @@ GRADE_TIMEOUT = float(os.environ.get("WORN_GRADE_TIMEOUT", "45"))
 # Demo safety net only: if the model is down, return a canned pass instead of an error.
 FAKE_GRADE = os.environ.get("WORN_FAKE_GRADE") == "1"
 
-LANG_ORDER = ["mandarin", "hindi", "arabic", "russian", "japanese", "asl"]
+LANG_ORDER = ["mandarin", "hindi", "arabic", "russian", "japanese"]
+CUT_LANGS = {"asl"}  # ASL was cut from the demo
 LANG_NAMES = {
     "mandarin": "Mandarin Chinese (simplified hanzi)",
     "hindi": "Hindi (Devanagari)",
@@ -56,7 +57,7 @@ LANG_NAMES = {
 app = FastAPI(title="Worn")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# Raw content files (audio, stroke animations, ASL videos) under /static/content/...
+# Raw content files (audio, stroke animations) under /static/content/...
 if CONTENT_DIR.is_dir():
     app.mount("/static/content", StaticFiles(directory=CONTENT_DIR), name="content")
 if WEB_DIR.is_dir():
@@ -74,7 +75,8 @@ def load_content() -> dict[str, dict]:
         for f in sorted(d.glob("*.json")):
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
-                langs[data["lang"]] = data
+                if data["lang"] not in CUT_LANGS:
+                    langs[data["lang"]] = data
             except Exception as e:  # bad file from a teammate shouldn't take the server down
                 log.warning("skipping %s: %s", f, e)
     return langs
@@ -122,7 +124,7 @@ class SessionIn(BaseModel):
     lang: str
     phrase_id: str
     char_index: int = 0
-    mode: Literal["write", "asl"] = "write"
+    mode: Literal["write"] = "write"
 
 
 _lock = threading.Lock()
@@ -151,8 +153,7 @@ def build_session(s: SessionIn) -> dict:
         "romanization": p.get("romanization"),
         "meaning": p.get("meaning"),
         "audio_url": static_url(p.get("audio")),
-        "stroke_url": stroke_url(s.lang, p, char) if s.mode == "write" else None,
-        "asl_url": static_url(p.get("asl")),
+        "stroke_url": stroke_url(s.lang, p, char),
         "mode": s.mode,
     }
 
@@ -162,7 +163,7 @@ def build_session(s: SessionIn) -> dict:
 PROMPT = """Look at this photo of handwriting on paper, taken from smart glasses (may be tilted or blurry).
 
 Step 1: Read it. What {lang_name} character/letter is actually written? Answer with the character itself, exactly as you read it, even if it is not the one the learner wanted.
-Step 2: The learner (an American beginner) was TRYING to write "{char}"{extra}. Compare what you read with "{char}".
+Step 2: The learner (an American beginner) was TRYING to write "{char}". Compare what you read with "{char}".
 
 Reply with JSON only:
 {{"seen": "the character you read, or empty if no writing", "score": 0-100, "fix": "if it is not a clean {char}: the ONE most important fix in plain English, max 12 words, otherwise empty"}}
@@ -185,6 +186,8 @@ def parse_grade(text: str, char: str) -> dict:
     seen = str(data.get("seen") or "").strip()
     score = int(max(0, min(100, float(data.get("score") or 0))))
     fix = str(data.get("fix") or "").strip().splitlines()[0][:120] if data.get("fix") else ""
+    if not seen and char in fix:
+        seen = char  # model named the char in its fix but left "seen" blank
     if not seen:
         return {"correct": False, "score": 0, "seen": "",
                 "feedback": "I can't see your writing, hold the paper closer."}
@@ -199,12 +202,9 @@ def parse_grade(text: str, char: str) -> dict:
 
 
 async def run_grader(jpeg: bytes, char: str, lang: str, sess: dict | None) -> dict:
-    extra = ""
-    if sess and sess.get("char") == char:
-        bits = [b for b in (sess.get("romanization") and f'romanized "{sess["romanization"]}"',
-                            sess.get("meaning") and f'from the phrase meaning "{sess["meaning"]}"') if b]
-        extra = f" ({', '.join(bits)})" if bits else ""
-    prompt = PROMPT.format(lang_name=LANG_NAMES.get(lang, lang), char=char, extra=extra)
+    # No phrase-level hints (romanization/meaning of the whole phrase): they made the model
+    # leave "seen" empty, so every grade during an active session came back as score 0.
+    prompt = PROMPT.format(lang_name=LANG_NAMES.get(lang, lang), char=char)
     body = {
         "model": VISION_MODEL,
         "prompt": prompt,
@@ -217,7 +217,9 @@ async def run_grader(jpeg: bytes, char: str, lang: str, sess: dict | None) -> di
     async with httpx.AsyncClient(timeout=GRADE_TIMEOUT) as c:
         r = await c.post(f"{OLLAMA_URL}/api/generate", json=body)
         r.raise_for_status()
-        return parse_grade(r.json().get("response", ""), char)
+        raw = r.json().get("response", "")
+        log.info("model raw: %s", raw)
+        return parse_grade(raw, char)
 
 
 # ---------------------------------------------------------------- routes
@@ -313,6 +315,30 @@ def get_result():
     if _result is None:
         raise HTTPException(404, "no result yet for this session")
     return _result
+
+
+@app.get("/capture/latest")
+def capture_latest():
+    """Most recent photo sent to /grade. X-Capture-Ts is its save time (unix seconds)."""
+    shots = sorted(CAPTURE_DIR.glob("*.jpg"), key=lambda f: f.stat().st_mtime)
+    if not shots:
+        raise HTTPException(404, "no captures yet")
+    f = shots[-1]
+    ts = f"{f.stat().st_mtime:.3f}"
+    return FileResponse(f, media_type="image/jpeg", headers={
+        "X-Capture-Ts": ts,
+        "Cache-Control": "no-store",
+        "Access-Control-Expose-Headers": "X-Capture-Ts",
+    })
+
+
+@app.get("/mirror", response_class=HTMLResponse)
+def mirror_page():
+    """Live audience view, owned by C at web/mirror.html."""
+    p = WEB_DIR / "mirror.html"
+    if not p.exists():
+        raise HTTPException(404, "web/mirror.html not found")
+    return FileResponse(p, media_type="text/html")
 
 
 @app.get("/glasses", response_class=HTMLResponse)

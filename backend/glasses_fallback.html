@@ -10,7 +10,6 @@
   #rom{font-size:40px;color:#7fd}
   #msg{font-size:34px;margin-top:8px;min-height:40px}
   .ok{color:#4f4}.bad{color:#fc4}
-  video{max-width:640px;max-height:420px}
 </style></head>
 <body><div id="wrap"><div id="main"></div><div id="rom"></div><div id="msg">waiting for phone…</div></div>
 <audio id="aud"></audio>
@@ -22,9 +21,7 @@ async function tick(){
     const s = await (await fetch('/session')).json();
     if (s.version !== ver){
       ver = s.version; lastTs = 0; $('msg').textContent=''; $('msg').className='';
-      if (s.mode === 'asl' && s.asl_url){
-        $('main').innerHTML = `<video src="${s.asl_url}" autoplay loop muted playsinline></video>`;
-      } else if (s.stroke_url && /\.(svg|gif)$/.test(s.stroke_url)){
+      if (s.stroke_url && /\.(svg|gif)$/.test(s.stroke_url)){
         $('main').innerHTML = `<img id="stroke" src="${s.stroke_url}">`;
       } else {
         $('main').innerHTML = `<div id="char">${s.char || s.text || ''}</div>`;
