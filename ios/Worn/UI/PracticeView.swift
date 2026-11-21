@@ -39,27 +39,45 @@ private struct PracticeContent: View {
     let engine: PracticeEngine
     let close: () -> Void
 
+    private func panels(_ item: PracticeItem) -> some View {
+        VStack(spacing: 16) {
+            CharacterCard(engine: engine, item: item)
+            StatusPanel(engine: engine, item: item)
+            HStack(alignment: .top, spacing: 12) {
+                if engine.source == .glasses { GlassesMirror(engine: engine, item: item) }
+                if engine.source == .phone && !engine.holdMode { CameraCard(engine: engine) }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 16)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             TopBar(engine: engine, close: close)
             if engine.phase == .finished {
                 SummaryView(engine: engine, close: close)
             } else if let item = engine.current {
-                ScrollView {
-                    VStack(spacing: 16) {
-                        CharacterCard(engine: engine, item: item)
-                        StatusPanel(engine: engine, item: item)
-                        HStack(alignment: .top, spacing: 12) {
-                            if engine.source == .glasses { GlassesMirror(engine: engine, item: item) }
-                            if engine.source == .phone && (!engine.holdMode || engine.aimCountdown != nil) { CameraCard(engine: engine) }
-                        }
-                        if engine.aimCountdown != nil { AimBar(engine: engine) }
+                if engine.aimCountdown != nil {
+                    // Check on the phone: only what's needed to aim, all on one screen.
+                    VStack(spacing: 14) {
+                        AimHeader(item: item)
+                        CameraCard(engine: engine)
+                        AimBar(engine: engine)
+                        Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
-                    .padding(.bottom, 16)
+                } else {
+                    // Fits on one screen; scrolls only if a small phone really needs it.
+                    ViewThatFits(in: .vertical) {
+                        panels(item)
+                        ScrollView { panels(item) }
+                    }
+                    Spacer(minLength: 0)
                 }
-                Controls(engine: engine)
+                if engine.aimCountdown == nil { Controls(engine: engine) }
             }
         }
         .overlay { ConfettiView(trigger: engine.confettiBurst).ignoresSafeArea() }
@@ -324,6 +342,23 @@ private struct GlassesMirror: View {
 }
 
 /// Phone: the countdown while you lift the phone over the page.
+/// The character you wrote, small, so you can compare while aiming.
+private struct AimHeader: View {
+    let item: PracticeItem
+    var body: some View {
+        HStack(spacing: 14) {
+            Text(item.char).font(Theme.script(item.lang, size: 52)).foregroundStyle(Theme.ink)
+                .lineLimit(1).minimumScaleFactor(0.4).frame(width: 72)
+            VStack(alignment: .leading, spacing: 2) {
+                if let r = item.phrase.romanization { Text(r).font(Theme.sans(18, weight: .semibold)).foregroundStyle(Theme.accent) }
+                if let m = item.phrase.meaning { Text("“\(m)”").font(Theme.display(17)).foregroundStyle(Theme.inkSoft) }
+            }
+            Spacer(minLength: 0)
+        }
+        .card(padding: 12)
+    }
+}
+
 private struct AimBar: View {
     let engine: PracticeEngine
 
