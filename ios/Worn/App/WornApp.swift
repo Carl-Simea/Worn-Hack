@@ -1,0 +1,39 @@
+import SwiftUI
+
+@main
+struct WornApp: App {
+    @State private var app = AppModel()
+
+    var body: some Scene {
+        WindowGroup {
+            RootView()
+                .environment(app)
+                .tint(Theme.accent)
+                .task { app.onLaunch() }
+        }
+    }
+}
+
+struct RootView: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        @Bindable var app = app
+        NavigationStack(path: $app.route) {
+            HomeView()
+                .navigationDestination(for: Route.self) { route in
+                    switch route {
+                    case .lesson(let lang): LessonView(lang: lang)
+                    case .compose: ComposeView()
+                    case .name: NameView()
+                    case .daily: DailyView()
+                    case .journal(let lang): JournalView(lang: lang)
+                    case .connect: ConnectView()
+                    }
+                }
+        }
+        .overlay(alignment: .topLeading) {
+            if app.showDebug { DebugOverlay().padding(.top, 54).padding(.leading, 8) }
+        }
+    }
+}

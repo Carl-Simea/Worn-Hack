@@ -6,11 +6,11 @@ let root = URL(fileURLWithPath: CommandLine.arguments[1])
 
 // Strokes: every real file parses with plausible counts and in-bounds points.
 var total = 0, bad = 0
-for lang in ["mandarin", "japanese"] {
+for lang in ((try? FileManager.default.contentsOfDirectory(atPath: root.path)) ?? []).sorted() where !lang.hasPrefix(".") {
   let dir = root.appendingPathComponent(lang)
-  for f in try! FileManager.default.contentsOfDirectory(atPath: dir.path).sorted() {
+  for f in ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).sorted() where f.hasSuffix(".json") || f.hasSuffix(".svg") {
     let d = try! Data(contentsOf: dir.appendingPathComponent(f))
-    let s = f.hasSuffix(".json") ? try! StrokeData.hanziWriter(d) : StrokeData.kanjiVG(d)
+    let s = f.hasSuffix(".json") ? try! StrokeData.hanziWriter(d) : StrokeData.svgCenterlines(d)
     total += 1
     var pts: [CGPoint] = []
     for st in s.strokes { for op in st.centerline + (st.outline ?? []) { switch op { case .move(let p), .line(let p), .quad(let p, _), .cubic(let p, _, _): pts.append(p); case .close: break } } }
@@ -23,6 +23,14 @@ let ni = try! StrokeData.hanziWriter(Data(contentsOf: root.appendingPathComponen
 check(ni.count == 7, "你 has 7 strokes (got \(ni.count))")
 check(SVGPath.parse("M10 20 l5 5 h3 v-2 z").count == 5, "relative + h/v + z")
 check(SVGPath.parse("M1,2c1-1,2,3,4.5.5").count == 2, "packed numbers (4.5.5)")
+
+// Voice
+check(VoiceCommandParser.parse("okay next") == .next, "voice: next")
+check(VoiceCommandParser.parse("switch to Hebrew") == .switchTo(lang: "hebrew"), "voice: switch to Hebrew")
+check(VoiceCommandParser.parse("help me write good morning in Greek") == .helpMeWrite(message: "good morning", lang: "greek"), "voice: help me write … in Greek")
+check(VoiceCommandParser.parse("help me write") == nil, "voice: incomplete compose ignored")
+check(VoiceCommandParser.parse("can you go slower") == .slower && VoiceCommandParser.parse("check it") == .check && VoiceCommandParser.parse("again") == .again, "voice: slower/check/again")
+check(VoiceCommandParser.parse("switch to Japanese") == nil, "voice: Japanese removed")
 
 // Ink diff on synthetic 64x64 pages.
 let side = InkDiff.side

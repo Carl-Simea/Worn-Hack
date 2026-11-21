@@ -62,7 +62,7 @@ final class VoiceListener {
         if recognizer.supportsOnDeviceRecognition { req.requiresOnDeviceRecognition = true }
         req.taskHint = .confirmation
         req.contextualStrings = ["next", "again", "slower", "check", "switch to", "help me write",
-                                 "Mandarin", "Japanese", "Hindi", "Arabic", "Russian"]
+                                 "Mandarin", "Hindi", "Arabic", "Russian", "Hebrew", "Greek"]
         request = req
 
         let input = engine.inputNode

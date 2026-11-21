@@ -22,7 +22,7 @@ struct Lesson: Decodable, Identifiable, Hashable {
 
     var id: String { lang }
     var isRTL: Bool { rtl ?? false }
-    /// Only Mandarin and Japanese carry true stroke order; the rest are traced shapes.
+    /// "standard" = true stroke order (Mandarin); "suggested" = hand-authored order.
     var hasTrueStrokeOrder: Bool { strokeOrder == "standard" }
 }
 

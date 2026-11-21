@@ -11,10 +11,11 @@ enum VoiceCommandParser {
     /// Spoken names → lesson ids.
     static let languageNames: [String: String] = [
         "mandarin": "mandarin", "chinese": "mandarin", "mandarin chinese": "mandarin",
-        "japanese": "japanese", "hiragana": "japanese",
         "hindi": "hindi", "devanagari": "hindi",
         "arabic": "arabic",
         "russian": "russian", "cyrillic": "russian",
+        "hebrew": "hebrew",
+        "greek": "greek",
     ]
 
     static func language(in text: String) -> String? {

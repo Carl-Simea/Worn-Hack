@@ -173,7 +173,10 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Worn-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Worn;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Backup grading: photograph your handwriting if the glasses camera isn't available.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "In Demo Mode the camera watches your page so the next stroke follows your pen.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Say next, again, slower or check to practice hands-free.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Voice commands are recognized on this iPhone so you can practice hands-free.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Bluetooth connects Worn to your M6 glasses.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Worn talks to the lesson server on your laptop over the local wifi.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -200,7 +203,10 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Worn-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Worn;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Backup grading: photograph your handwriting if the glasses camera isn't available.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "In Demo Mode the camera watches your page so the next stroke follows your pen.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Say next, again, slower or check to practice hands-free.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Voice commands are recognized on this iPhone so you can practice hands-free.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Bluetooth connects Worn to your M6 glasses.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Worn talks to the lesson server on your laptop over the local wifi.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

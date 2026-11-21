@@ -5,11 +5,12 @@ import Foundation
 ///
 /// Sources (see content/README.md):
 /// - Mandarin: hanzi-writer-data JSON `{strokes: [svg outline], medians: [[[x,y]]]}` in a 1024 box, y up (baseline 900).
-/// - Japanese: KanjiVG SVG, one centerline `<path d>` per stroke in a 109 box, y down.
-/// - Hindi / Arabic / Russian: no stroke data; the UI traces the font glyph instead.
+/// - Hand-authored scripts (Hebrew, Greek, and others as they land): SVG with one centerline `<path d>`
+///   per stroke, in its viewBox, y down. Labeled "suggested stroke order" in the UI.
+/// - No file: the UI traces the font glyph instead.
 struct StrokeData: Equatable, Sendable {
     struct Stroke: Equatable, Sendable {
-        /// Filled outline (hanzi-writer) or nil (KanjiVG has centerlines only).
+        /// Filled outline (hanzi-writer) or nil (SVG sources have centerlines only).
         var outline: [PathOp]?
         /// Centerline in drawing order; animated with trim(from:to:).
         var centerline: [PathOp]
@@ -39,11 +40,11 @@ struct StrokeData: Equatable, Sendable {
         return StrokeData(strokes: out)
     }
 
-    // MARK: KanjiVG SVG
+    // MARK: SVG centerlines
 
-    static func kanjiVG(_ data: Data) -> StrokeData {
+    static func svgCenterlines(_ data: Data) -> StrokeData {
         let svg = String(decoding: data, as: UTF8.self)
-        var box: CGFloat = 109
+        var box: CGFloat = 100
         if let r = svg.range(of: #"viewBox="0 0 ([0-9.]+) ([0-9.]+)""#, options: .regularExpression) {
             let parts = svg[r].split(whereSeparator: { $0 == " " || $0 == "\"" })
             if parts.count >= 4, let w = Double(parts[3]) { box = CGFloat(w) }

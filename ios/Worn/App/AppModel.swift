@@ -1,0 +1,246 @@
+import Foundation
+import Observation
+
+/// App-wide state. The backend holds the one shared session (the glasses page and the judge site follow it);
+/// this class keeps the phone in sync and reports everything that happens via POST /event.
+@MainActor
+@Observable
+final class AppModel {
+    enum Link: Equatable { case unknown, ok, down(String) }
+
+    // MARK: settings
+
+    var serverAddress: String {
+        didSet { UserDefaults.standard.set(serverAddress, forKey: "server"); reconnect() }
+    }
+    /// No glasses: phone camera for photos, phone speaker for lines. Still posts every event.
+    var demoMode: Bool {
+        didSet { UserDefaults.standard.set(demoMode, forKey: "demoMode"); report("mode.demo", ["on": .bool(demoMode)]) }
+    }
+    var showDebug: Bool { didSet { UserDefaults.standard.set(showDebug, forKey: "debug") } }
+    var voiceEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(voiceEnabled, forKey: "voice")
+            Task { voiceEnabled ? await voice.start() : voice.stop() }
+        }
+    }
+    var autoAdvance: Bool { didSet { UserDefaults.standard.set(autoAdvance, forKey: "autoAdvance") } }
+    /// Optional tier 2: confirm each detected stroke with POST /stroke-match (off unless the backend has it).
+    var useStrokeMatch: Bool { didSet { UserDefaults.standard.set(useStrokeMatch, forKey: "strokeMatch") } }
+
+    // MARK: state
+
+    private(set) var link: Link = .unknown
+    private(set) var health: Health?
+    private(set) var lessons: [Lesson] = []
+    private(set) var reactions = Reactions.fallback
+    private(set) var milestones = Milestones.fallback
+    private(set) var glassesStatus: GlassesStatus = .noSDK
+    private(set) var nearbyGlasses: [GlassesDevice] = []
+    var progress = ProgressBook.load() { didSet { progress.save() } }
+
+    /// Local mirror of what we've reported (debug overlay).
+    private(set) var eventLog: [(ts: Date, type: String, summary: String)] = []
+    private(set) var latency = Latency()
+
+    /// The practice run on screen, if any (voice commands go to it).
+    var practice: PracticeEngine?
+    /// Navigation from voice ("switch to …", "help me write …").
+    var route: [Route] = []
+    var pendingCompose: (text: String, lang: String?)?
+
+    let glasses: GlassesLink
+    let camera = PhoneCamera()
+    let voice = VoiceListener()
+    private(set) var api: API?
+    private var pollTask: Task<Void, Never>?
+    private var strokeCache: [String: StrokeData] = [:]
+    private var strokeMisses: Set<String> = []
+
+    init() {
+        let d = UserDefaults.standard
+        serverAddress = d.string(forKey: "server") ?? ""
+        demoMode = d.object(forKey: "demoMode") as? Bool ?? false
+        showDebug = d.object(forKey: "debug") as? Bool ?? false
+        voiceEnabled = d.object(forKey: "voice") as? Bool ?? true
+        autoAdvance = d.object(forKey: "autoAdvance") as? Bool ?? true
+        useStrokeMatch = d.object(forKey: "strokeMatch") as? Bool ?? false
+        glasses = GlassesLinkFactory.make()
+        glasses.onChange = { [weak self] in self?.glassesChanged() }
+        voice.onCommand = { [weak self] cmd in self?.handle(cmd) }
+        reconnect()
+    }
+
+    /// Called once the window exists (the SDK wants a view controller as its delegate).
+    func onLaunch() {
+        glasses.start()
+        glassesChanged()
+        // Without the SDK there are no glasses to wait for: go straight to Demo Mode.
+        if glassesStatus == .noSDK && UserDefaults.standard.object(forKey: "demoMode") == nil { demoMode = true }
+        if voiceEnabled { Task { await voice.start() } }
+        report("app.open", ["demo_mode": .bool(demoMode), "glasses": .string(glassesStatus.title)])
+    }
+
+    var hasServer: Bool { !serverAddress.trimmingCharacters(in: .whitespaces).isEmpty }
+
+    /// Where photos come from right now.
+    var photoSource: PhotoSource {
+        if demoMode || !glassesStatus.isConnected { return .phone }
+        return .glasses
+    }
+
+    func lesson(_ lang: String) -> Lesson? { lessons.first { $0.lang == lang } }
+
+    // MARK: backend
+
+    func reconnect() {
+        pollTask?.cancel()
+        link = .unknown
+        guard hasServer else { api = nil; return }
+        do { api = try API(baseString: serverAddress) } catch { api = nil; link = .down(error.localizedDescription); return }
+        strokeCache = [:]; strokeMisses = []
+        pollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.refresh()
+                // Fast retries until connected, then a slow heartbeat.
+                let ok = self?.link == .ok && !(self?.lessons.isEmpty ?? true)
+                try? await Task.sleep(for: .seconds(ok ? 6 : 1.5))
+            }
+        }
+    }
+
+    private func refresh() async {
+        guard let api else { return }
+        do {
+            let h = try await api.health()
+            health = h
+            if lessons.isEmpty {
+                lessons = try await api.content().filter { !$0.phrases.isEmpty && $0.lang != "asl" }
+                await loadOptionalContent(api)
+                report("app.connected", ["langs": .int(lessons.count), "mock": .bool(h.mock ?? false)])
+            }
+            link = .ok
+        } catch {
+            if case .ok = link { report("app.offline", ["error": .string(error.localizedDescription)]) }
+            link = .down(error.localizedDescription)
+        }
+    }
+
+    private func loadOptionalContent(_ api: API) async {
+        if let d = try? await api.staticFile("reactions.json"), let r = try? JSONDecoder().decode(Reactions.self, from: d), !r.lines.isEmpty {
+            reactions = r
+        }
+        if let d = try? await api.staticFile("milestones.json"), let m = try? JSONDecoder().decode(Milestones.self, from: d), !m.milestones.isEmpty {
+            milestones = m
+        }
+    }
+
+    /// Stroke data for a character: content/strokes/{lang}/{codepoint hex}.json (hanzi-writer) or .svg (centerlines).
+    func strokes(lang: String, char: String, hint: String? = nil) async -> StrokeData? {
+        let key = "\(lang)/\(char)"
+        if let s = strokeCache[key] { return s }
+        guard let api, !strokeMisses.contains(key) else { return nil }
+        let hex = char.unicodeScalars.map { String($0.value, radix: 16) }.joined(separator: "-")
+        var candidates = [hint].compactMap { $0 }
+        candidates += ["/static/content/strokes/\(lang)/\(hex).json", "/static/content/strokes/\(lang)/\(hex).svg"]
+        for path in candidates {
+            guard let data = try? await api.staticFile(path) else { continue }
+            let parsed: StrokeData? = path.hasSuffix(".svg") ? StrokeData.svgCenterlines(data) : try? StrokeData.hanziWriter(data)
+            if let parsed, parsed.count > 0 { strokeCache[key] = parsed; return parsed }
+        }
+        strokeMisses.insert(key)
+        return nil
+    }
+
+    // MARK: events (the judge site mirrors these)
+
+    func report(_ type: String, _ data: [String: JSONValue] = [:]) {
+        let summary = data.sorted { $0.key < $1.key }.prefix(4).map { "\($0.key)=\(Self.short($0.value))" }.joined(separator: " ")
+        eventLog.append((Date(), type, summary))
+        if eventLog.count > 60 { eventLog.removeFirst(eventLog.count - 60) }
+        guard let api else { return }
+        let body = EventBody(type: type, data: data, ts: Date().timeIntervalSince1970)
+        Task.detached { try? await api.event(body) }
+    }
+
+    private static func short(_ v: JSONValue) -> String {
+        switch v {
+        case .string(let s): return String(s.prefix(18))
+        case .number(let n): return n == n.rounded() ? String(Int(n)) : String(format: "%.2f", n)
+        case .bool(let b): return b ? "yes" : "no"
+        case .null: return "–"
+        case .array(let a): return "[\(a.count)]"
+        case .object(let o): return "{\(o.count)}"
+        }
+    }
+
+    func recordLatency(_ tier: Latency.Tier, ms: Int) { latency.record(tier, ms: ms) }
+
+    // MARK: glasses
+
+    private func glassesChanged() {
+        let old = glassesStatus
+        glassesStatus = glasses.status
+        nearbyGlasses = glasses.nearby
+        if old != glassesStatus {
+            report("glasses.status", ["status": .string(glassesStatus.title), "connected": .bool(glassesStatus.isConnected)])
+            if glassesStatus.isConnected && !old.isConnected { Sounds.shared.effect(.chime) }
+        }
+    }
+
+    /// Say a line through the glasses if they're on, otherwise the phone. Voice commands pause meanwhile.
+    func say(_ text: String) {
+        report("speak", ["text": .string(text), "via": .string(photoSource == .glasses ? "glasses" : "phone")])
+        if photoSource == .glasses {
+            glasses.speak(text)
+        } else {
+            voice.pause()
+            Sounds.shared.say(text)
+            Task { [voice] in
+                try? await Task.sleep(for: .seconds(min(4, 0.9 + Double(text.count) * 0.055)))
+                voice.resume()
+            }
+        }
+    }
+
+    // MARK: voice
+
+    private func handle(_ cmd: VoiceCommand) {
+        report("voice", ["command": .string("\(cmd)"), "heard": .string(voice.lastHeard)])
+        switch cmd {
+        case .next, .again, .slower, .check:
+            practice?.voice(cmd)
+        case .switchTo(let lang):
+            guard lesson(lang) != nil else { return }
+            practice?.stop()
+            route = [.lesson(lang)]
+        case .helpMeWrite(let message, let lang):
+            practice?.stop()
+            pendingCompose = (message, lang ?? practice?.current?.lang)
+            route = [.compose]
+        }
+    }
+}
+
+enum PhotoSource: String { case glasses, phone }
+
+enum Route: Hashable {
+    case lesson(String)
+    case compose
+    case name
+    case daily
+    case journal(String)
+    case connect
+}
+
+/// Rolling per-tier latency for the debug overlay.
+struct Latency: Equatable {
+    enum Tier: String, CaseIterable { case capture, inkDiff = "tier1", strokeMatch = "tier2", grade = "tier3", nextStroke = "next" }
+    private(set) var last: [Tier: Int] = [:]
+    private(set) var avg: [Tier: Double] = [:]
+
+    mutating func record(_ t: Tier, ms: Int) {
+        last[t] = ms
+        avg[t] = avg[t].map { $0 * 0.7 + Double(ms) * 0.3 } ?? Double(ms)
+    }
+}
