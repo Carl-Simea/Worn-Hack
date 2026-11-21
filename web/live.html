@@ -195,7 +195,8 @@
 
   /* ---------- Scribi grading card: ring + checklist / sub-scores + per-stroke chips */
   .tutorP .fit .square { width: 100%; aspect-ratio: auto; }
-  #tutor { justify-content: flex-start; padding: .9em 1.1em; gap: .55em; }
+  #tutor { justify-content: center; padding: .9em 1.1em; gap: .8em; }
+  #tutor #feedback { flex: none; }
   .gTop { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1em; align-items: center; flex: none; }
   .ringBox { position: relative; width: min(calc(var(--sq) * .42), 10.5em); aspect-ratio: 1; flex: none; }
   .ringBox svg.ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
@@ -294,7 +295,11 @@
   #conv li.ai .bub { flex: 0 1 auto; min-width: 0; }
   #idleBig { overflow: hidden; text-overflow: ellipsis; }
   #conv li.ai .who { display: none; }
-  #conv .tools span:not(:first-child):not(.ms) { display: none; }
+  /* layout: WEARER · CAMERA · SCRIBI on top, VOICE full width below (agent steps + timeline removed) */
+  .box.gone { display: none !important; }
+  .lower { grid-template-columns: minmax(0, 1fr) !important; }
+  .app.hasVoice { --sq: min(calc((100vw - 2 * var(--pad) - 2 * var(--gap)) / 3.3), 52vh); }
+  #conv li { max-width: 70%; }
   #voice { grid-template-columns: auto minmax(0, 1fr); } /* labels removed for a cleaner judge screen; the content stays */
   #lat { display: none !important; }    /* latency chips removed (numbers alone read as noise) */
   .stream { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
@@ -438,11 +443,11 @@
       <div class="cap"><span class="eyebrow">Voice</span><span class="orbState"><span class="orb o-off" id="orbBig"></span><span id="orbText">Mic off</span></span></div>
       <ul id="conv"></ul>
     </div>
-    <div class="box nocap">
+    <div class="box nocap gone">
       <div class="cap"><span class="eyebrow">Agent brain</span><span class="tnum" id="brainCap">&nbsp;</span></div>
       <ul class="stream" id="brain"></ul>
     </div>
-    <div class="box nocap">
+    <div class="box nocap gone">
       <div class="cap"><span class="eyebrow">Timeline</span><span class="tnum" id="progressCap">&nbsp;</span></div>
       <ul class="stream" id="timeline"></ul>
     </div>
