@@ -181,9 +181,9 @@
     .stage { max-width: 560px; width: 100%; margin: 0 auto; }
   }
   @media (max-width: 520px) {
-    .langs { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .langs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .lang { min-height: 170px; padding: 16px; }
-    .lang .hero-script { font-size: 40px; }
+    .lang .hero-script { font-size: clamp(30px, 10vw, 40px); }
     .lang .kind { display: none; }
     .tile { min-height: 124px; padding: 14px; }
     .tile .peek { display: none; }
@@ -618,8 +618,10 @@
       start({ lang: it.lang, item_id: it.item_id, char_index: it.char_index || 0, mode: "write" }, true);
       return;
     }
+    // /session/next applies the tutor agent's decision. A 409 means another device (the iPhone) already
+    // moved on, so do nothing here: the poll picks up the new lesson. Never step twice.
     req("POST", "/session/next").then(function (n) { applySession(n); renderPractice(); })
-      .catch(function () { nextLocal(+1); });
+      .catch(function (e) { if (e.status !== 409 && e.status !== 404) toast("Tap Next to keep going"); });
   }
   function nextLocal(d) {
     var s = live && live.session;

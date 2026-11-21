@@ -16,7 +16,7 @@
   body { background: #e9e4da; color: #1b1a17; }
   .tools { position: sticky; top: 0; z-index: 5; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;
     padding: 12px 16px; background: rgba(246, 242, 234, .92); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-bottom: 1px solid #ddd5c6; }
-  .tools select { height: 40px; border-radius: 999px; border: 1px solid #d3cab8; padding: 0 14px; background: #fbf8f2; font: 600 14px var(--ui); }
+  .tools select { max-width: 44vw; height: 40px; border-radius: 999px; border: 1px solid #d3cab8; padding: 0 14px; background: #fbf8f2; font: 600 14px var(--ui); }
   .tools .hint { font-size: 13px; color: #8f887c; }
   .sheet { width: 210mm; min-height: 297mm; margin: 20px auto; background: #fff; padding: 14mm 14mm 12mm; box-shadow: 0 10px 40px -18px rgba(0,0,0,.35); }
   .head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.2pt solid #1b1a17; padding-bottom: 4mm; margin-bottom: 5mm; gap: 8mm; }
@@ -55,7 +55,7 @@
   .sans[data-lang="russian"], .sans[data-lang="greek"] { font-family: "Noto Sans", sans-serif; }
   .box .model.sans[data-lang="hindi"] { font-size: 17mm; }
   .box .model.long { font-size: 9mm; }
-  @media (max-width: 230mm) { .sheet { width: auto; min-height: 0; margin: 12px; padding: 18px; } .row { flex-wrap: wrap; } .steps { width: 100%; } }
+  @media (max-width: 230mm) { .sheet { width: auto; min-height: 0; margin: 12px; padding: 18px; overflow: hidden; } .head .who span { width: 24mm; } .row { flex-wrap: wrap; } .steps { width: 100%; } }
   @page { size: A4; margin: 0; }
   @media print {
     body { background: #fff; }
