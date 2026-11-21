@@ -30,6 +30,8 @@ esac
 if [ -z "${NOBUILD:-}" ]; then ./gradlew -q :app:assembleDebug; fi
 adb shell svc power stayon usb || true   # keep the display on while plugged in
 adb install -r -g "$APK"      # -g grants the camera permission (no dialog to tap on the glasses)
-adb shell am start -n "$PKG/.MainActivity" --es api "$API"
+# Fallback while the USB cable is in: the app tries $API first and drops to adb reverse only if it can't reach it.
+adb reverse tcp:8000 tcp:8000 >/dev/null || true
+adb shell am start -n "$PKG/.MainActivity" --es api "$API" --es fallback "http://127.0.0.1:8000"
 echo "started $PKG with backend $API"
 echo "logs: adb logcat -s Worn WornKeys WornCam WornWeb"

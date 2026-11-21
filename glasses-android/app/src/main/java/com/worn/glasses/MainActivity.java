@@ -57,6 +57,10 @@ public class MainActivity extends Activity {
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService net = Executors.newSingleThreadExecutor();
+    /** Heartbeat + backend choice, separate from `net` so a slow /grade never delays it. */
+    private final ExecutorService beat = Executors.newSingleThreadExecutor();
+    private static final String USB_FALLBACK = "http://127.0.0.1:8000"; // adb reverse tcp:8000 tcp:8000
+    private static final long BEAT_MS = 5000;
 
     private WebView web;
     private TextView status;
@@ -64,11 +68,19 @@ public class MainActivity extends Activity {
     private TextToSpeech tts;
     private boolean ttsReady;
     private MediaActionSound shutter;
-    private String api;
+    private volatile String api;      // the backend in use right now
+    private volatile String primary;  // Wi-Fi backend (intent extra `api`, remembered)
+    private volatile String fallback; // used only while the primary can't be reached (USB / adb reverse)
     private boolean busy;
     private boolean pageLoaded;
     private String lastKey = "none";
-    private final Runnable retryLoad = this::loadPage;
+    private final Runnable retryLoad = this::chooseAndLoad;
+    private final Runnable heartbeat = new Runnable() {
+        @Override public void run() {
+            beat.execute(MainActivity.this::beatOnce);
+            ui.postDelayed(this, BEAT_MS);
+        }
+    };
     private final Runnable hideStatus = () -> status.setVisibility(View.GONE);
 
     @Override
@@ -119,11 +131,59 @@ public class MainActivity extends Activity {
         if (fromIntent != null && !fromIntent.trim().isEmpty()) {
             p.edit().putString("api", fromIntent.trim()).apply();
         }
-        String next = p.getString("api", BuildConfig.DEFAULT_API).replaceAll("/+$", "");
-        boolean changed = !next.equals(api);
-        api = next;
-        Log.i(TAG, "backend " + api);
-        if (changed || !pageLoaded) loadPage();
+        String fb = intent == null ? null : intent.getStringExtra("fallback");
+        if (fb != null) p.edit().putString("fallback", fb.trim()).apply();
+        primary = p.getString("api", BuildConfig.DEFAULT_API).replaceAll("/+$", "");
+        fallback = p.getString("fallback", USB_FALLBACK).replaceAll("/+$", "");
+        Log.i(TAG, "backend " + primary + " (fallback " + fallback + ")");
+        chooseAndLoad();
+    }
+
+    /** Wi-Fi backend when it answers, else the USB fallback, else keep trying the Wi-Fi one. */
+    private String pickApi() {
+        String a = primary, b = fallback;
+        if (new Backend(a).reachable()) return a;
+        if (b != null && !b.isEmpty() && !b.equals(a) && new Backend(b).reachable()) return b;
+        return a;
+    }
+
+    private void chooseAndLoad() {
+        ui.removeCallbacks(retryLoad);
+        beat.execute(() -> {
+            String pick = pickApi();
+            ui.post(() -> {
+                boolean changed = !pick.equals(api);
+                api = pick;
+                Log.i(TAG, "using backend " + api + (pick.equals(primary) ? " (wifi)" : " (fallback)"));
+                if (changed || !pageLoaded) loadPage();
+            });
+        });
+    }
+
+    /** Runs on `beat`: tells the backend the glasses are on (GET /health shows glasses.connected), and
+     *  moves to the other backend if the current one stops answering or the Wi-Fi one comes back. */
+    private void beatOnce() {
+        String pick = pickApi();
+        try {
+            JSONObject d = new JSONObject().put("connected", true)
+                    .put("via", pick.equals(primary) ? "wifi" : "usb").put("backend", pick);
+            new Backend(pick).event("glasses", d);
+        } catch (Exception e) {
+            Log.w(TAG, "heartbeat to " + pick + " failed: " + e.getMessage());
+        }
+        if (!pick.equals(api)) ui.post(() -> {
+            Log.i(TAG, "switching backend " + api + " -> " + pick);
+            api = pick;
+            loadPage();
+        });
+    }
+
+    private void sayGoodbye() {
+        String a = api;
+        if (a == null) return;
+        beat.execute(() -> {
+            try { new Backend(a).event("glasses_disconnected", null); } catch (Exception ignored) { }
+        });
     }
 
     @Override
@@ -133,6 +193,20 @@ public class MainActivity extends Activity {
         web.onResume();
         if (hasCamera()) camera.open();
         else flash("No camera permission. Reinstall with: adb install -r -g", 8000);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        ui.removeCallbacks(heartbeat);
+        ui.post(heartbeat);
+    }
+
+    @Override
+    protected void onStop() {
+        ui.removeCallbacks(heartbeat);
+        sayGoodbye();
+        super.onStop();
     }
 
     @Override
@@ -147,6 +221,7 @@ public class MainActivity extends Activity {
         ui.removeCallbacksAndMessages(null);
         camera.release();
         net.shutdownNow();
+        beat.shutdown();
         if (tts != null) tts.shutdown();
         if (shutter != null) shutter.release();
         web.destroy();

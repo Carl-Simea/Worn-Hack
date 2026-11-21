@@ -73,6 +73,38 @@ final class Backend {
         HttpError(int code, String body) { super("HTTP " + code + ": " + body); this.code = code; }
     }
 
+    /** POST /event {type, data}. Short timeouts: used for the heartbeat. */
+    void event(String type, JSONObject data) throws IOException {
+        HttpURLConnection c = open("/event");
+        c.setConnectTimeout(2500);
+        c.setReadTimeout(2500);
+        c.setDoOutput(true);
+        c.setRequestMethod("POST");
+        c.setRequestProperty("Content-Type", "application/json");
+        String body;
+        try {
+            body = new JSONObject().put("type", type).put("data", data == null ? new JSONObject() : data).toString();
+        } catch (org.json.JSONException e) { throw new IOException(e); }
+        try (java.io.OutputStream os = c.getOutputStream()) { os.write(body.getBytes(StandardCharsets.UTF_8)); }
+        int code = c.getResponseCode();
+        read(code < 400 ? c.getInputStream() : c.getErrorStream());
+        if (code >= 400) throw new HttpError(code, "POST /event");
+    }
+
+    /** GET /health answers 200 within ~1.5 s. */
+    boolean reachable() {
+        try {
+            HttpURLConnection c = open("/health");
+            c.setConnectTimeout(1500);
+            c.setReadTimeout(1500);
+            int code = c.getResponseCode();
+            read(code < 400 ? c.getInputStream() : c.getErrorStream());
+            return code == 200;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     private HttpURLConnection open(String path) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(api + path).openConnection();
         c.setUseCaches(false);

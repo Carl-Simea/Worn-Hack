@@ -32,6 +32,7 @@ If the real hardware sends something else, change `actionFor()` in `MainActivity
     scripts/run.sh usb      # backend over the USB cable via adb reverse (most reliable at the table)
     scripts/run.sh 10.0.0.7 # explicit backend IP
 
+The app tries the Wi-Fi backend first and falls back to `http://127.0.0.1:8000` (adb reverse) while the USB cable is in, re-checking every 5 s; it also posts a heartbeat (`/event` type `glasses`, `connected:true`) so `GET /health` shows `glasses.connected`. On networks that isolate clients (CityTech-WiFi, 11/21) only the USB path works.
 The app remembers the last backend. To switch without reinstalling:
 `adb shell am start -n com.worn.glasses/.MainActivity --es api http://<ip>:8000`.
 

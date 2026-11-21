@@ -71,9 +71,13 @@ final class AppModel {
     private var strokeCache: [String: StrokeData] = [:]
     private var strokeMisses: Set<String> = []
 
+    /// The demo laptop on the venue Wi-Fi (11/21). A value typed in Settings wins over this.
+    static let defaultServer = "http://10.0.221.236:8000"
+
     init() {
         let d = UserDefaults.standard
-        serverAddress = d.string(forKey: "server") ?? ""
+        let saved = d.string(forKey: "server")?.trimmingCharacters(in: .whitespaces) ?? ""
+        serverAddress = saved.isEmpty ? Self.defaultServer : saved
         demoMode = d.object(forKey: "demoMode") as? Bool ?? false
         showDebug = d.object(forKey: "debug") as? Bool ?? false
         #if targetEnvironment(simulator)
