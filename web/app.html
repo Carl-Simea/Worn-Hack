@@ -398,6 +398,16 @@
   function scriptName(l) { return (LANGS[l] && LANGS[l].script) || SCRIPT[l] || ""; }
   function items(l) { return (LANGS[l] && (LANGS[l].items || LANGS[l].phrases)) || []; }
   function scriptSpan(l, text, cls) { return '<span class="script ' + (cls || "") + '" data-lang="' + l + '" dir="' + (LANGS[l] && LANGS[l].rtl ? "rtl" : "ltr") + '">' + esc(text) + "</span>"; }
+  function heroOf(l) {
+    var h = LANGS[l] && LANGS[l].hero;
+    if (h && typeof h === "object") h = h.text || h.native;
+    return HERO[l] || h || (items(l)[0] || {}).text || "";
+  }
+  function aboutOf(l) {
+    var a = LANGS[l] && LANGS[l].about;
+    if (a && typeof a === "object") a = a.short || a.text || "";
+    return KIND[l] || a || "";
+  }
   function learnedSet(l) {
     var s = {};
     JOURNAL.forEach(function (e) { if (e.lang === l && e.correct) s[e.char] = 1; });
@@ -434,7 +444,7 @@
       var total = Object.keys(all).length, got = learnedSet(l), n = Object.keys(all).filter(function (c) { return got[c]; }).length;
       var a = document.createElement("a");
       a.className = "card lang"; a.href = "#/lang/" + l; a.setAttribute("data-lang", l);
-      a.innerHTML = '<div class="hero-script script" dir="' + (LANGS[l].rtl ? "rtl" : "ltr") + '">' + esc(HERO[l] || items(l)[0].text) + "</div>" +
+      a.innerHTML = '<div class="hero-script script" dir="' + (LANGS[l].rtl ? "rtl" : "ltr") + '">' + esc(heroOf(l)) + "</div>" +
         '<div class="name">' + esc(langName(l)) + '</div><div class="kind">' + esc(scriptName(l)) + "</div>" +
         '<div class="meter"><i style="width:' + (total ? Math.round(100 * n / total) : 0) + '%"></i></div>' +
         '<div class="count"><span>' + items(l).length + " words</span><span>" + n + " of " + total + " learned</span></div>";
@@ -454,10 +464,10 @@
     if (!LANGS[l]) { location.hash = "#/"; return; }
     curLang = l;
     document.body.setAttribute("data-lang", l);
-    $("lBig").innerHTML = scriptSpan(l, HERO[l]);
+    $("lBig").innerHTML = scriptSpan(l, heroOf(l));
     $("lName").textContent = langName(l);
     $("lScript").textContent = scriptName(l);
-    $("lKind").textContent = KIND[l] || "";
+    $("lKind").textContent = aboutOf(l);
     $("printLink").href = "/print/" + l;
     var got = learnedSet(l), box = $("items");
     box.innerHTML = "";
@@ -525,7 +535,8 @@
         return '<span class="' + (i < s.char_index ? "done" : i === s.char_index ? "cur" : "") + '">' + esc(hide ? "＿" : g.c) + "</span>";
       }).join("");
       $("pRoman").innerHTML = esc(s.romanization || "") + (s.meaning ? "<small>“" + esc(s.meaning) + "”</small>" : "");
-      var note = s.note || (s.back_translation ? "Means: " + s.back_translation : "");
+      var it = s.item || {};
+      var note = s.note || it.how || (s.back_translation ? "Means: " + s.back_translation : "");
       $("pNote").hidden = !note; $("pNote").textContent = note || "";
       var st = $("stage");
       st.classList.toggle("dictation", s.show_char === false);

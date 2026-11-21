@@ -105,7 +105,7 @@ class Live:
         self.listening = False
         self.events: list[dict] = []
         self.steps: list[dict] = []
-        self.lat = {"tier1": [], "tier2": [], "tier3": []}
+        self.lat = {"tier1": [], "tier2": [], "tier3": [], "decide": [], "grade": []}
         self.tries = 0
 
     def seed_journal(self):
@@ -268,7 +268,7 @@ class Demo(threading.Thread):
                 st.glasses.update(phase="write", stroke=k)
                 st.bump()
             time.sleep(1.0)
-            t1, t2 = random.randint(18, 60), random.randint(90, 280)
+            t1, t2 = random.randint(18, 60), random.randint(8, 30)
             with st.lock:
                 st.photo = photo_url(lang, s["char"], (k + 1) / n, ts=time.time())
                 st.event("photo", {"url": st.photo})
@@ -297,7 +297,10 @@ class Demo(threading.Thread):
             st.step(run, "evaluate", f"Template overlap {random.randint(62, 95)}/100", tool="compare_to_template", ms=random.randint(40, 120))
         time.sleep(0.6)
         with st.lock:
-            st.step(run, "decide", ("ADVANCE: clean match" if ok else "RETRY: last stroke too short"), ms=random.randint(500, 1400), model="qwen2.5:7b")
+            dms = random.randint(500, 1400)
+            st.latency("decide", dms)
+            st.latency("grade", t3 + dms + 200)
+            st.step(run, "decide", ("ADVANCE: clean match" if ok else "RETRY: last stroke too short"), ms=dms, model="qwen2.5:7b")
         time.sleep(0.5)
         r = st.grade(correct=ok, photo=photo_url(lang, s["char"], 1.0, ts=time.time()), run_id=run)
         with st.lock:

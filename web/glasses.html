@@ -83,6 +83,7 @@
 
 <script src="/static/web/worn-ink.js"></script>
 <script src="/static/web/worn-confetti.js"></script>
+<script src="/static/web/worn-sfx.js"></script>
 <script>
 (function () {
   "use strict";
@@ -91,6 +92,7 @@
   var POLL_MS = 400, RESULT_HOLD_MS = 3800;
   var $ = function (id) { return document.getElementById(id); };
   var ink = WornInk.create($("ink"), { theme: "glasses", label: $("strokeNo"), api: API });
+  if (window.WornSfx) WornSfx.init(API);
   var session = null, lessonKey = "", inkReady = false, useLive = true, lastResultTs = null, firstPoll = true;
   var resultTimer = null, lastSync = "", chars = {};
 
@@ -148,7 +150,14 @@
     encourage: [{ f: 440, to: 330, d: .25, type: "sine", v: .2 }, { f: 392, d: .3, type: "sine", v: .2 }],
     stroke: [{ f: 880, d: .06, type: "sine", v: .08 }]
   };
-  function play(name) { if (SOUNDS[name]) tone(SOUNDS[name]); }
+  // C's recorded sfx first (content/sfx via reactions.json); the synthesized tones are the fallback
+  var SFX_OF = { cheer: "cheer", applause: "tada", drumroll: "drumroll", boing: "boing", encourage: "slide", stroke: null };
+  function play(name) {
+    if (!soundAllowed()) return;
+    var f = SFX_OF[name];
+    if (f && window.WornSfx) { window.__wornSound = true; WornSfx.play(f); return; }
+    if (SOUNDS[name]) tone(SOUNDS[name]);
+  }
   function playPronunciation() {
     var a = $("say");
     if (!session || !session.audio_url) return;
@@ -202,11 +211,9 @@
     $("resText").textContent = r.feedback || (r.correct ? "Nice!" : "Try again");
     $("resLine").textContent = r.reaction ? (r.emoji ? r.emoji + " " : "") + r.reaction : "";
     speak(r.reaction || r.feedback || (r.correct ? "Nice!" : "Try again"));
-    var mood = { celebrate: "cheer", proud: "applause", encourage: "encourage", gentle: "boing" }[r.mood];
-    if (r.correct) {
-      play(mood || "cheer");
-      WornConfetti.burst({ x: .5, y: .35, count: 120, power: .8 });
-    } else play(mood || "encourage");
+    if (window.WornSfx && soundAllowed()) { window.__wornSound = true; WornSfx.forResult(r); }
+    else play(r.correct ? "cheer" : "encourage");
+    if (r.correct) WornConfetti.burst({ x: .5, y: .35, count: 120, power: .8 });
     resultTimer = setTimeout(hideResult, RESULT_HOLD_MS);
   }
   function showBusy(msg) {

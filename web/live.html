@@ -23,7 +23,9 @@
              max(calc(var(--u) * 1.1), env(safe-area-inset-bottom)) max(calc(var(--u) * 1.6), env(safe-area-inset-left)); }
 
   /* ---------- header */
-  header { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--u); }
+  header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--u); }
+  @media (max-width: 1400px) { .brand > .eyebrow { display: none; } }
+  .lesson { overflow: hidden; }
   .brand { display: flex; align-items: baseline; gap: .7em; min-width: 0; }
   .brand .wordmark { font-size: 2.1em; line-height: 1; }
   .brand .eyebrow { font-size: .62em; }
@@ -48,7 +50,8 @@
   .lat { display: inline-flex; gap: .3em; }
   .lat .pill { gap: .35em; padding: 0 .7em; }
   .lat .pill small { font-weight: 600; color: var(--ink-3); letter-spacing: .06em; }
-  .lat .pill b { min-width: 3.2em; text-align: right; }
+  .lat .pill b { min-width: 2.9em; text-align: right; }
+  @media (max-width: 1280px) { .lat .pill small { letter-spacing: 0; } .lat .pill { padding: 0 .55em; } }
   .lat .pill.fresh b { color: var(--accent); }
 
   /* ---------- three panels */
@@ -170,9 +173,10 @@
     <div class="status">
       <span class="pill" id="listen" title="Voice is on"><span class="bars"><i></i><i></i><i></i><i></i></span><span id="listenText">Listening</span></span>
       <span class="lat" id="lat">
-        <span class="pill" data-t="tier1"><small>INK</small><b class="tnum">–</b></span>
-        <span class="pill" data-t="tier2"><small>VISION</small><b class="tnum">–</b></span>
-        <span class="pill" data-t="tier3"><small>TUTOR</small><b class="tnum">–</b></span>
+        <span class="pill" data-t="tier1" title="Tier 1: new ink on the paper"><small>INK</small><b class="tnum">–</b></span>
+        <span class="pill" data-t="tier2" title="Tier 2: stroke matched to the template"><small>STROKE</small><b class="tnum">–</b></span>
+        <span class="pill" data-t="tier3" title="Tier 3: vision model reads the character"><small>VISION</small><b class="tnum">–</b></span>
+        <span class="pill" data-t="decide" title="Tutor agent decides and reacts"><small>TUTOR</small><b class="tnum">–</b></span>
       </span>
       <span class="pill" id="conn"><span class="dot" id="connDot"></span><span id="connText">Glasses</span></span>
     </div>
