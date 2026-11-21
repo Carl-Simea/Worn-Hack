@@ -115,11 +115,43 @@ async def _cached_tutor(key: str, prompt: str, validate, num_predict: int) -> tu
 
 
 def _key(kind: str, lang: str, text: str) -> str:
-    return f"{kind}:{lang}:{' '.join(text.lower().split())}"
+    return f"{kind}:{lang}:{_norm(text)}"
 
 
 def _norm(s: str) -> str:
     return " ".join(regex.sub(r"[\p{P}\p{S}]+", " ", (s or "").lower()).split())
+
+
+# Brief: no religious, political or slang content. A deterministic word list decides (the models'
+# own "suitable" flag proved erratic: 14b once refused "see you tomorrow").
+BLOCKED = {
+    "vote", "votes", "voting", "election", "elections", "party", "president", "politics", "political", "government",
+    "war", "army", "flag", "god", "allah", "jesus", "christ", "church", "mosque", "temple", "synagogue", "pray",
+    "prayer", "religion", "religious", "bible", "quran", "koran", "torah", "gun", "guns", "kill", "die", "dead",
+    "hate", "drug", "drugs", "weed", "sex", "sexy", "damn", "hell", "shit", "fuck", "bitch", "stupid", "idiot",
+}
+
+
+def unsuitable(text: str) -> bool:
+    return any(w in BLOCKED for w in _norm(text).split())
+
+
+def _from_phrasebook(text: str, lang: str) -> dict | None:
+    """content/phrases/examples.json (agent C, hand-checked): {"phrases": {"good morning": {"mandarin":
+    {"native", "romanization"}, ...}}}. Used before any model, like names/examples.json."""
+    try:
+        book = json.loads((config.CONTENT_DIR / "phrases" / "examples.json").read_text(encoding="utf-8")).get("phrases", {})
+    except Exception:
+        return None
+    want = _norm(text)
+    for phrase, langs in book.items():
+        if _norm(phrase) == want and isinstance(langs, dict) and langs.get(lang, {}).get("native"):
+            e = langs[lang]
+            units = scripts.split_units(e["native"], lang)
+            if units:
+                return {"native": e["native"], "romanization": e.get("romanization", ""), "back_translation": phrase,
+                        "chars": units}
+    return None
 
 
 def _from_lessons(text: str, lang: str) -> dict | None:
@@ -178,6 +210,37 @@ def _validator(lang: str):
     return check
 
 
+CHECK_PROMPT = """A beginner wants to write this English message in {lang_name}: "{text}".
+Proposed {lang_name} text: {native}
+
+Step 1: translate the proposed text into natural English, ignoring the message above.
+Step 2: would a native speaker use it to say the message? Small differences are fine: politeness or intensity ("thanks" = "thank you" = "thank you very much", "very pleased" = "nice to meet you"), word order, or a dropped "my"/"dear". A different meaning, a missing key word (like "tomorrow" or "friend"), or nonsense is not.
+JSON only: {{"english": "...", "same_meaning": true or false}}"""
+
+
+async def check_translation(text: str, lang: str, native: str) -> tuple[bool | None, str]:
+    """Independent 14b check: back-translate the native text and judge it against the request.
+    Caught every wrong phrase in our test set (nonsense Hebrew, 'Пока' for 'see you tomorrow', ...).
+    Returns (same_meaning, english) or (None, "") when the checker is unavailable."""
+    try:
+        d = await llm.json_call(config.TUTOR_MODEL, CHECK_PROMPT.format(lang_name=config.LANGS[lang]["name"],
+                                                                        text=text.replace('"', "'"), native=native),
+                                system=SYSTEM, timeout=10, num_predict=80, temperature=0.0)
+    except Exception as e:
+        log.warning("translation check unavailable: %s", e)
+        return None, ""
+    return bool(d.get("same_meaning")), str(d.get("english") or "")[:120]
+
+
+def _pinyin(native: str) -> str | None:
+    try:
+        from pypinyin import Style, pinyin
+    except ImportError:
+        return None
+    han = [c for c in native if scripts.in_script(c, "mandarin")]
+    return " ".join(s[0] for s in pinyin("".join(han), style=Style.TONE)) if han else None
+
+
 async def compose_message(text: str, lang: str) -> tuple[dict, dict]:
     text = (text or "").strip()
     if lang not in config.LANGS:
@@ -186,19 +249,53 @@ async def compose_message(text: str, lang: str) -> tuple[dict, dict]:
         raise ComposeError("Say or type a short message first.")
     if len(text) > MAX_TEXT:
         raise ComposeError("That's a bit long. Try a short message, like 'thank you, friend'.")
-    prompt = COMPOSE_PROMPT.format(lang_name=config.LANGS[lang]["name"], text=text.replace('"', "'"),
-                                   max_units=MAX_UNITS.get(lang, MAX_ALPHA), rule=_SCRIPT_RULE[lang], roman=_ROMAN[lang])
+
+    def done(d: dict, meta: dict) -> tuple[dict, dict]:
+        if lang == "mandarin":
+            d = {**d, "romanization": _pinyin(d["native"]) or d["romanization"]}
+        return {**d, "lang": lang, "text": text, "note": _note(lang, d["chars"])}, meta
+
+    if unsuitable(text):
+        raise ComposeError("Let's keep it to everyday messages, like greetings or thanks.")
     lesson_hit = _from_lessons(text, lang)
     if lesson_hit:
-        return {**lesson_hit, "lang": lang, "text": text, "note": _note(lang, lesson_hit["chars"])}, \
-               {"model": "lesson content (checked)", "ms": 0, "fallback": False}
-    try:
-        data, meta = await _cached_tutor(_key("compose", lang, text), prompt, _validator(lang), 200)
-    except llm.LLMError as e:
-        raise ComposeError("I couldn't turn that into a short message to write. Try simpler words.") from e
-    if data.get("unsuitable"):
-        raise ComposeError("Let's keep it to everyday messages, like greetings or thanks.")
-    return {**data, "lang": lang, "text": text, "note": _note(lang, data["chars"])}, meta
+        return done({**lesson_hit, "verified": True, "check": lesson_hit["back_translation"]},
+                    {"model": "lesson content (checked)", "ms": 0, "fallback": False})
+    book_hit = _from_phrasebook(text, lang)
+    if book_hit:
+        return done({**book_hit, "verified": True, "check": book_hit["back_translation"]},
+                    {"model": "phrasebook (checked)", "ms": 0, "fallback": False})
+    key = _key("compose", lang, text)
+    hit = _cache_get(key)
+    if hit and hit.get("verified"):
+        return done(hit, {"model": f"{config.TUTOR_MODEL} (checked, cached)", "ms": 0, "fallback": False, "cached": True})
+
+    base = COMPOSE_PROMPT.format(lang_name=config.LANGS[lang]["name"], text=text.replace('"', "'"),
+                                 max_units=MAX_UNITS.get(lang, MAX_ALPHA), rule=_SCRIPT_RULE[lang], roman=_ROMAN[lang])
+    prompt = base
+    meta: dict = {}
+    for attempt in range(2):
+        try:
+            data, meta = await llm.tutor_json(prompt, system=SYSTEM, validate=_validator(lang), num_predict=200,
+                                              cap=COMPOSE_CAP)
+        except llm.LLMError as e:
+            raise ComposeError("I couldn't turn that into a short message to write. Try simpler words.") from e
+        if data.get("unsuitable"):  # the word list above already passed it; the model's flag is erratic
+            prompt = f"{base}\n\nThis is an everyday, harmless message. Translate it. JSON only."
+            continue
+        ok, english = await check_translation(text, lang, data["native"])
+        meta = {**meta, "checked_by": config.TUTOR_MODEL, "attempts": attempt + 1}
+        if ok:
+            data = {**data, "verified": True, "check": english}
+            _cache_put(key, data)
+            return done(data, meta)
+        if ok is None:  # checker down: answer, clearly marked unchecked, and don't cache
+            return done({**data, "verified": False, "check": ""}, meta)
+        log.info("compose check failed for %s/%r: %r means %r", lang, text, data["native"], english)
+        prompt = (f"{base}\n\nA previous answer, {data['native']}, actually means \"{english}\", not \"{text}\". "
+                  f"Write it so it means exactly \"{text}\". JSON only.")
+    raise ComposeError("I'm not confident I can write that one correctly yet. Try something simpler, "
+                       "like 'thank you, friend'.")
 
 
 # ------------------------------------------------------------------ names
@@ -253,13 +350,10 @@ PREFETCH_NAMES = ["Jordan", "Alex", "Sara", "Chris", "Priya", "Omar"]
 async def prefetch() -> None:
     for text in PREFETCH:
         for lang in config.LANG_ORDER:
-            key = _key("compose", lang, text)
-            if _cache_get(key):
-                continue
-            prompt = COMPOSE_PROMPT.format(lang_name=config.LANGS[lang]["name"], text=text,
-                                           max_units=MAX_UNITS.get(lang, MAX_ALPHA), rule=_SCRIPT_RULE[lang],
-                                           roman=_ROMAN[lang])
-            await _upgrade(key, prompt, _validator(lang))
+            try:
+                await compose_message(text, lang)  # checks + caches
+            except ComposeError as e:
+                log.info("prefetch %s/%r: %s", lang, text, e)
     for n in PREFETCH_NAMES:
         key = _key("name", "all", n)
         if n.lower() not in checked_names() and not _cache_get(key):

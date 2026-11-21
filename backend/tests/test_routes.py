@@ -47,6 +47,10 @@ def fake(monkeypatch):
     f = FakeModels()
     monkeypatch.setattr(vision, "grade", f.vision_grade)
     monkeypatch.setattr(llm, "tutor_json", f.tutor_json)
+
+    async def check(model, prompt, **kw):  # the independent translation check: always agrees here
+        return {"english": "thank you friend", "same_meaning": True}
+    monkeypatch.setattr(llm, "json_call", check)
     return f
 
 
@@ -244,6 +248,7 @@ def test_compose(client, fake):
 
 
 def test_compose_rejects_unsuitable_and_long(client, fake):
+    assert client.post("/compose", json={"text": "vote for my party", "lang": "mandarin"}).status_code == 422
     assert client.post("/compose", json={"text": "a religion message", "lang": "mandarin"}).status_code == 422
     assert client.post("/compose", json={"text": "x" * 200, "lang": "mandarin"}).status_code == 422
     assert client.post("/compose", json={"text": "hi", "lang": "klingon"}).status_code == 422
@@ -428,25 +433,50 @@ def test_tutor_total_cap_then_rules(monkeypatch):
 
 
 
-def test_compose_fallback_answer_is_upgraded_and_cached(client, monkeypatch):
-    """7b answers now; 14b redoes it in the background; the next identical request is the cached 14b answer."""
-    calls = []
+def test_compose_wrong_translation_is_retried_then_cached(client, monkeypatch):
+    """The independent check catches a wrong phrase (Пока = 'bye' for 'see you tomorrow'); the retry
+    is told why, the fixed answer is checked again and cached."""
+    answers = iter([("Пока", "poka"), ("до завтра", "do zavtra")])
+    prompts = []
 
-    async def fallback_tutor(prompt, *, system=None, validate=None, num_predict=256, temperature=0.3, **kw):
-        return validate({"native": "спасиб", "romanization": "spasib", "back_translation": "thanks",
-                         "suitable": True}), {"model": "qwen2.5:7b", "fallback": True}
+    async def tutor(prompt, *, validate=None, **kw):
+        prompts.append(prompt)
+        native, rom = next(answers)
+        return validate({"native": native, "romanization": rom, "back_translation": "see you tomorrow",
+                         "suitable": True}), {"model": "qwen2.5:14b", "fallback": False}
 
-    async def big(model, prompt, **kw):
-        calls.append(model)
-        return kw["validate"]({"native": "спасибо", "romanization": "spasibo", "back_translation": "thank you",
-                               "suitable": True})
-    monkeypatch.setattr(llm, "tutor_json", fallback_tutor)
-    monkeypatch.setattr(llm, "json_call", big)
-    first = client.post("/compose", json={"text": "Thanks a lot", "lang": "russian"}).json()
-    assert first["native"] == "спасиб" and first["fallback"] is True
-    second = client.post("/compose", json={"text": "thanks  a LOT", "lang": "russian"}).json()
-    assert calls == ["qwen2.5:14b"]
-    assert second["native"] == "спасибо" and "cached" in second["model"]
+    async def check(model, prompt, **kw):
+        return {"english": "bye", "same_meaning": False} if "Пока" in prompt else \
+               {"english": "until tomorrow", "same_meaning": True}
+    monkeypatch.setattr(llm, "tutor_json", tutor)
+    monkeypatch.setattr(llm, "json_call", check)
+    d = client.post("/compose", json={"text": "See you tomorrow", "lang": "russian"}).json()
+    assert d["native"] == "до завтра" and d["verified"] is True and d["check"] == "until tomorrow"
+    assert "actually means \"bye\"" in prompts[1]
+    again = client.post("/compose", json={"text": "see you  tomorrow!", "lang": "russian"}).json()
+    assert again["native"] == "до завтра" and "cached" in again["model"] and len(prompts) == 2
+
+
+def test_compose_refuses_rather_than_teach_a_wrong_phrase(client, monkeypatch):
+    async def tutor(prompt, *, validate=None, **kw):
+        return validate({"native": "שים מעבת", "romanization": "x", "back_translation": "nice to meet you",
+                         "suitable": True}), {"model": "qwen2.5:14b", "fallback": False}
+
+    async def check(model, prompt, **kw):
+        return {"english": "put glasses", "same_meaning": False}
+    monkeypatch.setattr(llm, "tutor_json", tutor)
+    monkeypatch.setattr(llm, "json_call", check)
+    r = client.post("/compose", json={"text": "nice to meet you", "lang": "hebrew"})
+    assert r.status_code == 422 and "not confident" in r.json()["message"]
+
+
+def test_compose_mandarin_pinyin_is_computed(client, fake, monkeypatch):
+    async def tutor(prompt, *, validate=None, **kw):
+        return validate({"native": "早上好", "romanization": "zǎo shàng hào", "back_translation": "good morning",
+                         "suitable": True}), {"model": "qwen2.5:14b", "fallback": False}
+    monkeypatch.setattr(llm, "tutor_json", tutor)
+    d = client.post("/compose", json={"text": "good morning", "lang": "mandarin"}).json()
+    assert d["romanization"] == "zǎo shàng hǎo"
 
 
 def test_compose_lesson_phrase_needs_no_model(client, monkeypatch):
@@ -476,3 +506,33 @@ def test_echo_guard_rejects_weak_read_the_template_disagrees_with(client, fake, 
     # the same weak read on a real 你 still counts (template agrees)
     g2 = client.post("/grade", files={"image": ("p.jpg", write_on_paper("你"), "image/jpeg")}).json()
     assert g2["correct"] is True
+
+
+def test_tutor_patient_cap_uses_late_14b_when_7b_fails(monkeypatch):
+    from worn import config
+
+    async def call(model, prompt, **kw):
+        if model == config.TUTOR_MODEL:
+            await asyncio.sleep(0.5)  # past the 0.3 s budget, but within the cap
+            return {"model": model}
+        await asyncio.sleep(0.05)
+        raise llm.LLMError("7b wrote junk")
+    monkeypatch.setattr(llm, "json_call", call)
+    monkeypatch.setattr(config, "TUTOR_BUDGET", 0.3)
+    monkeypatch.setattr(config, "HEDGE_AFTER", 0.1)
+    data, meta = asyncio.run(llm.tutor_json("x", cap=5))
+    assert data["model"] == config.TUTOR_MODEL and "after the budget" in meta["reason"]
+
+
+
+def test_compose_phrasebook_is_used_first(client, monkeypatch):
+    from conftest import CONTENT
+    (CONTENT / "phrases").mkdir(exist_ok=True)
+    (CONTENT / "phrases" / "examples.json").write_text(json.dumps({"phrases": {"happy birthday": {
+        "greek": {"native": "χρόνια πολλά", "romanization": "chrónia pollá"}}}}, ensure_ascii=False))
+
+    async def boom(*a, **k):
+        raise AssertionError("phrasebook phrases must not call a model")
+    monkeypatch.setattr(llm, "tutor_json", boom)
+    d = client.post("/compose", json={"text": "Happy birthday!", "lang": "greek"}).json()
+    assert d["native"] == "χρόνια πολλά" and "phrasebook" in d["model"] and d["verified"] is True

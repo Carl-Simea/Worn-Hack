@@ -106,11 +106,17 @@ async def tutor_json(prompt: str, *, system: str | None = None, validate: Callab
                      num_predict: int = 256, temperature: float = 0.3, cap: float | None = None) -> tuple[dict, dict]:
     """qwen2.5:14b within TUTOR_BUDGET (3 s), else qwen2.5:7b, as a HEDGED request: if 14b hasn't
     answered after HEDGE_AFTER seconds, 7b starts in parallel. At the budget we take 14b if it's
-    done, otherwise 7b (usually already finished). Worst case ~= budget instead of budget + 7b.
-    Returns (data, meta) with meta = {model, ms, fallback, reason}. Raises LLMError if both fail."""
+    done, otherwise the first valid answer from either model until `cap` (total seconds).
+
+    The grade's decide step (cap = DECIDE_CAP, 4.5 s) stops 14b at the budget. compose/name pass a
+    longer cap and let 14b keep running, so a junk 7b answer doesn't fail the request when 14b is a
+    second away from a good one. Returns (data, meta = {model, ms, fallback, reason}); LLMError if both fail."""
     t0 = time.perf_counter()
+    total_cap = cap if cap is not None else config.DECIDE_CAP
+    patient = total_cap > config.DECIDE_CAP
     kw = dict(system=system, validate=validate, num_predict=num_predict, temperature=temperature)
-    big = asyncio.create_task(json_call(config.TUTOR_MODEL, prompt, timeout=config.TUTOR_BUDGET + 2, **kw))
+    big_timeout = total_cap if patient else config.TUTOR_BUDGET + 2
+    big = asyncio.create_task(json_call(config.TUTOR_MODEL, prompt, timeout=big_timeout, **kw))
     small: asyncio.Task | None = None
 
     def meta(model: str, fallback: bool, reason: str | None = None) -> dict:
@@ -122,33 +128,42 @@ async def tutor_json(prompt: str, *, system: str | None = None, validate: Callab
     def start_small():
         nonlocal small
         if small is None:
-            small = asyncio.create_task(json_call(config.TUTOR_FALLBACK, prompt, timeout=config.FALLBACK_TIMEOUT, **kw))
+            small_timeout = max(config.FALLBACK_TIMEOUT, total_cap - config.HEDGE_AFTER)
+            small = asyncio.create_task(json_call(config.TUTOR_FALLBACK, prompt, timeout=small_timeout, **kw))
 
-    reason = None
+    def ok(t: asyncio.Task | None) -> bool:
+        return t is not None and t.done() and not t.cancelled() and t.exception() is None
+
     try:
         done, _ = await asyncio.wait({big}, timeout=min(config.HEDGE_AFTER, config.TUTOR_BUDGET))
         if not done:
             start_small()
-            remaining = config.TUTOR_BUDGET - (time.perf_counter() - t0)
-            done, _ = await asyncio.wait({big}, timeout=max(0.0, remaining))
-        if big in done and big.exception() is None:
-            if small:
-                small.cancel()
+            await asyncio.wait({big}, timeout=max(0.0, config.TUTOR_BUDGET - (time.perf_counter() - t0)))
+        if ok(big):
             return big.result(), meta(config.TUTOR_MODEL, False)
-        reason = (f"{config.TUTOR_MODEL} exceeded {config.TUTOR_BUDGET:g}s" if big not in done
+        reason = (f"{config.TUTOR_MODEL} exceeded {config.TUTOR_BUDGET:g}s" if not big.done()
                   else f"{config.TUTOR_MODEL} failed: {str(big.exception())[:120]}")
-    finally:
-        if not big.done():
+        log.info("tutor fallback: %s", reason)
+        if not patient and not big.done():
             big.cancel()
-    log.info("tutor fallback: %s", reason)
-    start_small()
-    total_cap = cap if cap is not None else config.DECIDE_CAP
-    left = min(max(config.FALLBACK_TIMEOUT, total_cap - config.TUTOR_BUDGET), total_cap - (time.perf_counter() - t0))
-    try:
-        data = await asyncio.wait_for(small, timeout=max(0.05, left))
-    except (asyncio.TimeoutError, LLMError) as e:
-        raise LLMError(f"{reason}; {config.TUTOR_FALLBACK}: {e or 'timed out'}") from e
-    return data, meta(config.TUTOR_FALLBACK, True, reason)
+        start_small()
+        # first valid answer from whichever model is still running, until the cap
+        while True:
+            pending = {t for t in (big, small) if t is not None and not t.done()}
+            if ok(small):
+                return small.result(), meta(config.TUTOR_FALLBACK, True, reason)
+            if ok(big):
+                return big.result(), meta(config.TUTOR_MODEL, False, reason + "; 14b answered after the budget")
+            left = total_cap - (time.perf_counter() - t0)
+            if not pending or left <= 0:
+                errs = [str(t.exception())[:80] for t in (big, small)
+                        if t is not None and t.done() and not t.cancelled() and t.exception()]
+                raise LLMError(f"{reason}; no valid answer within {total_cap:g}s" + (f" ({'; '.join(errs)})" if errs else ""))
+            await asyncio.wait(pending, timeout=left, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        for t in (big, small):
+            if t is not None and not t.done():
+                t.cancel()
 
 
 async def vision_json(prompt: str, jpeg_b64: str, *, validate: Callable[[dict], dict] | None = None) -> tuple[dict, dict]:

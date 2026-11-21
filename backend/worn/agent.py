@@ -292,6 +292,7 @@ async def run_compose(text: str, lang: str) -> dict:
     run = Run(f"compose {lang}")
     run.step("observe", f"Learner wants to write \"{text[:60]}\" in {config.LANGS.get(lang, {}).get('name', lang)}")
     out, meta, _ = await run.tool("act", "compose_message", lambda: compose_mod.compose_message(text, lang),
-                                  lambda r: f"{r['native']} ({r['romanization']}) = \"{r['back_translation']}\", "
-                                            f"{len(r['chars'])} to write")
+                                  lambda r: f"{r['native']} ({r['romanization']}), {len(r['chars'])} to write; "
+                                            + (f"checked: reads back as \"{r.get('check')}\"" if r.get("verified")
+                                               else "not checked"))
     return {**out, "model": meta.get("model"), "fallback": meta.get("fallback", False), "run_id": run.id}
