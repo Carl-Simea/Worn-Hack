@@ -138,3 +138,19 @@ Daily 5 or Help me write.
 
 Every call updates `/app-state.last_voice` and logs a `voice` event `{heard, intent, say, ms, stt_ms}` to `/live/state`.
 `WORN_STT_MODEL` (default `base`) picks the whisper size.
+
+## Camera relay + automatic grading (`worn/camera.py`, `worn/autograde.py`)
+
+- `WS /ws/camera`: the glasses send binary JPEG preview frames (optionally a JSON text message `{ts, seq, w, h}`
+  right before each, or `{ts, jpeg: base64}`); viewers receive `{ts, seq, w, h, recv_ts}` text then the binary JPEG.
+  `?role=pub|view`. Only the newest frame is kept: a slow viewer skips frames, nothing is queued.
+- `GET /camera.mjpg` (multipart MJPEG, newest frame), `GET /camera.jpg` (`X-Frame-Seq`, `X-Frame-Ts`),
+  `POST /camera/frame` (HTTP publish fallback), `GET /camera/status` (fps, age, latency, viewers, publishers).
+- **Auto-grading (no "check" needed):** every preview frame is ink-diffed (tier 1) against the last frame with new ink;
+  new ink gets a shape-only score of the strokes so far vs. the reference up to the current stroke (tier 2, no LLM).
+  When the last stroke matches, or the ink is still for 2 s, the full grade runs: `/app-state.grading.capture_request`
+  asks the glasses for a full-res still (POST `/grade` answers it); if none arrives in 1.2 s the newest preview frame
+  is graded. A hand over the page (> 4% new "ink" at once) is ignored. Voice "check" forces it.
+- `/app-state.grading` = `{phase: watching|stroke_scored|analyzing|result, stroke, stroke_count, accuracy,
+  stroke_scores[], step, step_label, steps[], capture_request{id,ts,reason}, score, correct, feedback, subscores,
+  crop_url}`, mirrored as `grade_phase`. `WORN_AUTO_GRADE=0` turns it off; `WORN_AUTO_SETTLE`, `WORN_AUTO_STILL_WAIT`.

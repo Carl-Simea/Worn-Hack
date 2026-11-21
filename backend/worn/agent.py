@@ -176,7 +176,7 @@ def guardrails(dec: dict, correct: bool, tries_after: int) -> tuple[dict, str | 
 # ------------------------------------------------------------------ grade run
 
 async def run_grade(jpeg: bytes, char: str, lang: str, session: dict | None, image_url: str | None,
-                    user: str = memory.DEFAULT_USER) -> dict:
+                    user: str = memory.DEFAULT_USER, progress=None) -> dict:
     """The full loop for one handwriting photo. Returns the /grade response body."""
     run = Run(f"grade {char}")
     sess_match = bool(session and session.get("char") == char and session.get("lang") == lang)

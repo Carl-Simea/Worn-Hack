@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import quote
 
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -22,6 +22,8 @@ from pydantic import BaseModel, Field
 
 from worn import agent, compose, config, content, inkdiff, llm, memory, screen, strokes, vision
 from worn.live import LIVE
+from worn.autograde import AUTO
+from worn.camera import RELAY, BOUNDARY as CAM_BOUNDARY, mjpeg as cam_mjpeg, decode_b64
 
 log = logging.getLogger("worn")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -226,15 +228,14 @@ def _save_capture(jpeg: bytes, lang: str, char: str) -> str:
     return f"/captures/{name}"
 
 
-@app.post("/grade")
-async def grade(image: UploadFile = File(...), char: str | None = Form(None), lang: str | None = Form(None)):
-    """Tier 3 + the tutor agent. char/lang default to the active session."""
+async def _grade_bytes(raw: bytes, char: str | None, lang: str | None, source: str = "still") -> dict:
+    """The full grade (shape + Scribi's rubric). Used by POST /grade (stills) and the auto-grader (previews)."""
     sess = LIVE.session
     char = (char or (sess or {}).get("char") or "").strip()
     lang = (lang or (sess or {}).get("lang") or "").strip()
     if not char or not lang:
         raise HTTPException(400, "I need to know which character this is. Start a lesson first.")
-    raw = await _read_image(image)
+    AUTO.analyzing(0)
     try:
         jpeg = vision.prep_image(raw)
     except Exception:
@@ -243,13 +244,25 @@ async def grade(image: UploadFile = File(...), char: str | None = Form(None), la
     LIVE.set_photo(url)
     LIVE.glasses.update({"phase": "checking", "showing": "checking"})
     try:
-        res = await agent.run_grade(jpeg, char, lang, sess, url)
+        res = await agent.run_grade(jpeg, char, lang, sess, url, progress=AUTO.analyzing)
     except Exception as e:
         log.error("grade failed: %r", e)
         LIVE.add_event("grade_error", {"error": str(e)[:200]})
+        AUTO.publish("result", error="checker unavailable")
         raise HTTPException(503, "The checker is warming up. Try again in a moment.")
+    res["source"] = source
     LIVE.set_result(res, res.get("next"))
+    AUTO.result(res)
     return res
+
+
+@app.post("/grade")
+async def grade(image: UploadFile = File(...), char: str | None = Form(None), lang: str | None = Form(None)):
+    """Full grade of a full-res still. char/lang default to the active session. Also answers the
+    auto-grader's capture request (grading.capture_request in /app-state)."""
+    raw = await _read_image(image)
+    AUTO.still_arrived()
+    return await _grade_bytes(raw, char, lang, "still")
 
 
 @app.post("/stroke-match")
@@ -383,6 +396,8 @@ def reset_demo(journal: bool = False):
     """Clear the live state (and the journal/memory with ?journal=true) before a demo."""
     LIVE.reset()
     V.reset_state()
+    AUTO.reset()
+    AUTO.grade_fn = _auto_grade
     if journal:
         memory.reset()
     return {"ok": True}
@@ -608,6 +623,7 @@ async def _act(intent: str, args: dict, screen: str | None, heard: str) -> dict:
             args.update({"lang": sess["lang"], "char": sess["char"]})
             say = "Hold the paper still. Checking."
             nav = {**_lesson_nav(sess), "phase": "check"}
+            asyncio.create_task(AUTO.final("voice: check", manual=True))  # still if the glasses send one, else preview
         else:
             say = "Pick a word first. " + V.HINTS["home"]
     elif intent == "meaning":
@@ -839,3 +855,113 @@ def get_app_state():
     if s and not st.get("lang"):
         st.update({"lang": s.get("lang"), "item_id": s.get("item_id"), "char_index": s.get("char_index")})
     return st
+
+
+# ------------------------------------------------------------------ camera relay (glasses preview frames)
+
+async def _auto_grade(jpeg: bytes, source: str) -> dict:
+    try:
+        return await _grade_bytes(jpeg, None, None, source)
+    except HTTPException as e:
+        AUTO.publish("result", error=e.detail)
+        raise
+
+
+AUTO.grade_fn = _auto_grade
+RELAY.listeners.append(AUTO.on_frame)
+
+
+@app.websocket("/ws/camera")
+async def ws_camera(ws: WebSocket, role: str | None = None):
+    """Glasses: send binary JPEG frames (optionally a JSON text message {ts, seq, w, h} right before each, or
+    {ts, jpeg: base64}). Viewers: receive a JSON text meta message then the binary JPEG, newest frame only.
+    ?role=pub never receives frames; ?role=view never publishes. Without a role, sending a frame makes you a publisher."""
+    await ws.accept()
+    state = {"pub": role == "pub", "meta": None}
+    if state["pub"]:
+        RELAY.publishers += 1
+    else:
+        RELAY.viewers += 1
+
+    async def sender():
+        seq = RELAY.seq - 1 if RELAY.jpeg else 0
+        while True:
+            if state["pub"]:
+                await asyncio.sleep(1)
+                continue
+            seq, jpeg, meta = await RELAY.wait_newer(seq, timeout=5)
+            if jpeg is None or state["pub"]:
+                continue
+            await ws.send_json({k: meta.get(k) for k in ("ts", "seq", "w", "h", "recv_ts")})
+            await ws.send_bytes(jpeg)
+
+    task = asyncio.create_task(sender()) if role != "pub" else None
+    try:
+        while True:
+            msg = await ws.receive()
+            if msg["type"] == "websocket.disconnect":
+                break
+            if role == "view":
+                continue
+            data, text = msg.get("bytes"), msg.get("text")
+            meta = None
+            if text:
+                try:
+                    obj = __import__("json").loads(text)
+                except ValueError:
+                    continue
+                if isinstance(obj, dict) and obj.get("jpeg"):
+                    data, meta = decode_b64(obj["jpeg"]), obj
+                elif isinstance(obj, dict):
+                    state["meta"] = obj
+                    continue
+            if data:
+                if not state["pub"]:
+                    state["pub"] = True
+                    RELAY.viewers -= 1
+                    RELAY.publishers += 1
+                try:
+                    await RELAY.publish(data, meta or state["meta"])
+                except ValueError:
+                    pass
+                state["meta"] = None
+    except (WebSocketDisconnect, RuntimeError):
+        pass
+    finally:
+        if task:
+            task.cancel()
+        if state["pub"]:
+            RELAY.publishers -= 1
+        else:
+            RELAY.viewers -= 1
+
+
+@app.post("/camera/frame")
+async def camera_frame(image: UploadFile = File(...), ts: float | None = Form(None)):
+    """HTTP fallback for publishing one preview frame."""
+    try:
+        meta = await RELAY.publish(await image.read(), {"ts": ts} if ts else None)
+    except ValueError:
+        raise HTTPException(400, "That frame isn't a JPEG.")
+    return {"ok": True, "seq": meta["seq"]}
+
+
+@app.get("/camera.mjpg")
+def camera_mjpg():
+    """Newest preview frame as multipart MJPEG (latest only, no buffering)."""
+    return StreamingResponse(cam_mjpeg(), media_type=f"multipart/x-mixed-replace; boundary={CAM_BOUNDARY}",
+                             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+
+
+@app.get("/camera.jpg")
+def camera_jpg():
+    if RELAY.jpeg is None:
+        raise HTTPException(404, "No camera frames yet.")
+    return Response(RELAY.jpeg, media_type="image/jpeg", headers={
+        "Cache-Control": "no-store", "X-Frame-Seq": str(RELAY.seq), "X-Frame-Ts": f"{RELAY.meta.get('ts', 0):.3f}"})
+
+
+@app.get("/camera/status")
+def camera_status():
+    return {**RELAY.status(), "auto_grade": {"enabled": __import__("worn.autograde", fromlist=["x"]).ENABLED,
+            "key": AUTO.key, "stroke": AUTO.stroke, "scores": AUTO.scores, "final_started": AUTO.final_started}}
