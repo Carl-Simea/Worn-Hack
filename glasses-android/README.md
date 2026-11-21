@@ -43,6 +43,18 @@ Worn (verified with `adb reboot`: Worn was in front ~14 s after boot). A reboot 
 `adb shell cmd package set-home-activity com.mlaixr.launcher/.MainActivity`. A short Back is "back" inside Worn.
 The app appears as **Worn** (white W on black) in the glasses' app list.
 
+## Cable-free (phone hotspot, verified 11/21 13:07)
+
+Venue Wi-Fi (CityTech-WiFi) isolates devices; an iPhone hotspot doesn't. If the hotspot gives the Mac IPv6 only
+(`ipconfig getifaddr en0` empty), run the IPv6 bridge and point the glasses at the Mac's IPv6 address:
+
+    nohup python3 glasses-android/tools/v6_bridge.py &          # [::]:8000 -> the backend on 127.0.0.1:8000
+    ifconfig en0 | grep "inet6 2"                               # take the "secured" (non-temporary) address
+    NOBUILD=1 glasses-android/install.sh "[2607:…:8d80]"        # brackets included
+
+(With Maximize Compatibility on, the Mac gets 172.20.10.x: just `NOBUILD=1 ./install.sh 172.20.10.x`, no bridge.)
+Join the glasses to the hotspot in their Wi-Fi settings (or MLDemo › Wi-Fi). USB stays the automatic fallback.
+
 ## Run (without changing the home app)
 
     scripts/run.sh usb          # backend over the USB cable (adb reverse); most reliable at the table
