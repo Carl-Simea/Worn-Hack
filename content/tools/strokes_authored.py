@@ -1,14 +1,14 @@
-"""Hand-authored SUGGESTED stroke order for Hindi (Devanagari), Arabic and Russian (print Cyrillic).
+"""Hand-authored SUGGESTED stroke order for Hindi (Devanagari), Arabic, Russian (print Cyrillic), Hebrew (block) and Greek.
 
 Each character is a list of strokes, in writing order. A stroke is a string of points "x,y x,y ..." in a 100x100 box
 (y down), written in the direction the pen moves. Points are joined with a smooth curve; "|" makes a sharp corner
 (the next part starts at the previous point). Strokes are centerlines, not outlines.
 
-   python3 content/tools/strokes_authored.py            -> writes content/strokes/{hindi,arabic,russian}/{hex}.svg
+   python3 content/tools/strokes_authored.py            -> writes content/strokes/{hindi,arabic,russian,hebrew,greek}/{hex}.svg
    python3 content/tools/strokes_authored.py --preview DIR   (needs Pillow) -> DIR/{lang}.png contact sheets:
         light grey = the real font glyph, colored strokes numbered at their start with an arrow at their end.
 
-Output SVGs use viewBox 0 0 109 109 (the KanjiVG frame web/worn-strokes.js expects); the 100-box is centred in it
+Output SVGs use viewBox 0 0 109 109 (the frame web/ and backend/worn/strokes.py read); the 100-box is centred in it
 (+4.5 offset). Each file is labelled "suggested stroke order".
 """
 import json, sys

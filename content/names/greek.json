@@ -1,0 +1,146 @@
+{
+  "script": "Greek",
+  "lang": "greek",
+  "rtl": false,
+  "note": "Greek spells names by sound. Greek has no single b, d or g letter for those sounds, so they're written μπ, ντ, γκ; 'j' is τζ. Put the accent (á é í ó) on the stressed vowel, use ς for an 's' at the very end, and capitalize the first letter.",
+  "how_to_use": "Look up each sound in order, accent the stressed vowel, then capitalize the first letter.",
+  "sounds": {
+    "a": "α",
+    "á": "ά",
+    "e": "ε",
+    "é": "έ",
+    "i": "ι",
+    "í": "ί",
+    "o": "ο",
+    "ó": "ό",
+    "u": "ου",
+    "oo": "ου",
+    "b": "μπ",
+    "d": "ντ",
+    "g": "γκ",
+    "j": "τζ",
+    "ch": "τσ",
+    "sh": "σ",
+    "z": "ζ",
+    "th": "θ",
+    "f": "φ",
+    "k": "κ",
+    "c": "κ",
+    "l": "λ",
+    "m": "μ",
+    "n": "ν",
+    "p": "π",
+    "r": "ρ",
+    "s": "σ",
+    "s$": "ς",
+    "t": "τ",
+    "v": "β",
+    "x": "ξ",
+    "ks": "ξ",
+    "ps": "ψ",
+    "h": "χ",
+    "y": "γι"
+  },
+  "examples": [
+    {
+      "name": "Maria",
+      "sounds": [
+        "m",
+        "a",
+        "r",
+        "í",
+        "a"
+      ],
+      "written": "Μαρία"
+    },
+    {
+      "name": "John",
+      "sounds": [
+        "j",
+        "o",
+        "n"
+      ],
+      "written": "Τζον"
+    },
+    {
+      "name": "David",
+      "sounds": [
+        "d",
+        "é",
+        "i",
+        "v",
+        "i",
+        "d"
+      ],
+      "written": "Ντέιβιντ"
+    },
+    {
+      "name": "Sarah",
+      "sounds": [
+        "s",
+        "á",
+        "r",
+        "a"
+      ],
+      "written": "Σάρα"
+    },
+    {
+      "name": "Mike",
+      "sounds": [
+        "m",
+        "á",
+        "i",
+        "k"
+      ],
+      "written": "Μάικ"
+    },
+    {
+      "name": "Emma",
+      "sounds": [
+        "é",
+        "m",
+        "m",
+        "a"
+      ],
+      "written": "Έμμα"
+    },
+    {
+      "name": "Anna",
+      "sounds": [
+        "á",
+        "n",
+        "n",
+        "a"
+      ],
+      "written": "Άννα"
+    },
+    {
+      "name": "Sam",
+      "sounds": [
+        "s",
+        "a",
+        "m"
+      ],
+      "written": "Σαμ"
+    },
+    {
+      "name": "Ben",
+      "sounds": [
+        "b",
+        "e",
+        "n"
+      ],
+      "written": "Μπεν"
+    },
+    {
+      "name": "Lisa",
+      "sounds": [
+        "l",
+        "í",
+        "z",
+        "a"
+      ],
+      "written": "Λίζα"
+    }
+  ]
+}

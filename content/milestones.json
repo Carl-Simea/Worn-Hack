@@ -6,32 +6,97 @@
     "first_mastered": "the first item completed correctly three times (or once from dictation without the animation)"
   },
   "mandarin": {
-    "first_letter": {"spoken": "Your first Chinese character. That's a big deal!", "shown": "First character ✓"},
-    "first_word": {"spoken": "Your first word in Mandarin. Ni hao to you too!", "shown": "First word ✓ 你好"},
-    "first_mastered": {"spoken": "Mastered! You can write that one from memory now.", "shown": "Mastered ✓"}
-  },
-  "japanese": {
-    "first_letter": {"spoken": "Your first hiragana. Only forty-five more to go!", "shown": "First hiragana ✓"},
-    "first_word": {"spoken": "Your first word in Japanese. Sugoi!", "shown": "First word ✓"},
-    "first_mastered": {"spoken": "Mastered! That one's yours for keeps.", "shown": "Mastered ✓"}
+    "first_letter": {
+      "spoken": "Your first Chinese character. That's a big deal!",
+      "shown": "First character ✓"
+    },
+    "first_word": {
+      "spoken": "Your first word in Mandarin. Ni hao to you too!",
+      "shown": "First word ✓ 你好"
+    },
+    "first_mastered": {
+      "spoken": "Mastered! You can write that one from memory now.",
+      "shown": "Mastered ✓"
+    }
   },
   "hindi": {
-    "first_letter": {"spoken": "Your first Devanagari letter. Headline and all!", "shown": "First letter ✓"},
-    "first_word": {"spoken": "Your first word in Hindi. Bahut badhiya, very nice!", "shown": "First word ✓"},
-    "first_mastered": {"spoken": "Mastered! You can write that one from memory now.", "shown": "Mastered ✓"}
+    "first_letter": {
+      "spoken": "Your first Devanagari letter. Headline and all!",
+      "shown": "First letter ✓"
+    },
+    "first_word": {
+      "spoken": "Your first word in Hindi. Bahut badhiya, very nice!",
+      "shown": "First word ✓"
+    },
+    "first_mastered": {
+      "spoken": "Mastered! You can write that one from memory now.",
+      "shown": "Mastered ✓"
+    }
   },
   "arabic": {
-    "first_letter": {"spoken": "Your first Arabic letter, written right to left. Nice!", "shown": "First letter ✓"},
-    "first_word": {"spoken": "Your first word in Arabic, all joined up. Mumtaz, excellent!", "shown": "First word ✓"},
-    "first_mastered": {"spoken": "Mastered! That one's yours for keeps.", "shown": "Mastered ✓"}
+    "first_letter": {
+      "spoken": "Your first Arabic letter, written right to left. Nice!",
+      "shown": "First letter ✓"
+    },
+    "first_word": {
+      "spoken": "Your first word in Arabic, all joined up. Mumtaz, excellent!",
+      "shown": "First word ✓"
+    },
+    "first_mastered": {
+      "spoken": "Mastered! That one's yours for keeps.",
+      "shown": "Mastered ✓"
+    }
   },
   "russian": {
-    "first_letter": {"spoken": "Your first Cyrillic letter. Welcome to the alphabet!", "shown": "First letter ✓"},
-    "first_word": {"spoken": "Your first word in Russian. Molodets, well done!", "shown": "First word ✓"},
-    "first_mastered": {"spoken": "Mastered! You can write that one from memory now.", "shown": "Mastered ✓"}
+    "first_letter": {
+      "spoken": "Your first Cyrillic letter. Welcome to the alphabet!",
+      "shown": "First letter ✓"
+    },
+    "first_word": {
+      "spoken": "Your first word in Russian. Molodets, well done!",
+      "shown": "First word ✓"
+    },
+    "first_mastered": {
+      "spoken": "Mastered! You can write that one from memory now.",
+      "shown": "Mastered ✓"
+    }
+  },
+  "hebrew": {
+    "first_letter": {
+      "spoken": "Your first Hebrew letter, written right to left. Nice!",
+      "shown": "First letter ✓"
+    },
+    "first_word": {
+      "spoken": "Your first word in Hebrew. Kol hakavod, well done!",
+      "shown": "First word ✓"
+    },
+    "first_mastered": {
+      "spoken": "Mastered! That one's yours for keeps.",
+      "shown": "Mastered ✓"
+    }
+  },
+  "greek": {
+    "first_letter": {
+      "spoken": "Your first Greek letter. Alpha-level achievement!",
+      "shown": "First letter ✓"
+    },
+    "first_word": {
+      "spoken": "Your first word in Greek. Bravo!",
+      "shown": "First word ✓"
+    },
+    "first_mastered": {
+      "spoken": "Mastered! You can write that one from memory now.",
+      "shown": "Mastered ✓"
+    }
   },
   "any": {
-    "first_name": {"spoken": "You just wrote your name in a new script. Certified scribe!", "shown": "Your name ✓"},
-    "all_five_languages": {"spoken": "Five scripts in one sitting. That's a world tour!", "shown": "5 scripts ✓"}
+    "first_name": {
+      "spoken": "You just wrote your name in a new script. Certified scribe!",
+      "shown": "Your name ✓"
+    },
+    "all_six_languages": {
+      "spoken": "Six scripts in one sitting. That's a world tour!",
+      "shown": "6 scripts ✓"
+    }
   }
 }

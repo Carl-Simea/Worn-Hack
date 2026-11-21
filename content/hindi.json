@@ -7,6 +7,7 @@
   "about": "Each consonant carries a built-in 'a'; vowel signs attach to it. The top line is usually drawn last.",
   "stroke_order": "suggested",
   "stroke_source": "hand-authored for Worn (suggested stroke order)",
+  "hero": "नमस्ते",
   "phrases": [
     {
       "id": "hello",
@@ -18,6 +19,11 @@
       ],
       "romanization": "namaste",
       "meaning": "hello",
+      "char_romanization": [
+        "na",
+        "ma",
+        "ste"
+      ],
       "audio": "audio/hindi/hello.m4a",
       "how": "स्ते joins a half स to त, plus the 'e' sign on top.",
       "why": "Greet someone in their own script on a card or a note.",
@@ -35,6 +41,12 @@
       ],
       "romanization": "dhanyavād",
       "meaning": "thank you",
+      "char_romanization": [
+        "dha",
+        "nya",
+        "vā",
+        "d"
+      ],
       "audio": "audio/hindi/thank_you.m4a",
       "how": "Vowel signs attach to consonants: वा is व plus the 'ā' sign ा.",
       "why": "Write a real thank-you card to a host or to family.",
@@ -50,6 +62,10 @@
       ],
       "romanization": "pānī",
       "meaning": "water",
+      "char_romanization": [
+        "pā",
+        "nī"
+      ],
       "audio": "audio/hindi/water.m4a",
       "how": "पा is प + ा ('ā'); नी is न + ी ('ī'), drawn to the right.",
       "why": "Spot it on a menu, a sign or a bottle label.",
@@ -65,6 +81,10 @@
       ],
       "romanization": "dost",
       "meaning": "friend",
+      "char_romanization": [
+        "do",
+        "st"
+      ],
       "audio": "audio/hindi/friend.m4a",
       "how": "The last consonant drops its built-in 'a' in speech: दोस्त is said 'dost'.",
       "why": "Sign a note to a friend. Writing it by hand helps you remember it.",
@@ -80,6 +100,10 @@
       ],
       "romanization": "ek",
       "meaning": "one",
+      "char_romanization": [
+        "e",
+        "k"
+      ],
       "audio": "audio/hindi/one.m4a",
       "how": "ए is a vowel letter used at the start of a word; inside words vowels become signs.",
       "why": "Read quantities and order one of something off a menu.",

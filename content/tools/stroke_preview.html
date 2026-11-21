@@ -42,7 +42,8 @@ const qs = new URLSearchParams(location.search);
 const ONLY = qs.get("lang"), GRID = qs.get("grid") === "1", ANIM = qs.get("anim") !== "0";
 const COLORS = ["#e53935", "#1e88e5", "#43a047", "#fb8c00", "#8e24aa", "#00acc1", "#d81b60", "#827717", "#5d4037", "#3949ab", "#c0ca33", "#6d4c41"];
 const FONT = { hindi: '"Kohinoor Devanagari","Noto Sans Devanagari",sans-serif', arabic: '"Geeza Pro","Noto Naskh Arabic",sans-serif',
-  russian: 'Helvetica,Arial,sans-serif', mandarin: '"PingFang SC","Noto Sans CJK SC",sans-serif', japanese: '"Hiragino Sans","Noto Sans CJK JP",sans-serif' };
+  russian: 'Helvetica,Arial,sans-serif', mandarin: '"PingFang SC","Noto Sans CJK SC",sans-serif',
+  hebrew: '"Noto Sans Hebrew","SF Hebrew","Arial Hebrew",sans-serif', greek: '"Noto Sans",Helvetica,Arial,sans-serif' };
 const NS = "http://www.w3.org/2000/svg";
 const hex = c => [...c].map(x => x.codePointAt(0).toString(16)).join("-");
 let total = 0, withFile = 0, problems = [];
@@ -54,7 +55,7 @@ function drawGlyph(canvas, ch, lang) {
   const g = canvas.getContext("2d"); g.scale(dpr, dpr);
   const off = document.createElement("canvas"); off.width = 800; off.height = 800;
   const o = off.getContext("2d"); o.font = `300px ${FONT[lang]}`; o.textBaseline = "alphabetic"; o.fillStyle = "#000";
-  if (lang === "arabic") o.direction = "rtl";
+  if (lang === "arabic" || lang === "hebrew") o.direction = "rtl";
   o.textAlign = "center"; o.fillText(ch, 400, 520);
   const d = o.getImageData(0, 0, 800, 800).data; let x0 = 800, y0 = 800, x1 = 0, y1 = 0;
   for (let y = 0; y < 800; y++) for (let x = 0; x < 800; x++) if (d[(y * 800 + x) * 4 + 3] > 20) {
@@ -78,7 +79,7 @@ function overlay(svgText) {
   const src = new DOMParser().parseFromString(svgText, "image/svg+xml");
   const vb = (src.documentElement.getAttribute("viewBox") || "0 0 109 109").split(/\s+/).map(Number);
   const svg = document.createElementNS(NS, "svg");
-  // our hand-authored files are a 100-box centred in 109 (+4.5); KanjiVG is native 109. Show both on the 100 grid.
+  // hand-authored files are a 100-box centred in a 109 frame (+4.5). Show them on the 100 grid.
   svg.setAttribute("viewBox", `${vb[0] + 4.5} ${vb[1] + 4.5} 100 100`);
   const paths = [...src.getElementsByTagName("path")].map(p => p.getAttribute("d"));
   paths.forEach((dd, i) => {
@@ -123,7 +124,7 @@ async function cell(lang, ch, stroke_order) {
   if (ANIM) {
     const a = document.createElement("div"); a.className = "box anim";
     const inner = document.createElement("div"); inner.className = "inner"; a.appendChild(inner); pair.appendChild(a);
-    WornStrokes.create(inner, cap, "").animate({ char: ch, stroke_url: r.ok ? url : null, rtl: lang === "arabic" });
+    WornStrokes.create(inner, cap, "").animate({ char: ch, stroke_url: r.ok ? url : null, rtl: lang === "arabic" || lang === "hebrew" });
   }
   return c;
 }

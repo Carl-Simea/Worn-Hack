@@ -4,8 +4,8 @@ Please check every row with a native speaker at the venue. Tick the box if it's 
 in the Notes column (or tell agent C). **If anything is wrong and there's no time to fix it, we cut that item.**
 
 Things to check: the native text, the romanization, the meaning, the one-line notes, and the audio
-(`content/audio/{lang}/{id}.m4a`, macOS text-to-speech). For Hindi, Arabic and Russian, also check the
-**suggested** stroke order in `content/review/strokes_{lang}.png` (Mandarin/Japanese use standard data).
+(`content/audio/{lang}/{id}.m4a`, macOS text-to-speech). For Hindi, Arabic, Russian, Hebrew and Greek, also check the
+**suggested** stroke order in `content/review/strokes_{lang}.png` (Mandarin uses standard data).
 
 ## Mandarin Chinese · Simplified Chinese characters (logographic)
 
@@ -18,18 +18,6 @@ _Each character is one syllable with its own meaning. Pinyin with tone marks sho
 | ☐ | **水** | shuǐ | water | 水 | 水 began as a picture of flowing water; many water words contain a form of it (氵). | One character, four strokes: the hooked middle line comes first. | |
 | ☐ | **朋友** | péngyou | friend | 朋 · 友 | Two characters, two syllables: 朋 and 友 both carry the idea of 'friend'. | 朋 is two 月 side by side; 友 starts with a short horizontal line. | |
 | ☐ | **一** | yī | one | 一 | Numbers are characters too: 一 is one stroke, 二 is two, 三 is three. | One horizontal stroke, left to right. | |
-
-## Japanese · Hiragana (syllabic)
-
-_Each hiragana stands for a whole syllable. Romanized with Hepburn._  Stroke order: **standard** (KanjiVG (CC BY-SA 3.0)).
-
-| ✓ | Native | Romanization | Meaning | Written as (one per photo) | How the script works | Dictation hint | Notes |
-|---|---|---|---|---|---|---|---|
-| ☐ | **こんにちは** | konnichiwa | hello | こ · ん · に · ち · は | Each sign is a syllable (こ ko, ん n, に ni, ち chi); the final は is read 'wa' here. | Five hiragana. It ends with は, even though you say 'wa'. | |
-| ☐ | **ありがとう** | arigatō | thank you | あ · り · が · と · う | が is か (ka) plus two small marks (dakuten) that turn it into 'ga'. | Five hiragana: a-ri-ga-to-u. The long ō is written with う. | |
-| ☐ | **みず** | mizu | water | み · ず | ず is す (su) with dakuten, which makes it 'zu'. | Two hiragana: み then ず. | |
-| ☐ | **ともだち** | tomodachi | friend | と · も · だ · ち | だ is た (ta) plus dakuten = 'da'. Hiragana spells words by sound. | Four hiragana: to-mo-da-chi. | |
-| ☐ | **いち** | ichi | one | い · ち | Any word can be spelled in hiragana; いち is also written with the kanji 一. | Two hiragana: い then ち. | |
 
 ## Hindi · Devanagari (abugida)
 
@@ -66,6 +54,30 @@ _An alphabet like English, with some look-alike letters that sound different. Ru
 | ☐ | **вода** | voda | water | в · о · д · а | Unstressed о often sounds like 'a': вода is said 'va-DA'. | Four letters: в о д а. | |
 | ☐ | **друг** | drug | friend | д · р · у · г | д is 'd', у is 'oo' and г is 'g'. In cursive, д and г look very different. | Four letters: д р у г. | |
 | ☐ | **один** | odin | one | о · д · и · н | и is 'ee' and н is 'n', not 'h'. Stress the second syllable: a-DEEN. | Four letters: о д и н. | |
+
+## Hebrew · Hebrew alphabet (block print) (abjad, right to left)
+
+_Written right to left with 22 letters; everyday writing leaves out most vowels. We teach block print letters; everyday handwriting uses a different cursive style._  Stroke order: **suggested** (hand-authored for Worn (suggested stroke order)).
+
+| ✓ | Native | Romanization | Meaning | Written as (one per photo) | How the script works | Dictation hint | Notes |
+|---|---|---|---|---|---|---|---|
+| ☐ | **שלום** | shalom | hello | ש · ל · ו · ם | Right to left. ם is the special form of מ used only at the end of a word. | Four letters, right to left: ש ל ו ם. | |
+| ☐ | **תודה** | toda | thank you | ת · ו · ד · ה | Most vowels aren't written: ו stands for the 'o' and the final ה for the 'a'. | Four letters, right to left: ת ו ד ה. | |
+| ☐ | **מים** | mayim | water | מ · י · ם | Same letter, two shapes: the word starts with מ and ends with final ם. | Three letters, right to left: מ י ם. | |
+| ☐ | **חבר** | chaver | friend | ח · ב · ר | ח is a throaty 'ch', like in Bach. The vowels a and e aren't written. | Three letters, right to left: ח ב ר. | |
+| ☐ | **אחד** | echad | one | א · ח · ד | א often carries a vowel without a sound of its own; here it starts 'e-chad'. | Three letters, right to left: א ח ד. | |
+
+## Greek · Greek alphabet (alphabet)
+
+_An alphabet written left to right. Some letters look familiar but sound different, and an accent mark shows the stressed syllable._  Stroke order: **suggested** (hand-authored for Worn (suggested stroke order)).
+
+| ✓ | Native | Romanization | Meaning | Written as (one per photo) | How the script works | Dictation hint | Notes |
+|---|---|---|---|---|---|---|---|
+| ☐ | **γεια σου** | yia sou | hello | γ · ε · ι · α · σ · ο · υ | γ before ει sounds like 'y', so γεια is 'yia'. ου together sound like 'oo'. | Two words: γεια, then σου. Seven letters in all. | |
+| ☐ | **ευχαριστώ** | efcharistó | thank you | ε · υ · χ · α · ρ · ι · σ · τ · ώ | Look-alikes sound different: χ is a throaty 'ch' and ρ is 'r'. | Nine letters. The accent goes on the last one: ώ. | |
+| ☐ | **νερό** | neró | water | ν · ε · ρ · ό | ν looks like a v but is 'n'. The accent shows the stress: ne-RÓ. | Four letters: ν ε ρ ό. | |
+| ☐ | **φίλος** | fílos | friend | φ · ί · λ · ο · ς | ς is how σ is written at the very end of a word. | Five letters: φ ί λ ο ς. It ends with ς. | |
+| ☐ | **ένα** | éna | one | έ · ν · α | Most Greek words carry a written accent on the stressed vowel: É-na. | Three letters: έ ν α. | |
 
 ## Write your name (approximate sound maps)
 
@@ -116,20 +128,35 @@ These are rough English-sound → script maps for fun, not official transliterat
 | ☐ | Ben | **बेन** |  |
 | ☐ | Sarah | **सारा** |  |
 
-### Katakana (katakana.json)
+### Greek (greek.json)
 
 | ✓ | English name | Written | Notes |
 |---|---|---|---|
-| ☐ | Maria | **マリア** |  |
-| ☐ | Emma | **エマ** |  |
-| ☐ | John | **ジョン** |  |
-| ☐ | Lisa | **リサ** | L becomes the r-row |
-| ☐ | Sam | **サム** |  |
-| ☐ | David | **デイビッド** |  |
-| ☐ | Mike | **マイク** |  |
-| ☐ | Anna | **アンナ** |  |
-| ☐ | Ben | **ベン** |  |
-| ☐ | Sarah | **サラ** |  |
+| ☐ | Maria | **Μαρία** |  |
+| ☐ | John | **Τζον** |  |
+| ☐ | David | **Ντέιβιντ** |  |
+| ☐ | Sarah | **Σάρα** |  |
+| ☐ | Mike | **Μάικ** |  |
+| ☐ | Emma | **Έμμα** |  |
+| ☐ | Anna | **Άννα** |  |
+| ☐ | Sam | **Σαμ** |  |
+| ☐ | Ben | **Μπεν** |  |
+| ☐ | Lisa | **Λίζα** |  |
+
+### Hebrew (hebrew.json)
+
+| ✓ | English name | Written | Notes |
+|---|---|---|---|
+| ☐ | Maria | **מריה** |  |
+| ☐ | John | **ג'ון** |  |
+| ☐ | Mike | **מייק** |  |
+| ☐ | Emma | **אמה** |  |
+| ☐ | Anna | **אנה** |  |
+| ☐ | Sam | **סאם** |  |
+| ☐ | Ben | **בן** |  |
+| ☐ | Lisa | **ליסה** |  |
+| ☐ | Lina | **לינה** |  |
+| ☐ | Adam | **אדם** |  |
 
 ## Reactions (spoken + shown) (English only; check tone: goofy, never mean)
 
@@ -144,9 +171,6 @@ These are rough English-sound → script maps for fun, not official transliterat
 - **mandarin · first_letter**: “Your first Chinese character. That's a big deal!” (shown: First character ✓)
 - **mandarin · first_word**: “Your first word in Mandarin. Ni hao to you too!” (shown: First word ✓ 你好)
 - **mandarin · first_mastered**: “Mastered! You can write that one from memory now.” (shown: Mastered ✓)
-- **japanese · first_letter**: “Your first hiragana. Only forty-five more to go!” (shown: First hiragana ✓)
-- **japanese · first_word**: “Your first word in Japanese. Sugoi!” (shown: First word ✓)
-- **japanese · first_mastered**: “Mastered! That one's yours for keeps.” (shown: Mastered ✓)
 - **hindi · first_letter**: “Your first Devanagari letter. Headline and all!” (shown: First letter ✓)
 - **hindi · first_word**: “Your first word in Hindi. Bahut badhiya, very nice!” (shown: First word ✓)
 - **hindi · first_mastered**: “Mastered! You can write that one from memory now.” (shown: Mastered ✓)
@@ -156,6 +180,12 @@ These are rough English-sound → script maps for fun, not official transliterat
 - **russian · first_letter**: “Your first Cyrillic letter. Welcome to the alphabet!” (shown: First letter ✓)
 - **russian · first_word**: “Your first word in Russian. Molodets, well done!” (shown: First word ✓)
 - **russian · first_mastered**: “Mastered! You can write that one from memory now.” (shown: Mastered ✓)
+- **hebrew · first_letter**: “Your first Hebrew letter, written right to left. Nice!” (shown: First letter ✓)
+- **hebrew · first_word**: “Your first word in Hebrew. Kol hakavod, well done!” (shown: First word ✓)
+- **hebrew · first_mastered**: “Mastered! That one's yours for keeps.” (shown: Mastered ✓)
+- **greek · first_letter**: “Your first Greek letter. Alpha-level achievement!” (shown: First letter ✓)
+- **greek · first_word**: “Your first word in Greek. Bravo!” (shown: First word ✓)
+- **greek · first_mastered**: “Mastered! You can write that one from memory now.” (shown: Mastered ✓)
 - **any · first_name**: “You just wrote your name in a new script. Certified scribe!” (shown: Your name ✓)
-- **any · all_five_languages**: “Five scripts in one sitting. That's a world tour!” (shown: 5 scripts ✓)
+- **any · all_six_languages**: “Six scripts in one sitting. That's a world tour!” (shown: 6 scripts ✓)
 

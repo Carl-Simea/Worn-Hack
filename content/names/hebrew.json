@@ -1,0 +1,137 @@
+{
+  "script": "Hebrew",
+  "lang": "hebrew",
+  "rtl": true,
+  "note": "Write right to left. Most short vowels are left out; י (i/ee/y), ו (o/u) and a final ה (ah) show some. Five letters have a special final form at the end of a word (keys ending in $: ם ן ך ף ץ). English 'j' is ג' (with an apostrophe).",
+  "how_to_use": "Write the consonants and the vowels you hear clearly, right to left; use the $ form for the last letter.",
+  "sounds": {
+    "A": "א",
+    "b": "ב",
+    "v": "ב",
+    "g": "ג",
+    "j": "ג'",
+    "d": "ד",
+    "h": "ה",
+    "ah": "ה",
+    "w": "ו",
+    "o": "ו",
+    "u": "ו",
+    "z": "ז",
+    "ch": "ח",
+    "t": "ט",
+    "y": "י",
+    "i": "י",
+    "ai": "יי",
+    "k": "ק",
+    "c": "ק",
+    "l": "ל",
+    "m": "מ",
+    "n": "נ",
+    "s": "ס",
+    "f": "פ",
+    "p": "פ",
+    "ts": "צ",
+    "r": "ר",
+    "sh": "ש",
+    "a": "א",
+    "m$": "ם",
+    "n$": "ן",
+    "k$": "ך",
+    "f$": "ף",
+    "ts$": "ץ"
+  },
+  "examples": [
+    {
+      "name": "Maria",
+      "sounds": [
+        "m",
+        "r",
+        "i",
+        "ah"
+      ],
+      "written": "מריה"
+    },
+    {
+      "name": "John",
+      "sounds": [
+        "j",
+        "o",
+        "n$"
+      ],
+      "written": "ג'ון"
+    },
+    {
+      "name": "Mike",
+      "sounds": [
+        "m",
+        "ai",
+        "k"
+      ],
+      "written": "מייק"
+    },
+    {
+      "name": "Emma",
+      "sounds": [
+        "A",
+        "m",
+        "ah"
+      ],
+      "written": "אמה"
+    },
+    {
+      "name": "Anna",
+      "sounds": [
+        "A",
+        "n",
+        "ah"
+      ],
+      "written": "אנה"
+    },
+    {
+      "name": "Sam",
+      "sounds": [
+        "s",
+        "a",
+        "m$"
+      ],
+      "written": "סאם"
+    },
+    {
+      "name": "Ben",
+      "sounds": [
+        "b",
+        "n$"
+      ],
+      "written": "בן"
+    },
+    {
+      "name": "Lisa",
+      "sounds": [
+        "l",
+        "i",
+        "s",
+        "ah"
+      ],
+      "written": "ליסה"
+    },
+    {
+      "name": "Lina",
+      "sounds": [
+        "l",
+        "i",
+        "n",
+        "ah"
+      ],
+      "written": "לינה"
+    },
+    {
+      "name": "Adam",
+      "sounds": [
+        "A",
+        "d",
+        "m$"
+      ],
+      "written": "אדם"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-"""Writes content/names/{katakana,devanagari,arabic,cyrillic}.json: approximate English-sound -> script maps for
+"""Writes content/names/{devanagari,arabic,cyrillic,hebrew,greek}.json: approximate English-sound -> script maps for
 "write your name", and checks that every example rebuilds exactly from its sound keys.
    python3 content/tools/make_names.py
 
@@ -13,47 +13,6 @@ from pathlib import Path
 C = Path(__file__).resolve().parent.parent
 OUT = C / "names"; OUT.mkdir(exist_ok=True)
 
-
-# ---------------------------------------------------------------- katakana
-kana_rows = {
-    "": "アイウエオ", "k": "カキクケコ", "s": "サシスセソ", "t": "タチツテト", "n": "ナニヌネノ", "h": "ハヒフヘホ",
-    "m": "マミムメモ", "r": "ラリルレロ", "g": "ガギグゲゴ", "z": "ザジズゼゾ", "d": "ダヂヅデド", "b": "バビブベボ",
-    "p": "パピプペポ",
-}
-K = {}
-for c, row in kana_rows.items():
-    for v, g in zip("aiueo", row):
-        K[c + v] = g
-# fix the irregular readings
-for k in ("si", "ti", "tu", "hu", "zi", "di", "du"):
-    K.pop(k)
-K.update({"shi": "シ", "chi": "チ", "tsu": "ツ", "fu": "フ", "ji": "ジ", "zu": "ズ",
-          "ya": "ヤ", "yu": "ユ", "yo": "ヨ", "wa": "ワ", "wo": "ウォ", "n": "ン",
-          "kya": "キャ", "kyu": "キュ", "kyo": "キョ", "sha": "シャ", "shu": "シュ", "sho": "ショ", "she": "シェ",
-          "cha": "チャ", "chu": "チュ", "cho": "チョ", "che": "チェ", "ja": "ジャ", "ju": "ジュ", "jo": "ジョ", "je": "ジェ",
-          "nya": "ニャ", "nyu": "ニュ", "nyo": "ニョ", "rya": "リャ", "ryu": "リュ", "ryo": "リョ",
-          "ti": "ティ", "di": "ディ", "tu": "トゥ", "du": "ドゥ", "fa": "ファ", "fi": "フィ", "fe": "フェ", "fo": "フォ",
-          "wi": "ウィ", "we": "ウェ", "va": "ヴァ", "vi": "ヴィ", "ve": "ヴェ", "vo": "ヴォ",
-          "Q": "ッ", "-": "ー"})
-
-katakana = dict(
-    script="Katakana", lang="japanese", rtl=False,
-    note="Japanese writes foreign names in katakana. There's no separate L and R (both use the r-row), most consonants "
-         "get a vowel after them (Sam = sa-mu), ッ (Q) doubles the next consonant and ー (-) makes a vowel long.",
-    how_to_use="Split the name into Japanese-style syllables, then look each one up.",
-    sounds=K,
-    examples=[
-        dict(name="Maria", sounds=["ma", "ri", "a"], written="マリア"),
-        dict(name="Emma", sounds=["e", "ma"], written="エマ"),
-        dict(name="John", sounds=["jo", "n"], written="ジョン"),
-        dict(name="Lisa", sounds=["ri", "sa"], written="リサ", note="L becomes the r-row"),
-        dict(name="Sam", sounds=["sa", "mu"], written="サム"),
-        dict(name="David", sounds=["de", "i", "bi", "Q", "do"], written="デイビッド"),
-        dict(name="Mike", sounds=["ma", "i", "ku"], written="マイク"),
-        dict(name="Anna", sounds=["a", "n", "na"], written="アンナ"),
-        dict(name="Ben", sounds=["be", "n"], written="ベン"),
-        dict(name="Sarah", sounds=["sa", "ra"], written="サラ"),
-    ])
 
 # ---------------------------------------------------------------- devanagari
 CONS = {"k": "क", "kh": "ख", "g": "ग", "gh": "घ", "ch": "च", "j": "ज", "t": "ट", "th": "थ", "d": "ड", "n": "न",
@@ -139,6 +98,57 @@ cyrillic = dict(
     ])
 
 
+# ---------------------------------------------------------------- hebrew
+H = {"A": "א", "b": "ב", "v": "ב", "g": "ג", "j": "ג'", "d": "ד", "h": "ה", "ah": "ה", "w": "ו", "o": "ו", "u": "ו",
+     "z": "ז", "ch": "ח", "t": "ט", "y": "י", "i": "י", "ai": "יי", "k": "ק", "c": "ק", "l": "ל", "m": "מ", "n": "נ",
+     "s": "ס", "f": "פ", "p": "פ", "ts": "צ", "r": "ר", "sh": "ש", "a": "א",
+     "m$": "ם", "n$": "ן", "k$": "ך", "f$": "ף", "ts$": "ץ"}
+hebrew = dict(
+    script="Hebrew", lang="hebrew", rtl=True,
+    note="Write right to left. Most short vowels are left out; י (i/ee/y), ו (o/u) and a final ה (ah) show some. "
+         "Five letters have a special final form at the end of a word (keys ending in $: ם ן ך ף ץ). "
+         "English 'j' is ג' (with an apostrophe).",
+    how_to_use="Write the consonants and the vowels you hear clearly, right to left; use the $ form for the last letter.",
+    sounds=H,
+    examples=[
+        dict(name="Maria", sounds=["m", "r", "i", "ah"], written="מריה"),
+        dict(name="John", sounds=["j", "o", "n$"], written="ג'ון"),
+        dict(name="Mike", sounds=["m", "ai", "k"], written="מייק"),
+        dict(name="Emma", sounds=["A", "m", "ah"], written="אמה"),
+        dict(name="Anna", sounds=["A", "n", "ah"], written="אנה"),
+        dict(name="Sam", sounds=["s", "a", "m$"], written="סאם"),
+        dict(name="Ben", sounds=["b", "n$"], written="בן"),
+        dict(name="Lisa", sounds=["l", "i", "s", "ah"], written="ליסה"),
+        dict(name="Lina", sounds=["l", "i", "n", "ah"], written="לינה"),
+        dict(name="Adam", sounds=["A", "d", "m$"], written="אדם"),
+    ])
+
+# ---------------------------------------------------------------- greek
+GK = {"a": "α", "á": "ά", "e": "ε", "é": "έ", "i": "ι", "í": "ί", "o": "ο", "ó": "ό", "u": "ου", "oo": "ου",
+      "b": "μπ", "d": "ντ", "g": "γκ", "j": "τζ", "ch": "τσ", "sh": "σ", "z": "ζ", "th": "θ", "f": "φ", "k": "κ",
+      "c": "κ", "l": "λ", "m": "μ", "n": "ν", "p": "π", "r": "ρ", "s": "σ", "s$": "ς", "t": "τ", "v": "β",
+      "x": "ξ", "ks": "ξ", "ps": "ψ", "h": "χ", "y": "γι"}
+greek = dict(
+    script="Greek", lang="greek", rtl=False,
+    note="Greek spells names by sound. Greek has no single b, d or g letter for those sounds, so they're written "
+         "μπ, ντ, γκ; 'j' is τζ. Put the accent (á é í ó) on the stressed vowel, use ς for an 's' at the very end, "
+         "and capitalize the first letter.",
+    how_to_use="Look up each sound in order, accent the stressed vowel, then capitalize the first letter.",
+    sounds=GK,
+    examples=[
+        dict(name="Maria", sounds=["m", "a", "r", "í", "a"], written="Μαρία"),
+        dict(name="John", sounds=["j", "o", "n"], written="Τζον"),
+        dict(name="David", sounds=["d", "é", "i", "v", "i", "d"], written="Ντέιβιντ"),
+        dict(name="Sarah", sounds=["s", "á", "r", "a"], written="Σάρα"),
+        dict(name="Mike", sounds=["m", "á", "i", "k"], written="Μάικ"),
+        dict(name="Emma", sounds=["é", "m", "m", "a"], written="Έμμα"),
+        dict(name="Anna", sounds=["á", "n", "n", "a"], written="Άννα"),
+        dict(name="Sam", sounds=["s", "a", "m"], written="Σαμ"),
+        dict(name="Ben", sounds=["b", "e", "n"], written="Μπεν"),
+        dict(name="Lisa", sounds=["l", "í", "z", "a"], written="Λίζα"),
+    ])
+
+
 def build(d, cap=False):
     for ex in d["examples"]:
         got = "".join(d["sounds"][k] for k in ex["sounds"])
@@ -147,8 +157,10 @@ def build(d, cap=False):
         assert got == ex["written"], (d["script"], ex["name"], got, ex["written"])
 
 
-for fname, d, cap in (("katakana", katakana, False), ("devanagari", devanagari, False),
-                      ("arabic", arabic, False), ("cyrillic", cyrillic, True)):
+for f in OUT.glob("*.json"):
+    f.unlink()  # rebuild from scratch (drops cut scripts such as katakana)
+for fname, d, cap in (("devanagari", devanagari, False), ("arabic", arabic, False), ("cyrillic", cyrillic, True),
+                      ("hebrew", hebrew, False), ("greek", greek, True)):
     build(d, cap)
     (OUT / f"{fname}.json").write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"names/{fname}.json: {len(d['sounds'])} sounds, {len(d['examples'])} examples OK")

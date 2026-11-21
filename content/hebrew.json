@@ -1,0 +1,122 @@
+{
+  "lang": "hebrew",
+  "name": "Hebrew",
+  "script": "Hebrew alphabet (block print)",
+  "script_type": "abjad",
+  "rtl": true,
+  "about": "Written right to left with 22 letters; everyday writing leaves out most vowels. We teach block print letters; everyday handwriting uses a different cursive style.",
+  "stroke_order": "suggested",
+  "stroke_source": "hand-authored for Worn (suggested stroke order)",
+  "hero": "שלום",
+  "phrases": [
+    {
+      "id": "hello",
+      "text": "שלום",
+      "chars": [
+        "ש",
+        "ל",
+        "ו",
+        "ם"
+      ],
+      "romanization": "shalom",
+      "meaning": "hello",
+      "char_romanization": [
+        "sh · shin",
+        "l · lamed",
+        "o / v · vav",
+        "m · final mem"
+      ],
+      "audio": "audio/hebrew/hello.m4a",
+      "how": "Right to left. ם is the special form of מ used only at the end of a word.",
+      "why": "Greet someone in their own script on a card or a note.",
+      "dictation": "Four letters, right to left: ש ל ו ם.",
+      "stroke_order": "suggested"
+    },
+    {
+      "id": "thank_you",
+      "text": "תודה",
+      "chars": [
+        "ת",
+        "ו",
+        "ד",
+        "ה"
+      ],
+      "romanization": "toda",
+      "meaning": "thank you",
+      "char_romanization": [
+        "t · tav",
+        "o / v · vav",
+        "d · dalet",
+        "h / a · he"
+      ],
+      "audio": "audio/hebrew/thank_you.m4a",
+      "how": "Most vowels aren't written: ו stands for the 'o' and the final ה for the 'a'.",
+      "why": "Write a real thank-you card to a host or to family.",
+      "dictation": "Four letters, right to left: ת ו ד ה.",
+      "stroke_order": "suggested"
+    },
+    {
+      "id": "water",
+      "text": "מים",
+      "chars": [
+        "מ",
+        "י",
+        "ם"
+      ],
+      "romanization": "mayim",
+      "meaning": "water",
+      "char_romanization": [
+        "m · mem",
+        "y / i · yod",
+        "m · final mem"
+      ],
+      "audio": "audio/hebrew/water.m4a",
+      "how": "Same letter, two shapes: the word starts with מ and ends with final ם.",
+      "why": "Spot it on a menu, a sign or a bottle label.",
+      "dictation": "Three letters, right to left: מ י ם.",
+      "stroke_order": "suggested"
+    },
+    {
+      "id": "friend",
+      "text": "חבר",
+      "chars": [
+        "ח",
+        "ב",
+        "ר"
+      ],
+      "romanization": "chaver",
+      "meaning": "friend",
+      "char_romanization": [
+        "ch · chet",
+        "v / b · bet",
+        "r · resh"
+      ],
+      "audio": "audio/hebrew/friend.m4a",
+      "how": "ח is a throaty 'ch', like in Bach. The vowels a and e aren't written.",
+      "why": "Sign a note to a friend. Writing it by hand helps you remember it.",
+      "dictation": "Three letters, right to left: ח ב ר.",
+      "stroke_order": "suggested"
+    },
+    {
+      "id": "one",
+      "text": "אחד",
+      "chars": [
+        "א",
+        "ח",
+        "ד"
+      ],
+      "romanization": "echad",
+      "meaning": "one",
+      "char_romanization": [
+        "(silent) · alef",
+        "ch · chet",
+        "d · dalet"
+      ],
+      "audio": "audio/hebrew/one.m4a",
+      "how": "א often carries a vowel without a sound of its own; here it starts 'e-chad'.",
+      "why": "Read quantities and order one of something off a menu.",
+      "dictation": "Three letters, right to left: א ח ד.",
+      "stroke_order": "suggested"
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+{
+  "lang": "greek",
+  "name": "Greek",
+  "script": "Greek alphabet",
+  "script_type": "alphabet",
+  "rtl": false,
+  "about": "An alphabet written left to right. Some letters look familiar but sound different, and an accent mark shows the stressed syllable.",
+  "stroke_order": "suggested",
+  "stroke_source": "hand-authored for Worn (suggested stroke order)",
+  "hero": "Γεια σου",
+  "phrases": [
+    {
+      "id": "hello",
+      "text": "γεια σου",
+      "chars": [
+        "γ",
+        "ε",
+        "ι",
+        "α",
+        "σ",
+        "ο",
+        "υ"
+      ],
+      "romanization": "yia sou",
+      "meaning": "hello",
+      "char_romanization": [
+        "y · gamma (γει = 'y')",
+        "· epsilon (part of the 'y')",
+        "· iota (part of the 'y')",
+        "a · alpha",
+        "s · sigma",
+        "o · omicron (ου = 'oo')",
+        "· upsilon (ου = 'oo')"
+      ],
+      "audio": "audio/greek/hello.m4a",
+      "how": "γ before ει sounds like 'y', so γεια is 'yia'. ου together sound like 'oo'.",
+      "why": "Greet someone in their own script on a card or a note.",
+      "dictation": "Two words: γεια, then σου. Seven letters in all.",
+      "stroke_order": "suggested"
+    },
+    {
+      "id": "thank_you",
+      "text": "ευχαριστώ",
+      "chars": [
+        "ε",
+        "υ",
+        "χ",
+        "α",
+        "ρ",
+        "ι",
+        "σ",
+        "τ",
+        "ώ"
+      ],
+      "romanization": "efcharistó",
+      "meaning": "thank you",
+      "char_romanization": [
+        "e · epsilon (ευ = 'ef')",
+        "f · upsilon (ευ = 'ef')",
+        "ch · chi",
+        "a · alpha",
+        "r · rho",
+        "i · iota",
+        "s · sigma",
+        "t · tau",
+        "ó · omega + accent"
+      ],
+      "audio": "audio/greek/thank_you.m4a",
+      "how": "Look-alikes sound different: χ is a throaty 'ch' and ρ is 'r'.",
+      "why": "Write a real thank-you card to a host or to family.",
+      "dictation": "Nine letters. The accent goes on the last one: ώ.",
+      "stroke_order": "suggested"
+    },
+    {
+      "id": "water",
+      "text": "νερό",
+      "chars": [
+        "ν",
+        "ε",
+        "ρ",
+        "ό"
+      ],
+      "romanization": "neró",
+      "meaning": "water",
+      "char_romanization": [
+        "n · nu",
+        "e · epsilon",
+        "r · rho",
+        "ó · omicron + accent"
+      ],
+      "audio": "audio/greek/water.m4a",
+      "how": "ν looks like a v but is 'n'. The accent shows the stress: ne-RÓ.",
+      "why": "Spot it on a menu, a sign or a bottle label.",
+      "dictation": "Four letters: ν ε ρ ό.",
+      "stroke_order": "suggested"
+    },
+    {
+      "id": "friend",
+      "text": "φίλος",
+      "chars": [
+        "φ",
+        "ί",
+        "λ",
+        "ο",
+        "ς"
+      ],
+      "romanization": "fílos",
+      "meaning": "friend",
+      "char_romanization": [
+        "f · phi",
+        "í · iota + accent",
+        "l · lambda",
+        "o · omicron",
+        "s · final sigma"
+      ],
+      "audio": "audio/greek/friend.m4a",
+      "how": "ς is how σ is written at the very end of a word.",
+      "why": "Sign a note to a friend. Writing it by hand helps you remember it.",
+      "dictation": "Five letters: φ ί λ ο ς. It ends with ς.",
+      "stroke_order": "suggested"
+    },
+    {
+      "id": "one",
+      "text": "ένα",
+      "chars": [
+        "έ",
+        "ν",
+        "α"
+      ],
+      "romanization": "éna",
+      "meaning": "one",
+      "char_romanization": [
+        "é · epsilon + accent",
+        "n · nu",
+        "a · alpha"
+      ],
+      "audio": "audio/greek/one.m4a",
+      "how": "Most Greek words carry a written accent on the stressed vowel: É-na.",
+      "why": "Read quantities and order one of something off a menu.",
+      "dictation": "Three letters: έ ν α.",
+      "stroke_order": "suggested"
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 cd "${0:A:h}/../.." || exit 1
 python3 - <<'PY' | while IFS=$'\t' read -r lang id voice text; do
 import json
-V = {"mandarin": "Tingting", "hindi": "Lekha", "arabic": "Majed", "russian": "Milena", "japanese": "Kyoko"}
+V = {"mandarin": "Tingting", "hindi": "Lekha", "arabic": "Majed", "russian": "Milena", "hebrew": "Carmit", "greek": "Melina"}
 for lang, voice in V.items():
     for p in json.load(open(f"content/{lang}.json", encoding="utf-8"))["phrases"]:
         print(lang, p["id"], voice, p["text"], sep="\t")
