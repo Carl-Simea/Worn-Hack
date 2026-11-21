@@ -1,49 +1,71 @@
 # content/ (owner: agent C)
 
-Lesson JSON, audio, and stroke data. The backend re-reads these on every request, so no restart is needed after edits.
+Everything Worn teaches: lessons, audio, stroke order, name maps, reactions, milestones, sound effects.
+The backend re-reads lesson JSON on every request, so there's no restart, **except stroke files**: those are
+cached, so restart the backend after changing them.
 
-## Files
-- `{mandarin,hindi,arabic,russian,japanese}.json`: built by `python3 content/tools/make_content.py`. Edit the tables in that script, not the JSON.
-  - Phrase ids are the same in every language: `hello`, `thank_you`, `yes`, `no`, `bathroom`.
-  - `chars` holds what the learner writes, one character per `/grade`. Hindi uses aksharas (`स्ते` counts as one). Arabic uses isolated letters in reading order.
-  - `audio` is a path relative to `content/`. The backend serves them at `/static/content/...` and returns `null` if the file is missing.
-- `audio/{lang}/{id}.m4a`: 25 clips (AAC 64k) made with macOS voices (Tingting, Lekha, Majed, Milena, Kyoko) at a slow rate. Rebuild with `content/tools/make_audio.sh`.
-- `strokes/{lang}/{codepoint hex}.{json|svg}`: this follows agent A's `stroke_url()` convention.
-  - mandarin `*.json`: hanzi-writer-data 2.0.1 (from Make Me a Hanzi, Arphic license). True stroke order.
-  - japanese `*.svg`: KanjiVG stroke centerlines (CC BY-SA 3.0, Ulrich Apel). True stroke order, numbered. **Attribution must appear in the demo credits.**
-  - hindi, arabic, russian: no stroke-order data. The glasses page traces the font outline and labels it "trace the shape". It does not claim stroke order.
+## Lessons: `{mandarin,hindi,arabic,russian,hebrew,greek}.json`
 
-## web/glasses.html (served at GET /glasses)
-- 640×480 on a black background (black is transparent on the optics). Polls `GET /session` and `GET /session/result` every 600 ms.
-- A result is shown only if its `ts` is newer than the one already present when the lesson appeared. The check or fix stays on screen 3.5 s and is spoken aloud.
-- Dev: open `/glasses` in any browser. Space replays the lesson. `?api=http://IP:8000` points the page at another server.
+Built by `python3 content/tools/make_content.py` (edit the tables there, not the JSON). Six languages × five items
+with the same ids everywhere: `hello`, `thank_you`, `water`, `friend`, `one`.
 
-### Contract for agent B (glasses-android)
-- In the WebView, call `setMediaPlaybackRequiresUserGesture(false)`. Otherwise the pronunciation audio and won't autoplay.
-- Optional native TTS: `addJavascriptInterface(obj, "WornNative")` with `@JavascriptInterface void speak(String text)`. Without it the page falls back to Web Speech, which may be silent in an Android 9 WebView, so this is recommended.
-- `evaluateJavascript` hooks:
-  - `worn.capturing()` on button press shows "Checking…".
-  - `worn.graded(<json from /grade>)` shows the result right away (optional; polling also catches it).
-  - `worn.error("msg")` shows an error.
-  - `worn.replay()` replays the animation and audio.
+```
+{lang, name, script, script_type, rtl, about, stroke_order, stroke_source, hero,
+ phrases: [{id, text, chars, char_romanization, romanization, meaning, audio, how, why, dictation, stroke_order}]}
+```
+- `chars`: what the learner writes, one per photo. Hindi uses syllable blocks (`स्ते` is one). Arabic lists the
+  isolated letters, then the whole joined word last. Greek `γεια σου` skips the space.
+- `char_romanization`: aligned with `chars` (你 → nǐ, م → "m · mīm", Greek pairs like ευ = 'ef' are noted).
+- `how`: one line on how the script works. `why`: one line on why the item is useful. `dictation`: a hint for
+  writing from memory.
+- `hero`: the greeting for home screens (你好 नमस्ते مرحبا Привет שלום Γεια σου).
+- `rtl`: true for Arabic and Hebrew.
 
-### For agent D (ios)
-- Write mode: on `correct`, POST `/session` with `char_index + 1` until `total_chars`, then move to the next phrase.
+## Audio: `audio/{lang}/{id}.m4a`
 
-## web/phone.html: backup phone controller (if the iOS app isn't ready)
-Open `http://<laptop-ip>:8000/static/web/phone.html` in iPhone Safari (Share → Add to Home Screen gives it full screen).
-It does the iOS app's job: pick a language and phrase, which POSTs /session. It polls /session/result, shows the score, and
-auto-advances 1.8 s after a correct answer (next char, then next phrase). It also has Prev and Replay on glasses.
+30 clips made with macOS voices (Tingting, Lekha, Majed, Milena, Carmit, Melina) at a slow rate.
+Rebuild with `content/tools/make_audio.sh`.
 
-## web/mirror.html: live audience view (iPad or phone)
-A landscape iPad view that copies the glasses: the same stroke animation (`web/worn-strokes.js`, shared with glasses.html),
-the char, romanization and meaning, the latest handwriting photo, and the grade (✓ or the fix). It polls /session and
-/session/result every 500 ms. The LIVE dot turns red (OFFLINE) once the backend hasn't answered for 2 s.
-Served at `GET /mirror`. The photo is `result.image_url` if present, else A's `GET /capture/latest` (cache-busted by the grade's `ts`).
+## Stroke order: `strokes/{lang}/{codepoint-hex}.{json|svg}`
 
-ASL was cut on 2026-11-20. The backend still lists `"asl"` in LANG_ORDER and the mode literal, which is harmless.
+Multi-codepoint characters join their hex with `-`.
+- **Mandarin** `*.json`: hanzi-writer-data 2.0.1 (Make Me a Hanzi). Standard stroke order.
+  Fetch with `python3 -I content/tools/fetch_strokes.py`.
+- **Hindi, Arabic, Russian, Hebrew, Greek** `*.svg`: **hand-authored suggested stroke order**
+  (`content/tools/strokes_authored.py`). Centerline paths in writing order and pen direction, in a 100-box
+  centred in a 109 viewBox, each titled "suggested stroke order".
+  - Hindi: body, vertical bars, then the headline (shirorekha); marks above the line after it.
+  - Arabic: main stroke first, then dots (right to left). Joined words are one stroke per connected piece,
+    right to left.
+  - Russian: printed lowercase (cursive differs). Hebrew: block print, י short vs ו tall, final ם.
+  - Greek: lowercase; the accent is the last stroke of ώ ό ί έ; final ς.
+- **Check them:** open `/static/content/tools/stroke_preview.html` (every character over the real font glyph, numbered
+  with arrows, plus the live WornInk animation; `?lang=hebrew`, `?grid=1`). Screenshots:
+  `content/tools/screenshot_strokes.sh` → `content/review/strokes_{lang}.png`.
 
-## web/stroke-test.html: pre-demo stroke check
-Open `http://<laptop-ip>:8000/static/web/stroke-test.html` on any device, ideally the glasses' WebView. It animates every
-Mandarin character with `worn-strokes.js` (the code glasses.html and mirror.html use), confirms each one steps through
-all its strokes, and checks that /glasses and /mirror respond. It never touches /session, so it's safe to run while live.
+## Write your name: `names/{devanagari,arabic,cyrillic,hebrew,greek}.json`
+
+English sound → script maps (`sounds`), with 10–12 examples each, all rebuilt exactly from their sound keys by
+`content/tools/make_names.py`. `names/examples.json` holds 10 names checked in all five scripts, keyed like
+`GET /name` (an instant/offline answer). These are approximations by sound, not official spellings.
+
+## Reactions, milestones and sound effects
+
+- `reactions.json`: correct / close (score ≥ 50) / wrong / streak (3, 5, 10) / milestone. Each has a sound and
+  short goofy lines that are never mean and say nothing about culture or looks.
+- `milestones.json`: first letter, first word and first mastered item per language (plus first name and all six
+  languages). `spoken` is plain English for any voice; `shown` may include native script.
+- `sfx/*.wav`: ding, kiss, sparkle, boing, slide, buzzer, drumroll, cheer, tada. All synthesized by
+  `content/tools/make_sfx.py`: no samples, CC0.
+
+## Checks
+
+- `python3 content/tools/check_content.py http://127.0.0.1:8000`: a session for every character of all 30 items
+  (stroke file, audio, per-char romanization, no trace fallback) and the sfx/names/milestones files. **It changes
+  the session, so don't run it during the demo.** Last run: 6 languages, 30 items, 116 sessions, 0 problems.
+- `content/REVIEW.md` (`make_review.py`): every item plus name examples and reaction lines, for native speakers to check.
+
+## Culture rules
+
+Language and script names only, never flags. No religious, political or slang content, and no stereotypes.
+If we're unsure something is right, we cut it.
