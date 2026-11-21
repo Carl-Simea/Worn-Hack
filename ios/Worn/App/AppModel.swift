@@ -52,6 +52,8 @@ final class AppModel {
     /// Navigation from voice ("switch to …", "help me write …").
     var route: [Route] = []
     var pendingCompose: (text: String, lang: String?)?
+    /// Practice opened from outside a screen (deep link / voice); RootView presents it.
+    var pendingLaunch: PracticeLaunch?
 
     let glasses: GlassesLink
     let camera = PhoneCamera()
@@ -66,7 +68,11 @@ final class AppModel {
         serverAddress = d.string(forKey: "server") ?? ""
         demoMode = d.object(forKey: "demoMode") as? Bool ?? false
         showDebug = d.object(forKey: "debug") as? Bool ?? false
+        #if targetEnvironment(simulator)
+        voiceEnabled = d.object(forKey: "voice") as? Bool ?? false   // no mic worth using; avoids the prompt
+        #else
         voiceEnabled = d.object(forKey: "voice") as? Bool ?? true
+        #endif
         autoAdvance = d.object(forKey: "autoAdvance") as? Bool ?? true
         useStrokeMatch = d.object(forKey: "strokeMatch") as? Bool ?? false
         glasses = GlassesLinkFactory.make()
@@ -86,6 +92,32 @@ final class AppModel {
         if glassesStatus == .noSDK && UserDefaults.standard.object(forKey: "demoMode") == nil { demoMode = true }
         if voiceEnabled { Task { await voice.start() } }
         report("app.open", ["demo_mode": .bool(demoMode), "glasses": .string(glassesStatus.title)])
+        if let open = UserDefaults.standard.string(forKey: "wornOpen") { Task { await deepLink(open) } }
+    }
+
+    /// Launch argument `-wornOpen <route>` (demo shortcuts, screenshots, end-to-end runs):
+    /// lesson:LANG · practice:LANG:ITEM[:dictation] · compose:TEXT:LANG · name · daily · journal:LANG · connect
+    func deepLink(_ spec: String) async {
+        for _ in 0..<120 where lessons.isEmpty { try? await Task.sleep(for: .milliseconds(250)) }
+        let p = spec.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
+        switch p.first {
+        case "lesson" where p.count > 1: route = [.lesson(p[1])]
+        case "practice" where p.count > 2:
+            guard let lesson = lesson(p[1]), let phrase = lesson.phrases.first(where: { $0.id == p[2] }) else { return }
+            route = [.lesson(p[1])]
+            let mode: PracticeMode = p.count > 3 && p[3] == "dictation" ? .dictation : .write
+            pendingLaunch = PracticeLaunch(items: PracticeItem.all(lang: p[1], phrase: phrase), mode: mode, title: phrase.meaning ?? phrase.text)
+        case "compose":
+            pendingCompose = (p.count > 1 ? p[1] : "good luck", p.count > 2 ? p[2] : nil)
+            route = [.compose]
+        case "name":
+            if p.count > 1 { UserDefaults.standard.set(p[1], forKey: "name") }
+            route = [.name]
+        case "daily": route = [.daily]
+        case "journal" where p.count > 1: route = [.journal(p[1])]
+        case "connect": route = [.connect]
+        default: break
+        }
     }
 
     var hasServer: Bool { !serverAddress.trimmingCharacters(in: .whitespaces).isEmpty }
@@ -117,18 +149,26 @@ final class AppModel {
         }
     }
 
+    private var misses = 0
+
+    /// Lessons come straight from /content (cheap). /health also asks the model server and can be slow while a
+    /// grade is running, so one slow heartbeat never flips the app to "offline": it takes two misses in a row.
     private func refresh() async {
         guard let api else { return }
         do {
-            let h = try await api.health()
-            health = h
             if lessons.isEmpty {
                 lessons = try await api.content().filter { !$0.phrases.isEmpty && $0.lang != "asl" }
+                link = .ok
+                misses = 0
                 await loadOptionalContent(api)
-                report("app.connected", ["langs": .int(lessons.count), "mock": .bool(h.mock ?? false)])
+                report("app.connected", ["langs": .int(lessons.count)])
             }
+            health = try await api.health()
             link = .ok
+            misses = 0
         } catch {
+            misses += 1
+            guard misses >= 2 || lessons.isEmpty else { return }
             if case .ok = link { report("app.offline", ["error": .string(error.localizedDescription)]) }
             link = .down(error.localizedDescription)
         }

@@ -59,18 +59,18 @@ enum ScriptInfo {
     }
 
     static func script(_ lang: String) -> String {
-        ["mandarin": "Simplified Chinese characters", "hindi": "Devanagari", "arabic": "Arabic script",
-         "russian": "Cyrillic", "hebrew": "Hebrew alphabet", "greek": "Greek alphabet"][lang] ?? ""
+        ["mandarin": "Simplified hanzi", "hindi": "Devanagari", "arabic": "Arabic script",
+         "russian": "Cyrillic", "hebrew": "Hebrew script", "greek": "Greek alphabet"][lang] ?? ""
     }
 
     static func blurb(_ lang: String) -> String {
         [
-            "mandarin": "Each character is a syllable with its own meaning.",
-            "hindi": "Letters hang from a top line, usually drawn last.",
-            "arabic": "Right to left. Letters join; dots come after the stroke.",
-            "russian": "Printed Cyrillic. Some letters look Latin but aren't.",
-            "hebrew": "Right to left, 22 letters, vowels usually unwritten.",
-            "greek": "Familiar-looking letters with different sounds.",
+            "mandarin": "One character, one syllable, one meaning.",
+            "hindi": "Letters hang from a top line, drawn last.",
+            "arabic": "Right to left. Dots come after the stroke.",
+            "russian": "Some letters look Latin but aren't.",
+            "hebrew": "Right to left. Vowels mostly unwritten.",
+            "greek": "Familiar shapes, different sounds.",
         ][lang] ?? ""
     }
 
@@ -173,8 +173,9 @@ struct Ring: View {
         ZStack {
             Circle().stroke(Theme.hairline, lineWidth: lineWidth)
             Circle()
-                .trim(from: 0, to: max(0.001, min(1, value)))
+                .trim(from: 0, to: min(1, value))
                 .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .opacity(value > 0.005 ? 1 : 0)
                 .rotationEffect(.degrees(-90))
                 .animation(.spring(response: 0.8, dampingFraction: 0.8), value: value)
         }

@@ -32,6 +32,7 @@ struct RootView: View {
                     }
                 }
         }
+        .fullScreenCover(item: $app.pendingLaunch) { PracticeView(launch: $0) }
         .overlay(alignment: .topLeading) {
             if app.showDebug { DebugOverlay().padding(.top, 54).padding(.leading, 8) }
         }

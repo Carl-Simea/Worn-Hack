@@ -45,11 +45,11 @@ private struct PracticeContent: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         CharacterCard(engine: engine, item: item)
+                        StatusPanel(engine: engine, item: item)
                         HStack(alignment: .top, spacing: 12) {
                             GlassesMirror(engine: engine, item: item)
                             if app.photoSource == .phone { CameraCard(engine: engine) }
                         }
-                        StatusPanel(engine: engine, item: item)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
@@ -160,7 +160,7 @@ private struct CharacterCard: View {
             StrokeCanvas(lang: item.lang, char: item.char, strokes: engine.strokes,
                          shown: resultShowsAll ? 0 : engine.shownStroke, epoch: engine.strokeEpoch,
                          speed: engine.speed, hidden: !engine.revealed)
-                .frame(maxWidth: 300)
+                .frame(maxWidth: 236)
                 .padding(.horizontal, 20)
                 .id(item.id)
                 .transition(.asymmetric(insertion: .scale(scale: 0.9).combined(with: .opacity), removal: .opacity))
@@ -179,9 +179,12 @@ private struct CharacterCard: View {
                     }
                 }
             }
-            if let note = noteLine { Text(note).font(Theme.sans(13)).foregroundStyle(Theme.inkSoft).multilineTextAlignment(.center).padding(.horizontal, 8) }
+            if let note = noteLine {
+                Text(note).font(Theme.sans(13)).foregroundStyle(Theme.inkSoft).multilineTextAlignment(.center)
+                    .lineLimit(2).padding(.horizontal, 8)
+            }
         }
-        .padding(.vertical, 16)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity)
         .card(padding: 8)
         .animation(.spring(response: 0.5, dampingFraction: 0.85), value: item.id)

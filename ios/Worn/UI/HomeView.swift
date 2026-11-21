@@ -146,7 +146,8 @@ struct LanguageCard: View {
                 .environment(\.layoutDirection, lesson.isRTL ? .rightToLeft : .leftToRight)
                 .padding(.vertical, 4)
             VStack(alignment: .leading, spacing: 2) {
-                Text(lesson.script ?? ScriptInfo.script(lesson.lang)).font(Theme.sans(12, weight: .medium)).foregroundStyle(Theme.accent)
+                Text(ScriptInfo.script(lesson.lang).isEmpty ? (lesson.script ?? "") : ScriptInfo.script(lesson.lang))
+                    .font(Theme.sans(12, weight: .medium)).foregroundStyle(Theme.accent).lineLimit(1)
                 Text(ScriptInfo.blurb(lesson.lang).isEmpty ? (lesson.about ?? "") : ScriptInfo.blurb(lesson.lang))
                     .font(Theme.sans(12)).foregroundStyle(Theme.inkSoft)
                     .lineLimit(2, reservesSpace: true)
