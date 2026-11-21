@@ -203,6 +203,19 @@ class Live:
             out.update({"version": self.version, "listening": self.listening, "phase": self.glasses.get("phase")})
             return out
 
+    def say_aloud(self, text):
+        """Demo: the mic goes hearing → thinking → (reply) speaking → listening, like D's glasses report it."""
+        for m, t in (("hearing", 0.9), ("thinking", 0.5)):
+            with self.lock:
+                self.app["mic"] = m; self.listening = True; self.bump()
+            time.sleep(t)
+        self.voice(text)
+        with self.lock:
+            self.app["mic"] = "speaking"; self.bump()
+        time.sleep(1.2)
+        with self.lock:
+            self.app["mic"] = "listening"; self.bump()
+
     def voice(self, text, screen=None):
         t0 = time.time()
         v = mock_intent(text or "", screen or self.app.get("screen"))
@@ -213,7 +226,9 @@ class Live:
             nav = v.get("nav")
             if nav:
                 self.app.update(nav_state(nav, self))
-            self.event("voice", {k: v.get(k) for k in ("heard", "intent", "args", "say", "ms")})
+            tools = {"learn": ["learn_language", "open_screen"], "open": ["open_screen"], "home": ["go_home"], "check": ["check"],
+                     "meaning": ["meaning"], "word": ["open_word"], "next": ["next_stroke"]}.get(v.get("intent"), [v.get("intent")] if v.get("intent") not in (None, "unknown", "none") else [])
+            self.event("voice", {**{k: v.get(k) for k in ("heard", "intent", "args", "say", "ms")}, "tools": tools})
             return v
 
     def choose_next(self, s, correct):
@@ -288,8 +303,7 @@ class Demo(threading.Thread):
         st = self.st
         if ci == 0:
             for said in ("home", f"learn {TITLE[lang]}"):
-                st.listening = True; st.bump(); time.sleep(0.8)
-                st.listening = False; st.voice(said); time.sleep(1.4)
+                st.say_aloud(said)
         s = st.set_session(lang, iid, ci)
         n = s["stroke_count"]
         with st.lock:
@@ -302,7 +316,7 @@ class Demo(threading.Thread):
                 st.bump()
             time.sleep(1.0)
             if k == 1:
-                st.voice("what does this mean")
+                st.say_aloud("what does this mean")
             t1, t2 = random.randint(18, 60), random.randint(8, 30)
             with st.lock:
                 st.photo = photo_url(lang, s["char"], (k + 1) / n, ts=time.time())
@@ -318,7 +332,7 @@ class Demo(threading.Thread):
                     st.event("stroke", {"stroke": k + 1, "stroke_count": n})
             time.sleep(0.4)
         run = f"r{next(IDS)}"
-        st.voice("I'm done")
+        st.say_aloud("I'm done")
         with st.lock:
             st.glasses.update(phase="checking", showing="checking")
             st.step(run, "observe", "Photo of the whole character", tool="capture", ms=random.randint(80, 200))

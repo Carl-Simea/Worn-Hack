@@ -57,24 +57,33 @@
 
   /* ---------- voice bar: where the wearer is, what they said, what Worn answered, what to say next */
   .app.hasVoice { --sq: min(calc((100vw - 2 * var(--pad) - 2 * var(--gap)) / 3.3), 47vh); }
-  #voice { display: none; grid-template-columns: auto minmax(0, .8fr) minmax(0, 1.7fr) minmax(0, 1.4fr); align-items: center; gap: 1em;
+  #voice { display: none; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.6fr); align-items: center; gap: 1em;
     background: var(--card); border: 1px solid var(--rule); border-radius: 999px; padding: .5em 1.3em .5em .5em; min-height: 3.2em; }
   .app.hasVoice #voice { display: grid; }
-  #mic { width: 2.3em; height: 2.3em; border-radius: 50%; display: grid; place-items: center; background: var(--paper-2); color: var(--ink-3);
-    position: relative; transition: background .3s, color .3s; }
-  #mic svg { width: 1.15em; height: 1.15em; }
-  #mic::after { content: ""; position: absolute; inset: -.3em; border-radius: 50%; border: .14em solid var(--accent); opacity: 0; }
-  #mic.on { background: var(--accent); color: var(--on-accent); }
-  #mic.on::after { animation: ring 1.3s ease-out infinite; }
-  #mic.m-listening { background: var(--accent-soft); color: var(--accent); } #mic.m-listening::after { animation-duration: 2.4s; }
-  #mic.m-hearing { background: var(--accent); color: var(--on-accent); } #mic.m-hearing::after { animation-duration: .8s; }
-  #mic.m-thinking { background: var(--ink); color: var(--paper); } #mic.m-thinking::after { animation: none; opacity: .6; border-style: dashed; animation: spinRing 1.2s linear infinite; }
+  /* ---------- the Scribi orb: off · listening · hearing · thinking · speaking */
+  .orb { --o: 2.3em; width: var(--o); height: var(--o); border-radius: 50%; position: relative; flex: none; isolation: isolate;
+    background: radial-gradient(circle at 34% 28%, #ffffff 0, #c9d0ff 14%, #6f84ff 42%, var(--accent) 64%, #1a2477 100%);
+    box-shadow: 0 0 .9em color-mix(in srgb, var(--accent) 45%, transparent), inset 0 -.2em .5em rgba(0, 0, 0, .25);
+    transition: filter .4s, box-shadow .4s; }
+  .orb::before { content: ""; position: absolute; inset: 0; border-radius: 50%; mix-blend-mode: screen; opacity: .55;
+    background: conic-gradient(from 0deg, transparent 0 55%, rgba(140, 255, 236, .85) 70%, transparent 85%); animation: spinRing 4s linear infinite; }
+  .orb::after { content: ""; position: absolute; inset: -.28em; border-radius: 50%; border: .12em solid var(--accent); opacity: 0; z-index: -1; }
+  .orb.o-off { filter: grayscale(.9) brightness(.85); box-shadow: none; } .orb.o-off::before { animation: none; opacity: .15; }
+  .orb.o-listening { animation: breathe 2.6s ease-in-out infinite; }
+  .orb.o-hearing { animation: hear .45s ease-in-out infinite alternate; } .orb.o-hearing::after { animation: ring .9s ease-out infinite; }
+  .orb.o-thinking { animation: think 1.6s ease-in-out infinite; } .orb.o-thinking::before { animation-duration: .8s; opacity: .9; }
+  .orb.o-speaking { animation: speak .9s ease-in-out infinite; } .orb.o-speaking::after { animation: ring 1.4s ease-out infinite; }
+  @keyframes breathe { 0%, 100% { transform: scale(.96); } 50% { transform: scale(1.05); } }
+  @keyframes hear { from { transform: scale(.98); } to { transform: scale(1.12); } }
+  @keyframes think { 0%, 100% { transform: scale(.92) rotate(0); filter: hue-rotate(0deg); } 50% { transform: scale(.98); filter: hue-rotate(40deg); } }
+  @keyframes speak { 0% { transform: scale(1); } 15% { transform: scale(1.09); } 30% { transform: scale(.98); } 45% { transform: scale(1.06); }
+    60% { transform: scale(1); } 75% { transform: scale(1.1); } 100% { transform: scale(1); } }
   @keyframes spinRing { to { transform: rotate(360deg); } }
   @keyframes ring { 0% { opacity: .7; transform: scale(.85); } 100% { opacity: 0; transform: scale(1.35); } }
   #crumbs { display: flex; align-items: baseline; gap: .35em; min-width: 0; white-space: nowrap; overflow: hidden; font-size: .86em; color: var(--ink-3); }
   #crumbs b { color: var(--ink); font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
   #crumbs .sep { opacity: .55; }
-  #said { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .6em; row-gap: .15em; min-width: 0; white-space: nowrap; }
+  #said { display: none !important; flex-wrap: wrap; align-items: baseline; column-gap: .6em; row-gap: .15em; min-width: 0; white-space: nowrap; }
   #said .q { font-family: var(--display); font-style: italic; font-size: 1.12em; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 72%; }
   #said .intent { flex: none; font: 700 .58em/1 var(--ui); letter-spacing: .1em; text-transform: uppercase; color: var(--accent);
     background: var(--accent-soft); padding: .45em .6em; border-radius: 6px; }
@@ -244,7 +253,30 @@
   #tutor #reaction { margin-top: 0; flex: none; }
 
   /* ---------- bottom: agent brain + timeline */
-  .lower { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--gap); min-height: 0; }
+  .lower { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.25fr) minmax(0, .85fr); gap: var(--gap); min-height: 0; }
+  /* ---------- conversation: wearer ↔ Scribi */
+  .orbState { display: inline-flex; align-items: center; gap: .5em; font: 650 .62em/1 var(--ui); color: var(--ink-2); }
+  .orbState .orb { --o: 1.6em; }
+  #conv { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: .45em;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 30%); mask-image: linear-gradient(to bottom, transparent, #000 30%); }
+  #conv li { display: flex; flex-direction: column; max-width: 88%; animation: bubbleIn .45s cubic-bezier(.3, 1.4, .5, 1) both; }
+  #conv li.me { align-self: flex-end; align-items: flex-end; }
+  #conv li.ai { align-self: flex-start; align-items: flex-start; }
+  #conv .bub { padding: .45em .8em; border-radius: 1.1em; font-size: .84em; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  #conv li.me .bub { background: var(--accent); color: var(--on-accent); border-bottom-right-radius: .3em; font-family: var(--display); font-style: italic; font-size: .95em; }
+  #conv li.ai .bub { background: var(--paper-2); color: var(--ink); border-bottom-left-radius: .3em; }
+  #conv li.ai .who { display: inline-flex; align-items: center; gap: .35em; font: 700 .55em/1 var(--ui); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 .25em .2em; }
+  #conv li.ai .who .orb { --o: .95em; animation: none; }
+  #conv li.me.ign .bub { background: transparent; color: var(--ink-3); border: 1px dashed var(--rule); }
+  #conv .tools { display: flex; flex-wrap: wrap; gap: .3em; margin-top: .3em; }
+  #conv .tools span { font: 600 .58em/1 var(--mono); color: var(--accent); background: var(--accent-soft); padding: .35em .5em; border-radius: 5px; }
+  #conv .tools span.ms { color: var(--ink-3); background: transparent; padding-left: .1em; }
+  #conv .tag { font: 700 .52em/1 var(--ui); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin-top: .3em; }
+  #conv li.typing .bub { display: inline-flex; gap: .3em; padding: .65em .8em; }
+  #conv li.typing i { width: .42em; height: .42em; border-radius: 50%; background: var(--ink-3); animation: dot 1s infinite; }
+  #conv li.typing i:nth-child(2) { animation-delay: .15s; } #conv li.typing i:nth-child(3) { animation-delay: .3s; }
+  @keyframes dot { 0%, 100% { opacity: .3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-.2em); } }
+  @keyframes bubbleIn { from { opacity: 0; transform: translateY(.7em) scale(.92); } to { opacity: 1; transform: none; } }
   .box { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: .9em 1.1em; display: flex; flex-direction: column; min-height: 0; }
   .box .cap { margin-bottom: .4em; }
   .stream { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
@@ -292,6 +324,7 @@
     main { grid-template-columns: 1fr 1fr; }
     .lower { grid-template-columns: 1fr; height: auto; }
     .stream { height: 11em; flex: none; }
+    #conv { height: 13em; flex: none; }
     #timeline { height: 7em; }
   }
   @media (max-width: 520px) {
@@ -323,7 +356,7 @@
   </header>
 
   <section id="voice" aria-live="polite">
-    <div id="mic" title="Glasses microphone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+    <div id="mic" class="orb o-off" title="Scribi"></div>
     <div id="crumbs"></div>
     <div id="said"><span class="q" style="color:var(--ink-3);font-style:normal;font-family:var(--ui);font-size:.85em">Talk to Scribi: say “what can I say”</span></div>
     <div id="hint"><small>SAY</small><span id="hintText">&nbsp;</span></div>
@@ -383,6 +416,10 @@
   </main>
 
   <section class="lower">
+    <div class="box">
+      <div class="cap"><span class="eyebrow">Conversation</span><span class="orbState"><span class="orb o-off" id="orbBig"></span><span id="orbText">Mic off</span></span></div>
+      <ul id="conv"></ul>
+    </div>
     <div class="box">
       <div class="cap"><span class="eyebrow">Agent brain</span><span class="tnum" id="brainCap">&nbsp;</span></div>
       <ul class="stream" id="brain"></ul>
@@ -465,6 +502,7 @@
     renderLatency(st.latency || {});
     renderSteps(st.agent_steps || []);
     renderEvents(st.events || []);
+    renderConv(st.events || [], st.last_result);
     var heard = st.last_heard && (st.last_heard.text || st.last_heard);
     setText($("listenText"), typeof heard === "string" && heard ? "“" + heard.slice(0, 28) + "”" : "Listening");
     $("listen").classList.toggle("on", !!st.listening || (typeof heard === "string" && !!heard && st.last_heard.ts && Date.now() / 1000 - st.last_heard.ts < 8));
@@ -1025,6 +1063,66 @@
     var c = window.__wornLangs && window.__wornLangs[l];
     return c ? c.name : l ? l.charAt(0).toUpperCase() + l.slice(1) : "";
   }
+  // ---------------------------------------------------------------- Scribi orb + conversation
+  var micState = "off", speakUntil = 0, convSeen = {}, convN = 0;
+  var ORB_TEXT = { off: "Mic off", listening: "Listening", hearing: "Hearing you…", thinking: "Thinking…", speaking: "Speaking" };
+  function renderOrb() {
+    var st = micState;
+    if (st !== "hearing" && st !== "thinking" && Date.now() < speakUntil) st = "speaking";
+    [$("mic"), $("orbBig")].forEach(function (o) { o.className = "orb o-" + (ORB_TEXT[st] ? st : "listening"); });
+    $("mic").title = "Scribi: " + (ORB_TEXT[st] || st).toLowerCase();
+    setText($("orbText"), ORB_TEXT[st] || st);
+    var conv = $("conv"), typing = conv.querySelector(".typing");
+    if (st === "thinking" && !typing) {
+      var li = document.createElement("li"); li.className = "ai typing";
+      li.innerHTML = '<span class="who"><span class="orb o-listening"></span>Scribi</span><span class="bub"><i></i><i></i><i></i></span>';
+      conv.appendChild(li);
+    } else if (st !== "thinking" && typing) typing.remove();
+  }
+  setInterval(renderOrb, 400);
+  var GRADE_TOOLS = ["find_writing", "compare_to_template", "grade_character"];
+  function bubble(cls, html) {
+    var conv = $("conv"), li = document.createElement("li"), typing = conv.querySelector(".typing");
+    li.className = cls; li.innerHTML = html;
+    if (typing) conv.insertBefore(li, typing); else conv.appendChild(li);
+    while (conv.children.length > 12) conv.removeChild(conv.firstChild);
+    convN++;
+  }
+  function aiBubble(text, tools, ms) {
+    var chips = (tools || []).filter(Boolean).map(function (t) { return "<span>" + esc(String(t).replace(/^\s+|\s+$/g, "")) + "</span>"; }).join("");
+    if (typeof ms === "number" && ms > 0) chips += '<span class="ms">' + (ms >= 1000 ? (ms / 1000).toFixed(1) + " s" : Math.round(ms) + " ms") + "</span>";
+    bubble("ai", '<span class="who"><span class="orb o-listening"></span>Scribi</span><span class="bub">' + esc(text) + "</span>" + (chips ? '<span class="tools">' + chips + "</span>" : ""));
+    if (!firstPoll) speakUntil = Date.now() + Math.min(6000, 900 + String(text).length * 55);
+  }
+  function renderConv(ev, lastResult) {
+    (ev || []).forEach(function (e) {
+      var id = e.id !== undefined ? e.id : e.ts + e.type;
+      if (convSeen[id]) return;
+      convSeen[id] = 1;
+      var d = e.data || {};
+      if (e.type === "voice") {
+        var heard = d.heard || d.text || "", intent = d.intent || d.command || "";
+        var ignored = !intent || intent === "unknown" || intent === "none";
+        if (heard) bubble("me" + (ignored && !d.say ? " ign" : ""), '<span class="bub">' + esc(iso(heard)) + "</span>" + (ignored && !d.say ? '<span class="tag">ignored · not a command</span>' : ""));
+        var say = d.say && !/\{\w+\}/.test(d.say) ? d.say : "";
+        var tools = d.tools || (d.actions || []).map(function (a) { return a && (a.tool || a.name || a); }) ;
+        if (!tools.length && !ignored) tools = [String(intent)];
+        if (say || (!ignored && tools.length)) aiBubble(say || "On it.", tools, d.ms);
+      } else if ((e.type === "grade.start" || e.type === "glasses.photo") && d.source === "glasses") {
+        aiBubble("Let me look.", ["capture"]);
+      } else if (e.type === "grade") {
+        var r = lastResult && (!lastResult.char || lastResult.char === d.char) ? lastResult : null;
+        var line = r && r.status === "no_writing" ? (r.feedback || "I can’t find your writing.") :
+          (r && r.feedback ? r.feedback : (d.char || "") + (typeof d.score === "number" ? " · " + d.score + "/100" : "")) + (r && r.reaction ? " " + r.reaction : "");
+        aiBubble(line, GRADE_TOOLS, r && r.grade_ms ? r.grade_ms.total : r && r.latency_ms);
+      }
+    });
+    if (!convN && !$("conv").children.length) {
+      $("conv").innerHTML = '<li class="ai"><span class="who"><span class="orb o-listening"></span>Scribi</span><span class="bub">Hi, I’m Scribi. Say “learn Mandarin” to start.</span></li>';
+      convN = -1;
+    }
+  }
+
   var grading = null;
   function renderApp(a) {
     if (a && a.grading) grading = a.grading;
@@ -1041,9 +1139,8 @@
     setText($("hintText"), (a.hint || "“what can I say”").replace(/^say\s+/i, ""));
     // D's glasses report mic: listening | hearing | thinking | off (older senders only have listening: true/false)
     var mic = a.mic || ((a.listening || liveListening) ? "listening" : "off");
-    ["listening", "hearing", "thinking"].forEach(function (k) { $("mic").classList.toggle("m-" + k, mic === k); });
-    $("mic").classList.toggle("on", mic !== "off");
-    $("mic").title = { listening: "Glasses mic: listening", hearing: "Glasses mic: hearing speech", thinking: "Scribi is thinking", off: "Glasses mic: off" }[mic] || "Glasses microphone";
+    micState = mic;
+    renderOrb();
     var v = a.last_voice;
     if (!v && a.last_heard && typeof a.last_heard === "string") v = { heard: a.last_heard, id: "h:" + a.last_heard };
     if (v && (v.heard || v.say)) {
