@@ -3,3 +3,4 @@ Microlumin_Ship/
 __pycache__/
 backend/captures/
 .DS_Store
+.env

@@ -1,0 +1,260 @@
+package com.worn.glasses;
+
+import android.annotation.SuppressLint;
+import android.content.Context;
+import android.graphics.ImageFormat;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraDevice;
+import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CameraMetadata;
+import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.Image;
+import android.media.ImageReader;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.util.Log;
+import android.util.Size;
+import android.view.Surface;
+
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+
+/**
+ * Plain Camera2 still capture (the glasses-side MicroLumin camera SDK is not in the kit).
+ *
+ * The camera stays open while the app is in front, streaming small YUV frames that we drop
+ * so auto-exposure and focus have settled by the time the button is pressed. If opening fails
+ * (another app holds the camera, or it was disconnected), takePicture() reopens it and waits
+ * a short warm-up before the still.
+ */
+final class GlassesCamera {
+    interface Callback {
+        void onJpeg(byte[] jpeg);
+        void onError(String message);
+    }
+
+    private static final String TAG = "WornCam";
+    private static final int MAX_LONG_EDGE = 1920; // backend shrinks to 1024 anyway; keep the upload small
+    private static final long WARMUP_MS = 700;      // AE/AF settle time after a cold open
+
+    private final CameraManager manager;
+    private final HandlerThread thread = new HandlerThread("worn-camera");
+    private final Handler handler;
+
+    private CameraDevice device;
+    private CameraCaptureSession session;
+    private ImageReader reader;
+    private ImageReader previewReader; // frames are discarded; it only keeps AE/AF running
+    private Surface previewSurface;
+    private String cameraId;
+    private int sensorOrientation;
+    private long readySince;
+    private boolean opening;
+    private Callback pending; // one capture at a time
+
+    GlassesCamera(Context ctx) {
+        manager = (CameraManager) ctx.getSystemService(Context.CAMERA_SERVICE);
+        thread.start();
+        handler = new Handler(thread.getLooper());
+    }
+
+    String describe() {
+        if (session != null) return "camera " + cameraId + " ready";
+        if (opening) return "camera opening";
+        return "camera closed";
+    }
+
+    void open() { handler.post(this::openInternal); }
+
+    void close() { handler.post(this::closeInternal); }
+
+    void release() {
+        handler.post(() -> { closeInternal(); thread.quitSafely(); });
+    }
+
+    void takePicture(Callback cb) {
+        handler.post(() -> {
+            if (pending != null) { cb.onError("Still checking the last photo"); return; }
+            pending = cb;
+            if (session == null) {
+                openInternal(); // capture fires from onConfigured once ready
+                return;
+            }
+            long wait = Math.max(0, WARMUP_MS - (System.currentTimeMillis() - readySince));
+            handler.postDelayed(this::captureInternal, wait);
+        });
+    }
+
+    // ------------------------------------------------------------------ internals (camera thread)
+
+    @SuppressLint("MissingPermission") // granted at install with `adb install -g`; checked in MainActivity
+    private void openInternal() {
+        if (device != null || opening) return;
+        try {
+            cameraId = pickCamera();
+            if (cameraId == null) { fail("No camera found"); return; }
+            CameraCharacteristics cc = manager.getCameraCharacteristics(cameraId);
+            Integer so = cc.get(CameraCharacteristics.SENSOR_ORIENTATION);
+            sensorOrientation = so == null ? 0 : so;
+            Size size = pickJpegSize(cc);
+            Log.i(TAG, "opening camera " + cameraId + " jpeg " + size + " sensorOrientation " + sensorOrientation);
+            reader = ImageReader.newInstance(size.getWidth(), size.getHeight(), ImageFormat.JPEG, 2);
+            reader.setOnImageAvailableListener(this::onImage, handler);
+            Size ps = pickPreviewSize(cc);
+            previewReader = ImageReader.newInstance(ps.getWidth(), ps.getHeight(), ImageFormat.YUV_420_888, 2);
+            previewReader.setOnImageAvailableListener(pr -> {
+                Image f = pr.acquireLatestImage();
+                if (f != null) f.close();
+            }, handler);
+            previewSurface = previewReader.getSurface();
+            opening = true;
+            manager.openCamera(cameraId, new CameraDevice.StateCallback() {
+                @Override public void onOpened(CameraDevice d) {
+                    device = d;
+                    startSession();
+                }
+                @Override public void onDisconnected(CameraDevice d) {
+                    Log.w(TAG, "camera disconnected (another app took it?)");
+                    d.close();
+                    device = null;
+                    closeInternal();
+                    fail("Camera busy, press again");
+                }
+                @Override public void onError(CameraDevice d, int error) {
+                    Log.e(TAG, "camera error " + error);
+                    d.close();
+                    device = null;
+                    closeInternal();
+                    fail("Camera error " + error + ", press again");
+                }
+            }, handler);
+        } catch (CameraAccessException | SecurityException | IllegalArgumentException e) {
+            Log.e(TAG, "open failed", e);
+            closeInternal();
+            fail("Can't open camera: " + e.getMessage());
+        }
+    }
+
+    private void startSession() {
+        try {
+            device.createCaptureSession(Arrays.asList(previewSurface, reader.getSurface()),
+                    new CameraCaptureSession.StateCallback() {
+                        @Override public void onConfigured(CameraCaptureSession s) {
+                            session = s;
+                            opening = false;
+                            readySince = System.currentTimeMillis();
+                            try {
+                                CaptureRequest.Builder b = device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+                                b.addTarget(previewSurface);
+                                b.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+                                b.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+                                s.setRepeatingRequest(b.build(), null, handler);
+                            } catch (CameraAccessException | IllegalStateException e) {
+                                Log.w(TAG, "preview request failed", e);
+                            }
+                            Log.i(TAG, "camera ready");
+                            if (pending != null) handler.postDelayed(GlassesCamera.this::captureInternal, WARMUP_MS);
+                        }
+                        @Override public void onConfigureFailed(CameraCaptureSession s) {
+                            Log.e(TAG, "session configure failed");
+                            closeInternal();
+                            fail("Camera setup failed, press again");
+                        }
+                    }, handler);
+        } catch (CameraAccessException | IllegalStateException e) {
+            Log.e(TAG, "createCaptureSession failed", e);
+            closeInternal();
+            fail("Camera setup failed, press again");
+        }
+    }
+
+    private void captureInternal() {
+        if (pending == null) return;
+        if (session == null || device == null) { fail("Camera not ready, press again"); return; }
+        try {
+            CaptureRequest.Builder b = device.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+            b.addTarget(reader.getSurface());
+            b.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+            b.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+            b.set(CaptureRequest.JPEG_QUALITY, (byte) 90);
+            // Glasses don't rotate relative to the head, so the sensor orientation is the whole story.
+            // The backend applies the EXIF orientation (ImageOps.exif_transpose).
+            b.set(CaptureRequest.JPEG_ORIENTATION, sensorOrientation);
+            session.capture(b.build(), null, handler);
+        } catch (CameraAccessException | IllegalStateException e) {
+            Log.e(TAG, "capture failed", e);
+            closeInternal();
+            fail("Photo failed, press again");
+        }
+    }
+
+    private void onImage(ImageReader r) {
+        Image img = r.acquireLatestImage();
+        if (img == null) return;
+        try {
+            ByteBuffer buf = img.getPlanes()[0].getBuffer();
+            byte[] jpeg = new byte[buf.remaining()];
+            buf.get(jpeg);
+            Callback cb = pending;
+            pending = null;
+            Log.i(TAG, "jpeg " + jpeg.length + " bytes");
+            if (cb != null) cb.onJpeg(jpeg);
+        } finally {
+            img.close();
+        }
+    }
+
+    private void fail(String msg) {
+        opening = false;
+        Callback cb = pending;
+        pending = null;
+        if (cb != null) cb.onError(msg);
+    }
+
+    private void closeInternal() {
+        opening = false;
+        if (session != null) { try { session.close(); } catch (Exception ignored) {} session = null; }
+        if (device != null) { try { device.close(); } catch (Exception ignored) {} device = null; }
+        if (reader != null) { reader.close(); reader = null; }
+        previewSurface = null;
+        if (previewReader != null) { previewReader.close(); previewReader = null; }
+    }
+
+    private String pickCamera() throws CameraAccessException {
+        String[] ids = manager.getCameraIdList();
+        for (String id : ids) {
+            Integer facing = manager.getCameraCharacteristics(id).get(CameraCharacteristics.LENS_FACING);
+            if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) return id;
+        }
+        return ids.length > 0 ? ids[0] : null; // the M6 has one world-facing camera
+    }
+
+    private static Size pickPreviewSize(CameraCharacteristics cc) {
+        StreamConfigurationMap map = cc.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+        Size[] sizes = map == null ? null : map.getOutputSizes(ImageFormat.YUV_420_888);
+        if (sizes == null || sizes.length == 0) return new Size(640, 480);
+        Size best = null;
+        for (Size s : sizes) {
+            if (s.getWidth() < 320) continue;
+            if (best == null || (long) s.getWidth() * s.getHeight() < (long) best.getWidth() * best.getHeight()) best = s;
+        }
+        return best != null ? best : sizes[0];
+    }
+
+    private static Size pickJpegSize(CameraCharacteristics cc) {
+        StreamConfigurationMap map = cc.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+        Size[] sizes = map == null ? null : map.getOutputSizes(ImageFormat.JPEG);
+        if (sizes == null || sizes.length == 0) return new Size(1280, 960);
+        Size best = null, smallest = sizes[0];
+        for (Size s : sizes) {
+            long area = (long) s.getWidth() * s.getHeight();
+            if (area < (long) smallest.getWidth() * smallest.getHeight()) smallest = s;
+            if (Math.max(s.getWidth(), s.getHeight()) > MAX_LONG_EDGE) continue;
+            if (best == null || area > (long) best.getWidth() * best.getHeight()) best = s;
+        }
+        return best != null ? best : smallest;
+    }
+}
