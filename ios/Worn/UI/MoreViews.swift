@@ -196,7 +196,13 @@ struct NameView: View {
                                 Text(r.text).font(Theme.script(r.lang, size: 34)).foregroundStyle(Theme.ink)
                                     .environment(\.layoutDirection, ScriptInfo.isRTL(r.lang) ? .rightToLeft : .leftToRight)
                                 if let rom = r.romanization { Text(rom).font(Theme.sans(14, weight: .medium)).foregroundStyle(Theme.accent) }
-                                if r.offline { Text("Spelled offline, by sound").font(Theme.sans(11)).foregroundStyle(Theme.inkSoft) }
+                                if r.offline {
+                                    HStack(spacing: 6) {
+                                        if loading { ProgressView().controlSize(.mini) }
+                                        Text(loading ? "Quick spelling · checking with the tutor…" : "Spelled by sound (approximate)")
+                                    }
+                                    .font(Theme.sans(11)).foregroundStyle(Theme.inkSoft)
+                                }
                             }
                             Spacer()
                             Image(systemName: "pencil.and.scribble").foregroundStyle(Theme.accent)
@@ -217,22 +223,26 @@ struct NameView: View {
         .onAppear { if !name.isEmpty && results.isEmpty { fetch() } }
     }
 
+    private func show(_ list: [NameResponse.Rendering]) {
+        results = list.filter { ScriptInfo.order.contains($0.lang) && !$0.text.isEmpty }
+            .sorted { (ScriptInfo.order.firstIndex(of: $0.lang) ?? 99) < (ScriptInfo.order.firstIndex(of: $1.lang) ?? 99) }
+    }
+
     private func fetch() {
         let n = name.trimmingCharacters(in: .whitespaces)
         guard !n.isEmpty, let api = app.api else { return }
         loading = true; error = nil
         Task {
-            var list: [NameResponse.Rendering]
-            do {
-                list = try await api.name(n).results
-            } catch {
-                // The name model is busy or down: spell it with the team's sound tables instead.
-                list = app.offlineName(n)
-                if list.isEmpty { self.error = error.localizedDescription }
+            // Instant: spell it on the phone with the team's sound tables, then swap in the server's spelling
+            // (a language model, 5–8 s) when it answers. One quiet retry; the offline version stays if both fail.
+            show(app.offlineName(n))
+            var server: [NameResponse.Rendering]?
+            for attempt in 0..<2 where server == nil {
+                if attempt > 0 { try? await Task.sleep(for: .milliseconds(600)) }
+                server = try? await api.name(n).results
             }
-            note = nil
-            results = list.filter { ScriptInfo.order.contains($0.lang) }
-                .sorted { (ScriptInfo.order.firstIndex(of: $0.lang) ?? 99) < (ScriptInfo.order.firstIndex(of: $1.lang) ?? 99) }
+            guard name.trimmingCharacters(in: .whitespaces) == n else { return }
+            if let server, !server.isEmpty { show(server) } else if results.isEmpty { error = "Couldn't spell that right now." }
             app.report("name", ["name": .string(n), "scripts": .int(results.count), "offline": .bool(results.first?.offline ?? false)])
             loading = false
         }

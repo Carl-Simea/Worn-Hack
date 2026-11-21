@@ -506,36 +506,8 @@ struct NameTable: Decodable {
     let note: String?
     let sounds: [String: String]
 
-    /// Greedy longest-match spelling by sound. Approximate by design (the server's /name does it properly).
-    func spell(_ name: String) -> String {
-        let src = Array(name.lowercased().filter { $0.isLetter })
-        let keys = sounds.keys.filter { !$0.hasSuffix("$") }.sorted { $0.count > $1.count }
-        var out = ""
-        var i = 0
-        while i < src.count {
-            var matched = false
-            for k in keys where k.count <= src.count - i && !k.isEmpty {
-                let lower = k.lowercased()
-                guard String(src[i..<(i + lower.count)]) == lower else { continue }
-                let atEnd = i + lower.count == src.count
-                // Word-initial vowel keys are capitalized in some tables ("A" = initial alef); finals end in "$".
-                let key: String
-                if atEnd, sounds[k + "$"] != nil { key = k + "$" }
-                else if i == 0, sounds[k.uppercased()] != nil, k.uppercased() != k { key = k.uppercased() }
-                else { key = k }
-                out += sounds[key] ?? sounds[k] ?? ""
-                i += lower.count
-                matched = true
-                break
-            }
-            if !matched { i += 1 }
-        }
-        if lang == "greek" || lang == "russian", let f = out.first {
-            if lang == "greek", out.hasSuffix("σ") { out = String(out.dropLast()) + "ς" }
-            out = String(f).uppercased() + out.dropFirst()
-        }
-        return out
-    }
+    /// Spell an English name by sound with this table (see NameSpeller). Approximate by design.
+    func spell(_ name: String) -> String { NameSpeller.spell(name, table: self) }
 }
 
 struct AnyKey: CodingKey {

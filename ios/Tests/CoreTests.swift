@@ -32,6 +32,23 @@ check(VoiceCommandParser.parse("help me write") == nil, "voice: incomplete compo
 check(VoiceCommandParser.parse("can you go slower") == .slower && VoiceCommandParser.parse("check it") == .check && VoiceCommandParser.parse("again") == .again, "voice: slower/check/again")
 check(VoiceCommandParser.parse("switch to Japanese") == nil, "voice: Japanese removed")
 
+// Offline name speller vs the content examples
+do {
+    let names = root.deletingLastPathComponent().appendingPathComponent("names")
+    var hit = 0, total = 0
+    struct Ex: Decodable { let name: String; let written: String }
+    struct F: Decodable { let examples: [Ex] }
+    for f in ["devanagari", "arabic", "cyrillic", "hebrew", "greek"] {
+        guard let d = try? Data(contentsOf: names.appendingPathComponent("\(f).json")),
+              let t = try? JSONDecoder().decode(NameTable.self, from: d), let ex = try? JSONDecoder().decode(F.self, from: d) else { continue }
+        for e in ex.examples {
+            total += 1
+            if t.spell(e.name).folding(options: .diacriticInsensitive, locale: nil) == e.written.folding(options: .diacriticInsensitive, locale: nil) { hit += 1 }
+        }
+    }
+    check(total == 0 || Double(hit) / Double(total) >= 0.7, "name speller matches \(hit)/\(total) content examples (≥70%)")
+}
+
 // Ink diff on synthetic 64x64 pages.
 let side = InkDiff.side
 func page(_ draw: (inout [UInt8]) -> Void) -> [UInt8] { var g = [UInt8](repeating: 230, count: side*side); draw(&g); return g }
@@ -78,3 +95,5 @@ var stuck = Pacer(strokeCount: 4, now: t); var acts = 0
 for i in 1...40 { acts += stuck.tick(now: t + Double(i) * 0.5).count }
 check(acts == 4, "no input at all still finishes (3 strokes + finalize), got \(acts)")
 print(fails == 0 ? "ALL PASS" : "\(fails) FAILED"); exit(fails == 0 ? 0 : 1)
+
+enum ScriptInfo { static func isRTL(_ l: String) -> Bool { l == "arabic" || l == "hebrew" } }

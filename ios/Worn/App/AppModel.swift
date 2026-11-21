@@ -105,6 +105,7 @@ final class AppModel {
         case "practice" where p.count > 2:
             guard let lesson = lesson(p[1]), let phrase = lesson.phrases.first(where: { $0.id == p[2] }) else { return }
             route = [.lesson(p[1])]
+            try? await Task.sleep(for: .milliseconds(700))   // let the push finish before presenting the cover
             let mode: PracticeMode = p.count > 3 && p[3] == "dictation" ? .dictation : .write
             pendingLaunch = PracticeLaunch(items: PracticeItem.all(lang: p[1], phrase: phrase), mode: mode, title: phrase.meaning ?? phrase.text)
         case "compose":
