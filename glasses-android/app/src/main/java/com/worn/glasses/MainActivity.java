@@ -154,8 +154,8 @@ public class MainActivity extends Activity {
         }
         if (intent != null && intent.hasExtra("loud")) p.edit().putInt("loud", intent.getIntExtra("loud", 1000)).apply();
         mic.minLoud = p.getInt("loud", 1000);
-        if (intent != null && intent.hasExtra("barge")) p.edit().putInt("barge", intent.getIntExtra("barge", 3000)).apply();
-        mic.bargeMin = p.getInt("barge", 3000);
+        if (intent != null && intent.hasExtra("barge")) p.edit().putInt("barge", intent.getIntExtra("barge", 1600)).apply();
+        mic.bargeMin = p.getInt("barge", 1600);
         String say = intent == null ? null : intent.getStringExtra("say");
         if (say != null && !say.isEmpty()) {
             if (pageReady) js("worn.heard(" + JSONObject.quote(say) + ")"); else pendingSay = say;
@@ -292,13 +292,14 @@ public class MainActivity extends Activity {
         final int seq = ++voiceSeq;
         if (a == null) return;
         js("worn.mic('thinking')");
+        js("worn.voiceSent(" + seq + ")");     // the page timestamps every request (late replies are ignored)
         talk.execute(() -> {
             long t0 = System.currentTimeMillis();
             try {
                 String json = new Backend(a).voice(wav, s);
                 Log.i(TAG, "voice " + ms + "ms audio -> " + (System.currentTimeMillis() - t0) + "ms: " + json);
                 if (seq <= staleUpTo) { Log.i(TAG, "dropped stale reply #" + seq + " (interrupted)"); return; }
-                js("worn.voice(" + JSONObject.quote(json) + ")");
+                js("worn.voice(" + JSONObject.quote(json) + "," + seq + ")");
             } catch (Backend.HttpError e) {
                 Log.w(TAG, "voice http " + e.code);
                 js("worn.voiceError(" + e.code + ")");

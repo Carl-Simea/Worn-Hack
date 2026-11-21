@@ -1237,10 +1237,15 @@
   function handleVoice(r) {
     var heard0 = r.heard || r.text || "";
     if (heard0 && st.screen !== "idle" && window.WornCommands) {
-      var c = WornCommands.command(heard0, { screen: st.screen, phase: st.phase, lang: st.lang });
+      // try the whole transcript, then each sentence ("Open Russian, please. They're so many." → the first one)
+      var ctx0 = { screen: st.screen, phase: st.phase, lang: st.lang };
+      var c = WornCommands.command(heard0, ctx0);
+      if (!c) { var parts = String(heard0).split(/(?<=[.!?])\s+|,\s+(?=(?:no|yeah|um|so|and|but|okay)\b)/i);
+        for (var pi = 0; pi < parts.length && !c; pi++) if (parts[pi].trim()) c = WornCommands.command(parts[pi], ctx0); }
       if (c && CMD_TOOL[c.intent]) {
         var a = c.args || {};
         if (c.intent === "compose" && !a.lang) a.lang = st.lang || "mandarin";
+        st.localAt = Date.now();
         console.log("voice heard=" + JSON.stringify(heard0) + " -> COMMAND " + c.intent + " " + JSON.stringify(a));
         showHeard(heard0); caption(heard0, "you"); captionOff(1500);
         var nav = c.intent === "learn" ? { screen: "words", lang: a.lang } : null;
@@ -1315,10 +1320,16 @@
   // ------------------------------------------------------------------ native → page
   window.worn = {
     mic: function (s) { setMic(s === "off" ? "off" : s); },
+    voiceSent: function (seq) { if (!st.sentAt) st.sentAt = {}; st.sentAt[seq] = Date.now(); },
     voice: function (json, seq) {
       voiceDown = false;
       var r; try { r = typeof json === "string" ? JSON.parse(json) : json; } catch (e) { return; }
-      if (seq) { if (seq < (st.lastSeq || 0)) { console.log("dropped out-of-order reply #" + seq); return; } st.lastSeq = seq; }
+      if (seq) {
+        // ignore a reply whose request is older than the last reply applied or the last local command (no late overwrites)
+        // by request order: a reply is late only if a NEWER request's reply was already applied
+        if (seq < (st.appliedSeq || 0)) { console.log("dropped late reply #" + seq + " (" + (r.heard || "") + ")"); setMic("listening"); return; }
+        st.appliedSeq = seq;
+      }
       setMic("listening");
       handleVoice(r);
     },
@@ -1333,8 +1344,13 @@
       // test hook (adb --es say "…"): through /voice with text, else our matcher
       var fd = new FormData(); fd.append("text", text); fd.append("screen", st.screen);
       setMic("thinking");
+      var sent = Date.now();
       fetch("/voice", { method: "POST", body: fd }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-        .then(function (r) { setMic("listening"); r.heard = r.heard || text; r.typed = true; handleVoice(r); })
+        .then(function (r) {
+          setMic("listening");
+          if (sent < (st.appliedAt || 0) || sent < (st.localAt || 0)) { console.log("dropped late reply (" + text + ")"); return; }
+          st.appliedAt = sent; r.heard = r.heard || text; r.typed = true; handleVoice(r);
+        })
         .catch(function () { setMic("listening"); handleVoice({ heard: text, typed: true }); });
     },
     key: function (k) {

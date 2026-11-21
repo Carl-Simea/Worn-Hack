@@ -69,8 +69,8 @@ final class VoiceListener {
     // Barge-in while our speaker plays: the speaker's echo at the mic is learned (slow envelope); a voice clearly
     // above it (≥ BARGE_RATIO × echo and ≥ bargeMin) for 200 ms means the wearer is talking.
     volatile boolean bargeEnabled = true;
-    volatile int bargeMin = 3000;
-    private static final float BARGE_RATIO = 2.5f;
+    volatile int bargeMin = 1600;
+    private static final float BARGE_RATIO = 2.0f;
     private static final int BARGE_FRAMES = 6;        // 120 ms of the wearer's voice → stop Scribi
     private float echoEnv; private int bargeRun; private long lastEchoLog;
     volatile long bargeStart;   // when the voice that triggered the last barge-in began (for latency logs)
