@@ -174,9 +174,50 @@
   .toast { position:fixed; left:50%; top:calc(env(safe-area-inset-top) + 70px); transform:translateX(-50%); background:var(--ink); color:#fff; font-weight:800;
            padding:10px 16px; border-radius:12px; z-index:50; opacity:0; transition:opacity .2s; pointer-events:none; white-space:nowrap; }
   .toast.on { opacity:1; }
+
+  /* ---------- demo mode: no server + wide window -> phone frame beside a simulated glasses display ---------- */
+  #stageWrap { display:none; }
+  html.demo, html.demo body { background:#0f1115; overflow:auto; height:auto; min-height:100%; }
+  html.demo #stageWrap { display:flex; flex-wrap:wrap; gap:32px; justify-content:center; align-items:flex-start; padding:28px 20px 40px; }
+  html.demo #device { position:relative; width:390px; height:800px; flex:none; border-radius:46px; overflow:hidden; background:#fff;
+                      border:10px solid #1b1d22; box-shadow:0 30px 60px rgba(0,0,0,.45); transform:translateZ(0); }
+  html.demo .screen, html.demo .nav, html.demo .sheet { position:absolute; }
+  #glassCol { flex:1 1 520px; max-width:680px; min-width:300px; color:#e8ebf0; }
+  #glassCol h1 { font-size:30px; line-height:1.1; margin:6px 0 6px; font-weight:900; color:#fff; }
+  #glassCol .lede { color:#9aa3b0; font-weight:700; margin:0 0 18px; font-size:16px; }
+  #gsFrame { position:relative; width:100%; aspect-ratio:4/3; border-radius:22px; overflow:hidden; background:#000; box-shadow:0 0 0 2px #2a2f38, 0 24px 50px rgba(0,0,0,.5); }
+  #gs { position:absolute; left:0; top:0; width:640px; height:480px; transform-origin:0 0; background:#000; color:#fff;
+        font-family:"Noto Sans","Noto Sans CJK SC","PingFang SC","Noto Sans Devanagari","Noto Naskh Arabic",Roboto,sans-serif; }
+  #gs .scr { position:absolute; inset:0; display:none; } #gs .scr.on { display:block; }
+  #gsIdle { text-align:center; } #gsIdle b { display:block; font-size:64px; margin-top:150px; letter-spacing:4px; } #gsIdle span { font-size:26px; color:#8a8f98; }
+  #gsStrip { position:absolute; left:16px; right:16px; top:10px; height:56px; display:flex; align-items:center; justify-content:center; font-size:40px; white-space:nowrap; }
+  #gsStrip span { color:#8a8f98; margin:0 3px; } #gsStrip span.done { color:#5e6d63; } #gsStrip span.cur { color:#5cd6ff; border-bottom:3px solid #5cd6ff; }
+  #gsBoard { position:absolute; left:16px; top:76px; width:340px; height:340px; border:2px solid #2a2f38; border-radius:14px; }
+  #gsBoard::before, #gsBoard::after { content:""; position:absolute; background:#2a2f38; }
+  #gsBoard::before { left:50%; top:0; bottom:0; width:1px; } #gsBoard::after { top:50%; left:0; right:0; height:1px; }
+  #gsAnim { position:absolute; left:10px; top:10px; width:316px; height:316px; }
+  #gsReady { position:absolute; left:16px; top:76px; width:340px; height:340px; display:none; text-align:center; line-height:340px; font-size:76px; font-weight:700; background:#000; border-radius:14px; }
+  #gsReady.on { display:block; animation:pop .45s ease-out; } #gsReady.go { color:#3ef08a; font-size:96px; }
+  #gsNo { position:absolute; left:16px; top:424px; width:340px; text-align:center; font-size:22px; color:#8a8f98; }
+  #gsSide { position:absolute; left:376px; top:76px; width:248px; height:340px; }
+  #gsRom { font-size:38px; font-weight:700; color:#5cd6ff; line-height:1.15; word-wrap:break-word; }
+  #gsMean { font-size:24px; margin-top:10px; } #gsLang { font-size:18px; margin-top:14px; color:#8a8f98; text-transform:uppercase; letter-spacing:1px; }
+  #gsPrompt { position:absolute; bottom:0; left:0; right:0; font-size:22px; line-height:1.3; } #gsPrompt b { color:#5cd6ff; }
+  #gsCount { position:absolute; right:16px; top:430px; font-size:20px; color:#8a8f98; }
+  #gsRes { position:absolute; inset:0; background:rgba(0,0,0,.88); display:none; text-align:center; }
+  #gsRes.on { display:block; } #gsResIcon { font-size:190px; line-height:1; margin-top:46px; font-weight:700; color:#3ef08a; }
+  #gsResText { font-size:34px; line-height:1.25; margin:18px 30px 0; } #gsResScore { font-size:22px; color:#8a8f98; margin-top:14px; }
+  #gsBtn { margin-top:16px; width:100%; border:none; border-radius:16px; padding:15px; font-size:17px; font-weight:900; letter-spacing:.8px; text-transform:uppercase;
+           background:#1CB0F6; color:#fff; box-shadow:0 4px 0 #1899D6; cursor:pointer; font-family:inherit; }
+  #gsBtn:disabled { background:#2a2f38; color:#6b7380; box-shadow:0 4px 0 #1b1f26; cursor:default; }
+  #gsBtn:active:not(:disabled) { transform:translateY(3px); box-shadow:0 1px 0 #1899D6; }
+  #glassCol .note { color:#7d8694; font-size:13px; font-weight:700; margin-top:14px; line-height:1.5; }
+  @media (max-width:960px) { #glassCol { order:-1; max-width:430px; } #glassCol .lede, #glassCol .note { display:none; } #glassCol h1 { font-size:22px; } html.demo #stageWrap { gap:18px; padding-top:16px; } }
 </style>
 </head>
 <body>
+<div id="stageWrap">
+<div id="device">
 
 <!-- ===================== HOME (path) ===================== -->
 <section id="home" class="screen on">
@@ -254,6 +295,30 @@
 <div class="sheet" id="langSheet"><div class="panel"><h3>I want to learn…</h3><div id="langList"></div></div></div>
 <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none">
 <div class="toast" id="toast"></div>
+</div><!-- /device -->
+
+<!-- simulated glasses (demo mode only: shown when there is no server and the window is wide) -->
+<div id="glassCol" aria-label="Simulated glasses display">
+  <h1>Pick it on the phone. Write it with the glasses.</h1>
+  <p class="lede">Start a lesson on the phone. When it’s time to write, the character pops up on the glasses: Ready… Go!, then the strokes go slow, faster, full speed.</p>
+  <div id="gsFrame"><div id="gs">
+    <div id="gsIdle" class="scr on"><b>WORN</b><span>Pick a lesson on your phone</span></div>
+    <div id="gsWrite" class="scr">
+      <div id="gsStrip"></div>
+      <div id="gsBoard"><div id="gsAnim"></div></div>
+      <div id="gsReady"></div>
+      <div id="gsNo"></div>
+      <div id="gsSide"><div id="gsRom"></div><div id="gsMean"></div><div id="gsLang"></div>
+        <div id="gsPrompt">Write it on paper,<br>then <b>press the button</b></div></div>
+      <div id="gsCount"></div>
+    </div>
+    <div id="gsRes"><div id="gsResIcon">✓</div><div id="gsResText"></div><div id="gsResScore"></div></div>
+  </div></div>
+  <button id="gsBtn" disabled>Press the glasses button</button>
+  <p class="note">This is a simulation of the 640×480 glasses display (black is see-through on the real lenses). Grading is simulated here: on the real glasses the button takes a photo of your paper and a local vision AI grades it.</p>
+  <p class="note">Stroke data: Mandarin from Make Me a Hanzi / hanzi-writer-data (Arphic Public License); Japanese from KanjiVG © Ulrich Apel (CC BY-SA 3.0); Russian, Arabic and Hindi made by the Worn team.</p>
+</div>
+</div><!-- /stageWrap -->
 
 <script src="vendor/hanzi-writer.min.js"></script>
 <script src="worn-strokes.js"></script>
@@ -303,8 +368,12 @@
       live = true; ASSET = API + "/static/content/";
       j.langs.forEach(function (l) { if (LANGS.indexOf(l.lang) >= 0) content[l.lang] = l; });
     }).catch(function () {
-      live = false; ASSET = "../content/";
-      return Promise.all(LANGS.map(function (l) { return getJSON("../content/" + l + ".json").then(function (j) { content[l] = j; }).catch(function () {}); }));
+      live = false;
+      // ../content/ when served from web/ in the repo; content/ when this page sits at the root (the Claude demo)
+      return getJSON("../content/mandarin.json").then(function () { return "../content/"; }, function () { return "content/"; }).then(function (base) {
+        ASSET = base;
+        return Promise.all(LANGS.map(function (l) { return getJSON(base + l + ".json").then(function (j) { content[l] = j; }).catch(function () {}); }));
+      });
     }).then(function () {
       LANGS.forEach(function (l) { if (content[l]) paths[l] = C.build(l, content[l]); });
     });
@@ -563,7 +632,7 @@
     stage.appendChild(el("div", "instr", live ? "Write it on paper, then <b>press the button on your glasses</b>" : "Write it on paper, then tap <b>I wrote it</b>"));
 
     var token = {}, anim = WornStrokes.create(an, lbl, API, { ramp:true }), polling = true;
-    active = { stop:function () { polling = false; anim.stop(); token.dead = 1; } };
+    active = { stop:function () { polling = false; anim.stop(); token.dead = 1; if (demo) { gsStop(); $("gsBtn").disabled = true; } } };
     function readyGo(url) {   // same "Ready… Go!" the glasses show
       rg.textContent = "Ready…"; rg.className = "rg on";
       setTimeout(function () { if (token.dead) return; rg.textContent = "Go!"; rg.className = "rg on go";
@@ -571,6 +640,7 @@
     }
     function graded(r) {
       polling = false; wroteN++; st.wrote++; save();
+      if (demo) gsResult(r);
       if (r.correct) {
         cR.className = "chip ok"; cR.textContent = "✅ " + (typeof r.score === "number" ? r.score + "/100" : "Correct");
         feedback(true, pick(["Nice!", "Great job!", "Awesome!", "Perfect strokes!"]), r.feedback || "", "Continue", next);
@@ -605,8 +675,13 @@
         inp.click();
       }, "ghost");
     } else {
-      strokeUrl(lang, s.ch).then(readyGo);
-      footBtn("I wrote it", true, function () { graded({ correct:true, feedback:"Practiced on paper." }); });
+      strokeUrl(lang, s.ch).then(function (u) {
+        readyGo(u);
+        if (demo) { cG.className = "chip ok"; cG.textContent = "👓 On your glasses"; cR.className = "chip wait"; gsShow(lang, s, p, u); }
+      });
+      var fake = function () { graded({ correct:true, score:78 + Math.floor(Math.random() * 19), feedback:pick(["Clean strokes!", "Nice balance, keep going!", "Great stroke order!", "Looks right, nice work!"]) }); };
+      if (demo) { $("gsBtn").disabled = false; $("gsBtn").onclick = function () { $("gsBtn").disabled = true; gsBusy(); setTimeout(function () { if (!token.dead) fake(); }, 900); }; }
+      footBtn("I wrote it", true, fake);
     }
   }
   function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
@@ -668,7 +743,7 @@
 
   // ---- end
   function endLesson(completed) {
-    stopActive();
+    stopActive(); if (demo) gsIdle();
     $("lesson").classList.remove("on");
     if (!completed) { showTab("home"); return; }
     var xp = isPractice ? 5 : 10 + (mistakes === 0 && answered ? 5 : 0);
@@ -681,8 +756,50 @@
   }
   $("doneBtn").onclick = function () { $("doneScreen").classList.remove("on"); showTab("home"); };
 
+  // ---------------------------------------------------------------- simulated glasses (demo mode)
+  var demo = false, gsAnim = null, gsTok = 0, gsTimer = null;
+  function gsFit() { var f = $("gsFrame"); if (f) $("gs").style.transform = "scale(" + (f.clientWidth / 640) + ")"; }
+  function gsScreen(id) { ["gsIdle", "gsWrite"].forEach(function (x) { $(x).classList.toggle("on", x === id); }); }
+  function gsStop() { gsTok++; $("gsReady").className = ""; if (gsAnim) gsAnim.stop(); }
+  function gsIdle() { gsStop(); clearTimeout(gsTimer); $("gsRes").className = ""; gsScreen("gsIdle"); }
+  function gsShow(lang, s, p, url) {
+    gsStop(); clearTimeout(gsTimer); $("gsRes").className = "";
+    var strip = $("gsStrip"); strip.innerHTML = "";
+    var rtl = !!content[lang].rtl;
+    (rtl || !p ? [rtl && p ? p.text : s.ch] : p.chars).forEach(function (c, i) {
+      var sp = document.createElement("span"); sp.textContent = c;
+      sp.className = rtl || !p ? "cur" : i < s.idx ? "done" : i === s.idx ? "cur" : ""; strip.appendChild(sp);
+    });
+    strip.style.direction = rtl ? "rtl" : "ltr";
+    strip.style.fontSize = (p && p.chars.length > 7 ? 30 : 40) + "px";
+    $("gsRom").textContent = (p && p.romanization) || C.sound(lang, s.ch);
+    $("gsMean").textContent = p ? "“" + p.meaning + "”" : "";
+    $("gsLang").textContent = content[lang].name || META[lang].short;
+    $("gsCount").textContent = p ? (s.idx + 1) + " / " + p.chars.length : "";
+    gsScreen("gsWrite");
+    var tok = gsTok, r = $("gsReady");
+    r.textContent = "Ready…"; r.className = "on";
+    setTimeout(function () { if (tok !== gsTok) return; r.textContent = "Go!"; r.className = "on go";
+      setTimeout(function () { if (tok !== gsTok) return; r.className = ""; gsAnim.animate({ char:s.ch, stroke_url:url, rtl:rtl }); say(s.ch, lang); }, 650); }, 1000);
+  }
+  function gsBusy() { clearTimeout(gsTimer); $("gsRes").className = "on"; $("gsResIcon").textContent = "●"; $("gsResIcon").style.color = "#5cd6ff"; $("gsResText").textContent = "Checking…"; $("gsResScore").textContent = ""; }
+  function gsResult(r) {
+    clearTimeout(gsTimer); $("gsRes").className = "on";
+    $("gsResIcon").textContent = r.correct ? "✓" : "↻"; $("gsResIcon").style.color = r.correct ? "#3ef08a" : "#ffc23d";
+    $("gsResText").textContent = r.feedback || (r.correct ? "Nice!" : "Try again");
+    $("gsResScore").textContent = typeof r.score === "number" ? r.score + " / 100" : "";
+    gsTimer = setTimeout(function () { $("gsRes").className = ""; }, 3500);
+  }
+  function enterDemo() {
+    demo = true; document.documentElement.classList.add("demo");
+    if (st.unlockAll === false && !st.demoSeen) { st.unlockAll = true; st.demoSeen = true; save(); }  // demo: every lesson open
+    gsAnim = WornStrokes.create($("gsAnim"), $("gsNo"), "", { ramp:true });
+    gsFit(); if (window.ResizeObserver) new ResizeObserver(gsFit).observe($("gsFrame")); else window.addEventListener("resize", gsFit);
+  }
+
   // ---------------------------------------------------------------- go
   loadContent().then(function () {
+    if (!live && window.innerWidth >= 700) enterDemo();
     if (!content[st.lang]) st.lang = LANGS.filter(function (l) { return content[l]; })[0] || "mandarin";
     renderPath();
   });
