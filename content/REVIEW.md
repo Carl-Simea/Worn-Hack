@@ -97,6 +97,7 @@ These are rough English-sound → script maps for fun, not official transliterat
 | ☐ | Mike | **مايك** |  |
 | ☐ | Emma | **إيما** |  |
 | ☐ | Anna | **آنا** |  |
+| ☐ | Lisa | **ليزا** |  |
 
 ### Cyrillic (cyrillic.json)
 
@@ -112,6 +113,8 @@ These are rough English-sound → script maps for fun, not official transliterat
 | ☐ | Sam | **Сэм** |  |
 | ☐ | Ben | **Бен** |  |
 | ☐ | Lisa | **Лиза** |  |
+| ☐ | Adam | **Адам** |  |
+| ☐ | Lina | **Лина** |  |
 
 ### Devanagari (devanagari.json)
 
@@ -127,6 +130,8 @@ These are rough English-sound → script maps for fun, not official transliterat
 | ☐ | Anna | **अन्ना** |  |
 | ☐ | Ben | **बेन** |  |
 | ☐ | Sarah | **सारा** |  |
+| ☐ | Adam | **एडम** |  |
+| ☐ | Lina | **लीना** |  |
 
 ### Greek (greek.json)
 
@@ -142,6 +147,8 @@ These are rough English-sound → script maps for fun, not official transliterat
 | ☐ | Sam | **Σαμ** |  |
 | ☐ | Ben | **Μπεν** |  |
 | ☐ | Lisa | **Λίζα** |  |
+| ☐ | Adam | **Άνταμ** |  |
+| ☐ | Lina | **Λίνα** |  |
 
 ### Hebrew (hebrew.json)
 
@@ -157,6 +164,7 @@ These are rough English-sound → script maps for fun, not official transliterat
 | ☐ | Lisa | **ליסה** |  |
 | ☐ | Lina | **לינה** |  |
 | ☐ | Adam | **אדם** |  |
+| ☐ | David | **דייוויד** |  |
 
 ## Reactions (spoken + shown) (English only; check tone: goofy, never mean)
 

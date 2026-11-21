@@ -30,6 +30,8 @@ if names.is_dir():
             "These are rough English-sound → script maps for fun, not official transliterations. Check the examples.", ""]
     for f in sorted(names.glob("*.json")):
         d = json.loads(f.read_text(encoding="utf-8"))
+        if "script" not in d:  # examples.json is a cross-script lookup table, not a script map
+            continue
         out += [f"### {d['script']} ({f.name})", "", "| ✓ | English name | Written | Notes |", "|---|---|---|---|"]
         for ex in d.get("examples", []):
             out.append(f"| ☐ | {ex['name']} | **{ex['written']}** | {ex.get('note', '')} |")

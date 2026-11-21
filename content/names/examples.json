@@ -1,0 +1,75 @@
+{
+  "_about": "Checked example names in all five scripts, keyed like GET /name. Use as an offline fallback / instant answer for these names (approximate spellings by sound).",
+  "names": {
+    "adam": {
+      "devanagari": "एडम",
+      "arabic": "آدم",
+      "cyrillic": "Адам",
+      "hebrew": "אדם",
+      "greek": "Άνταμ"
+    },
+    "anna": {
+      "devanagari": "अन्ना",
+      "arabic": "آنا",
+      "cyrillic": "Анна",
+      "hebrew": "אנה",
+      "greek": "Άννα"
+    },
+    "david": {
+      "devanagari": "डेविड",
+      "arabic": "ديفيد",
+      "cyrillic": "Дэвид",
+      "hebrew": "דייוויד",
+      "greek": "Ντέιβιντ"
+    },
+    "emma": {
+      "devanagari": "एमा",
+      "arabic": "إيما",
+      "cyrillic": "Эмма",
+      "hebrew": "אמה",
+      "greek": "Έμμα"
+    },
+    "john": {
+      "devanagari": "जॉन",
+      "arabic": "جون",
+      "cyrillic": "Джон",
+      "hebrew": "ג'ון",
+      "greek": "Τζον"
+    },
+    "lina": {
+      "devanagari": "लीना",
+      "arabic": "لينا",
+      "cyrillic": "Лина",
+      "hebrew": "לינה",
+      "greek": "Λίνα"
+    },
+    "lisa": {
+      "devanagari": "लिसा",
+      "arabic": "ليزا",
+      "cyrillic": "Лиза",
+      "hebrew": "ליסה",
+      "greek": "Λίζα"
+    },
+    "maria": {
+      "devanagari": "मारिया",
+      "arabic": "ماريا",
+      "cyrillic": "Мария",
+      "hebrew": "מריה",
+      "greek": "Μαρία"
+    },
+    "mike": {
+      "devanagari": "माइक",
+      "arabic": "مايك",
+      "cyrillic": "Майк",
+      "hebrew": "מייק",
+      "greek": "Μάικ"
+    },
+    "sam": {
+      "devanagari": "सैम",
+      "arabic": "سام",
+      "cyrillic": "Сэм",
+      "hebrew": "סאם",
+      "greek": "Σαμ"
+    }
+  }
+}

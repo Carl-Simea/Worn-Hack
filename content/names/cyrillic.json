@@ -142,6 +142,26 @@
         "a"
       ],
       "written": "Лиза"
+    },
+    {
+      "name": "Adam",
+      "sounds": [
+        "a",
+        "d",
+        "a",
+        "m"
+      ],
+      "written": "Адам"
+    },
+    {
+      "name": "Lina",
+      "sounds": [
+        "l",
+        "i",
+        "n",
+        "a"
+      ],
+      "written": "Лина"
     }
   ]
 }

@@ -47,6 +47,8 @@ devanagari = dict(
         dict(name="Anna", sounds=["A", "n+", "naa"], written="अन्ना"),
         dict(name="Ben", sounds=["be", "n"], written="बेन"),
         dict(name="Sarah", sounds=["saa", "raa"], written="सारा"),
+        dict(name="Adam", sounds=["E", "d", "m"], written="एडम"),
+        dict(name="Lina", sounds=["lee", "naa"], written="लीना"),
     ])
 
 # ---------------------------------------------------------------- arabic
@@ -71,6 +73,7 @@ arabic = dict(
         dict(name="Mike", sounds=["m", "aa", "y", "k"], written="مايك"),
         dict(name="Emma", sounds=["E", "ee", "m", "aa"], written="إيما"),
         dict(name="Anna", sounds=["Aa", "n", "aa"], written="آنا"),
+        dict(name="Lisa", sounds=["l", "ee", "z", "aa"], written="ليزا"),
     ])
 
 # ---------------------------------------------------------------- cyrillic
@@ -95,6 +98,8 @@ cyrillic = dict(
         dict(name="Sam", sounds=["s", "eh", "m"], written="Сэм"),
         dict(name="Ben", sounds=["b", "e", "n"], written="Бен"),
         dict(name="Lisa", sounds=["l", "i", "z", "a"], written="Лиза"),
+        dict(name="Adam", sounds=["a", "d", "a", "m"], written="Адам"),
+        dict(name="Lina", sounds=["l", "i", "n", "a"], written="Лина"),
     ])
 
 
@@ -121,6 +126,7 @@ hebrew = dict(
         dict(name="Lisa", sounds=["l", "i", "s", "ah"], written="ליסה"),
         dict(name="Lina", sounds=["l", "i", "n", "ah"], written="לינה"),
         dict(name="Adam", sounds=["A", "d", "m$"], written="אדם"),
+        dict(name="David", sounds=["d", "ai", "w", "w", "i", "d"], written="דייוויד"),
     ])
 
 # ---------------------------------------------------------------- greek
@@ -146,6 +152,8 @@ greek = dict(
         dict(name="Sam", sounds=["s", "a", "m"], written="Σαμ"),
         dict(name="Ben", sounds=["b", "e", "n"], written="Μπεν"),
         dict(name="Lisa", sounds=["l", "í", "z", "a"], written="Λίζα"),
+        dict(name="Adam", sounds=["á", "d", "a", "m"], written="Άνταμ"),
+        dict(name="Lina", sounds=["l", "í", "n", "a"], written="Λίνα"),
     ])
 
 
@@ -158,9 +166,20 @@ def build(d, cap=False):
 
 
 for f in OUT.glob("*.json"):
-    f.unlink()  # rebuild from scratch (drops cut scripts such as katakana)
+    f.unlink()  # examples.json is rebuilt below  # rebuild from scratch (drops cut scripts such as katakana)
 for fname, d, cap in (("devanagari", devanagari, False), ("arabic", arabic, False), ("cyrillic", cyrillic, True),
                       ("hebrew", hebrew, False), ("greek", greek, True)):
     build(d, cap)
     (OUT / f"{fname}.json").write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"names/{fname}.json: {len(d['sounds'])} sounds, {len(d['examples'])} examples OK")
+
+# Names spelled in all five scripts, keyed like GET /name's answer: an instant offline fallback for the backend.
+keys = {"devanagari": devanagari, "arabic": arabic, "cyrillic": cyrillic, "hebrew": hebrew, "greek": greek}
+common = set.intersection(*({e["name"] for e in d["examples"]} for d in keys.values()))
+table = {n.lower(): {k: next(e["written"] for e in d["examples"] if e["name"] == n) for k, d in keys.items()}
+         for n in sorted(common)}
+(OUT / "examples.json").write_text(json.dumps({
+    "_about": "Checked example names in all five scripts, keyed like GET /name. Use as an offline fallback / instant "
+              "answer for these names (approximate spellings by sound).",
+    "names": table}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+print("names/examples.json:", ", ".join(sorted(common)))

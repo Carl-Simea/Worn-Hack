@@ -141,6 +141,26 @@
         "a"
       ],
       "written": "Λίζα"
+    },
+    {
+      "name": "Adam",
+      "sounds": [
+        "á",
+        "d",
+        "a",
+        "m"
+      ],
+      "written": "Άνταμ"
+    },
+    {
+      "name": "Lina",
+      "sounds": [
+        "l",
+        "í",
+        "n",
+        "a"
+      ],
+      "written": "Λίνα"
     }
   ]
 }

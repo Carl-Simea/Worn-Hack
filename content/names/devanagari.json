@@ -391,6 +391,23 @@
         "raa"
       ],
       "written": "सारा"
+    },
+    {
+      "name": "Adam",
+      "sounds": [
+        "E",
+        "d",
+        "m"
+      ],
+      "written": "एडम"
+    },
+    {
+      "name": "Lina",
+      "sounds": [
+        "lee",
+        "naa"
+      ],
+      "written": "लीना"
     }
   ]
 }
