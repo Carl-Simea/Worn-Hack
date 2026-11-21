@@ -105,6 +105,26 @@ Mandarin is checked as hanzi-writer JSON (strokes and medians agree). Nothing wa
 
 0 problems
 
+
+### Content end to end against the backend (private :8010, 2026-11-21)
+`uv run --with pillow python content/tools/e2e_strokes.py http://127.0.0.1:8010` checks every one of the 116 chars. For each:
+- `/session` returns the right char, stroke_url and stroke_count (equal to the file's stroke count), and the audio is served.
+- Writing the char stroke by stroke (each stroke drawn from the template, the char filling half the photo) to
+  `/stroke-match`, the tier-2 auto-grade, gives char_done on the last stroke.
+
+| Language | Chars accepted | Avg stroke score | Wrong letter not "done" (tier 2 only) |
+|---|---|---|---|
+| Mandarin | 8/8 | 94 | 6/7 |
+| Hindi | 13/13 | 95 | 8/13 |
+| Arabic | 25/25 | 94 | 19/20 |
+| Russian | 25/25 | 97 | 21/25 |
+| Hebrew | 17/17 | 96 | 15/17 |
+| Greek | 28/28 | 95 | 25/28 |
+
+Tier 2 only tracks stroke progress. The right/wrong verdict is `/grade` (A: 100% of wrong letters rejected).
+Caveat sent to A and D: a single long thin stroke spanning more than 60% of the photo is dropped as a "page edge"
+(the first stroke of ر ת א χ 友 at full-frame size), so the paper must not fill the camera frame.
+
 ## Needs people in the morning (not code)
 
 1. **Native-speaker check:** walk `content/REVIEW.md` with anyone at the venue who speaks Hindi, Arabic, Russian,
