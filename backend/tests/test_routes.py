@@ -25,7 +25,7 @@ class FakeModels:
         data = {"seen": seen, "score": 92 if seen == char else 30, "fix": "" if seen == char else "Close the top loop."}
         return vision.parse_grade(data, char), {"model": "fake-vision", "ms": 5}
 
-    async def tutor_json(self, prompt, *, system=None, validate=None, num_predict=256, temperature=0.3):
+    async def tutor_json(self, prompt, *, system=None, validate=None, num_predict=256, temperature=0.3, **kw):
         self.tutor_calls.append(prompt)
         if "Translate this short message" in prompt:
             lang = next(l for l in ("Mandarin", "Hebrew", "Greek") if l in prompt)
@@ -425,3 +425,25 @@ def test_tutor_total_cap_then_rules(monkeypatch):
     with pytest.raises(llm.LLMError):
         asyncio.run(llm.tutor_json("x"))
     assert _t.perf_counter() - t < 1.0
+
+
+
+def test_compose_fallback_answer_is_upgraded_and_cached(client, monkeypatch):
+    """7b answers now; 14b redoes it in the background; the next identical request is the cached 14b answer."""
+    calls = []
+
+    async def fallback_tutor(prompt, *, system=None, validate=None, num_predict=256, temperature=0.3, **kw):
+        return validate({"native": "спасиб", "romanization": "spasib", "back_translation": "thanks",
+                         "suitable": True}), {"model": "qwen2.5:7b", "fallback": True}
+
+    async def big(model, prompt, **kw):
+        calls.append(model)
+        return kw["validate"]({"native": "спасибо", "romanization": "spasibo", "back_translation": "thank you",
+                               "suitable": True})
+    monkeypatch.setattr(llm, "tutor_json", fallback_tutor)
+    monkeypatch.setattr(llm, "json_call", big)
+    first = client.post("/compose", json={"text": "Thanks a lot", "lang": "russian"}).json()
+    assert first["native"] == "спасиб" and first["fallback"] is True
+    second = client.post("/compose", json={"text": "thanks  a LOT", "lang": "russian"}).json()
+    assert calls == ["qwen2.5:14b"]
+    assert second["native"] == "спасибо" and "cached" in second["model"]

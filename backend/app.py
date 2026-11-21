@@ -28,10 +28,22 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 
 @contextlib.asynccontextmanager
 async def lifespan(_app: FastAPI):
-    task = asyncio.create_task(llm.keep_warm()) if config.WARM_MODELS else None
+    tasks = []
+    if config.WARM_MODELS:
+        tasks.append(asyncio.create_task(llm.keep_warm()))
+        tasks.append(asyncio.create_task(_prefetch_later()))
     yield
-    if task:
-        task.cancel()
+    for t in tasks:
+        t.cancel()
+
+
+async def _prefetch_later():
+    """After warm-up, precompute likely demo phrases with 14b (cached in data/llm_cache.json)."""
+    await asyncio.sleep(45)
+    try:
+        await compose.prefetch()
+    except Exception as e:
+        log.warning("prefetch stopped: %s", e)
 
 
 app = FastAPI(title="Worn", lifespan=lifespan)

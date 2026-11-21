@@ -47,6 +47,77 @@ Rules:
 JSON only: {{"native": "...", "romanization": "...", "back_translation": "...", "suitable": true}}"""
 
 
+# ------------------------------------------------------------------ 14b answer cache
+# Every qwen2.5:14b answer is kept (data/llm_cache.json). When a request had to fall back to 7b, the
+# learner gets the 7b answer right away and 14b redoes it in the background, so the next identical
+# request gets the stronger model's answer instantly.
+import asyncio
+import json
+import logging
+import threading
+
+log = logging.getLogger("worn.compose")
+_cache_lock = threading.Lock()
+_pending: set[str] = set()
+COMPOSE_CAP = 12.0  # nobody is mid-stroke here: allow more time than the grade's decide step
+
+
+def _cache_path():
+    return config.DATA_DIR / "llm_cache.json"
+
+
+def _cache_get(key: str) -> dict | None:
+    with _cache_lock:
+        try:
+            return json.loads(_cache_path().read_text(encoding="utf-8")).get(key)
+        except Exception:
+            return None
+
+
+def _cache_put(key: str, value: dict) -> None:
+    with _cache_lock:
+        try:
+            data = json.loads(_cache_path().read_text(encoding="utf-8"))
+        except Exception:
+            data = {}
+        data[key] = value
+        _cache_path().write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+async def _upgrade(key: str, prompt: str, validate) -> None:
+    """Background: ask 14b with no tight budget and cache its answer."""
+    if key in _pending:
+        return
+    _pending.add(key)
+    try:
+        data = await llm.json_call(config.TUTOR_MODEL, prompt, system=SYSTEM, validate=validate, timeout=60,
+                                   num_predict=200, temperature=0.2)
+        if not data.get("unsuitable"):
+            _cache_put(key, data)
+            log.info("cached 14b answer for %s", key)
+    except Exception as e:
+        log.warning("14b upgrade failed for %s: %s", key, e)
+    finally:
+        _pending.discard(key)
+
+
+async def _cached_tutor(key: str, prompt: str, validate, num_predict: int) -> tuple[dict, dict]:
+    hit = _cache_get(key)
+    if hit:
+        return hit, {"model": f"{config.TUTOR_MODEL} (cached)", "ms": 0, "fallback": False, "cached": True}
+    data, meta = await llm.tutor_json(prompt, system=SYSTEM, validate=validate, num_predict=num_predict, cap=COMPOSE_CAP)
+    if not meta.get("fallback"):
+        if not data.get("unsuitable"):
+            _cache_put(key, data)
+    else:
+        asyncio.get_running_loop().create_task(_upgrade(key, prompt, validate))
+    return data, meta
+
+
+def _key(kind: str, lang: str, text: str) -> str:
+    return f"{kind}:{lang}:{' '.join(text.lower().split())}"
+
+
 class ComposeError(ValueError):
     """A friendly, user-facing reason the message could not be composed."""
 
@@ -98,7 +169,7 @@ async def compose_message(text: str, lang: str) -> tuple[dict, dict]:
     prompt = COMPOSE_PROMPT.format(lang_name=config.LANGS[lang]["name"], text=text.replace('"', "'"),
                                    max_units=MAX_UNITS.get(lang, MAX_ALPHA), rule=_SCRIPT_RULE[lang], roman=_ROMAN[lang])
     try:
-        data, meta = await llm.tutor_json(prompt, system=SYSTEM, validate=_validator(lang), num_predict=200)
+        data, meta = await _cached_tutor(_key("compose", lang, text), prompt, _validator(lang), 200)
     except llm.LLMError as e:
         raise ComposeError("I couldn't turn that into a short message to write. Try simpler words.") from e
     if data.get("unsuitable"):
@@ -143,7 +214,29 @@ async def name(text: str) -> tuple[dict, dict]:
     if known and all(known.get(k) for k in _NAME_SCRIPTS):
         return {**{k: known[k] for k in _NAME_SCRIPTS}, "text": text, "checked": True,
                 "note": "Names are written by sound, so these spellings are approximate."}, {"model": "checked list", "ms": 0}
-    data, meta = await llm.tutor_json(NAME_PROMPT.format(name=text), system=SYSTEM,
-                                      validate=_name_validator, num_predict=120)
+    data, meta = await _cached_tutor(_key("name", "all", text), NAME_PROMPT.format(name=text), _name_validator, 120)
     return {**data, "text": text, "checked": False,
             "note": "Names are written by sound, so these spellings are approximate."}, meta
+
+
+# ------------------------------------------------------------------ prefetch
+# Phrases a demo visitor is likely to try, precomputed with 14b at startup (skips cached ones).
+PREFETCH = ["thank you, friend", "hello friend", "good morning", "nice to meet you", "see you tomorrow",
+            "thank you very much"]
+PREFETCH_NAMES = ["Jordan", "Alex", "Sara", "Chris", "Priya", "Omar"]
+
+
+async def prefetch() -> None:
+    for text in PREFETCH:
+        for lang in config.LANG_ORDER:
+            key = _key("compose", lang, text)
+            if _cache_get(key):
+                continue
+            prompt = COMPOSE_PROMPT.format(lang_name=config.LANGS[lang]["name"], text=text,
+                                           max_units=MAX_UNITS.get(lang, MAX_ALPHA), rule=_SCRIPT_RULE[lang],
+                                           roman=_ROMAN[lang])
+            await _upgrade(key, prompt, _validator(lang))
+    for n in PREFETCH_NAMES:
+        key = _key("name", "all", n)
+        if n.lower() not in checked_names() and not _cache_get(key):
+            await _upgrade(key, NAME_PROMPT.format(name=n), _name_validator)

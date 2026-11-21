@@ -103,7 +103,7 @@ async def json_call(model: str, prompt: str, *, system: str | None = None, image
 
 
 async def tutor_json(prompt: str, *, system: str | None = None, validate: Callable[[dict], dict] | None = None,
-                     num_predict: int = 256, temperature: float = 0.3) -> tuple[dict, dict]:
+                     num_predict: int = 256, temperature: float = 0.3, cap: float | None = None) -> tuple[dict, dict]:
     """qwen2.5:14b within TUTOR_BUDGET (3 s), else qwen2.5:7b, as a HEDGED request: if 14b hasn't
     answered after HEDGE_AFTER seconds, 7b starts in parallel. At the budget we take 14b if it's
     done, otherwise 7b (usually already finished). Worst case ~= budget instead of budget + 7b.
@@ -142,7 +142,8 @@ async def tutor_json(prompt: str, *, system: str | None = None, validate: Callab
             big.cancel()
     log.info("tutor fallback: %s", reason)
     start_small()
-    left = min(config.FALLBACK_TIMEOUT, config.DECIDE_CAP - (time.perf_counter() - t0))
+    total_cap = cap if cap is not None else config.DECIDE_CAP
+    left = min(max(config.FALLBACK_TIMEOUT, total_cap - config.TUTOR_BUDGET), total_cap - (time.perf_counter() - t0))
     try:
         data = await asyncio.wait_for(small, timeout=max(0.05, left))
     except (asyncio.TimeoutError, LLMError) as e:
