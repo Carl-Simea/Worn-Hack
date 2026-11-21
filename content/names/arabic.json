@@ -1,0 +1,141 @@
+{
+  "script": "Arabic",
+  "lang": "arabic",
+  "rtl": true,
+  "note": "Write right to left; letters join automatically when typed. Short vowels are usually left out, long ones use ا (aa), و (oo/o) and ي (ee/i). Arabic has no p, v or g, so they become ب, ف and ج. 'ah' at the end of a name is ة.",
+  "how_to_use": "Write the consonants and long vowels in order, right to left.",
+  "sounds": {
+    "aa": "ا",
+    "Aa": "آ",
+    "A": "أ",
+    "E": "إ",
+    "b": "ب",
+    "p": "ب",
+    "t": "ت",
+    "th": "ث",
+    "j": "ج",
+    "g": "ج",
+    "h": "ه",
+    "kh": "خ",
+    "d": "د",
+    "r": "ر",
+    "z": "ز",
+    "s": "س",
+    "sh": "ش",
+    "f": "ف",
+    "v": "ف",
+    "q": "ق",
+    "k": "ك",
+    "c": "ك",
+    "l": "ل",
+    "m": "م",
+    "n": "ن",
+    "w": "و",
+    "oo": "و",
+    "o": "و",
+    "y": "ي",
+    "ee": "ي",
+    "i": "ي",
+    "ah": "ة"
+  },
+  "examples": [
+    {
+      "name": "Maria",
+      "sounds": [
+        "m",
+        "aa",
+        "r",
+        "ee",
+        "aa"
+      ],
+      "written": "ماريا"
+    },
+    {
+      "name": "John",
+      "sounds": [
+        "j",
+        "oo",
+        "n"
+      ],
+      "written": "جون"
+    },
+    {
+      "name": "David",
+      "sounds": [
+        "d",
+        "ee",
+        "f",
+        "ee",
+        "d"
+      ],
+      "written": "ديفيد"
+    },
+    {
+      "name": "Sarah",
+      "sounds": [
+        "s",
+        "aa",
+        "r",
+        "ah"
+      ],
+      "written": "سارة"
+    },
+    {
+      "name": "Adam",
+      "sounds": [
+        "Aa",
+        "d",
+        "m"
+      ],
+      "written": "آدم"
+    },
+    {
+      "name": "Lina",
+      "sounds": [
+        "l",
+        "ee",
+        "n",
+        "aa"
+      ],
+      "written": "لينا"
+    },
+    {
+      "name": "Sam",
+      "sounds": [
+        "s",
+        "aa",
+        "m"
+      ],
+      "written": "سام"
+    },
+    {
+      "name": "Mike",
+      "sounds": [
+        "m",
+        "aa",
+        "y",
+        "k"
+      ],
+      "written": "مايك"
+    },
+    {
+      "name": "Emma",
+      "sounds": [
+        "E",
+        "ee",
+        "m",
+        "aa"
+      ],
+      "written": "إيما"
+    },
+    {
+      "name": "Anna",
+      "sounds": [
+        "Aa",
+        "n",
+        "aa"
+      ],
+      "written": "آنا"
+    }
+  ]
+}

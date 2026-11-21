@@ -1,0 +1,147 @@
+{
+  "script": "Cyrillic",
+  "lang": "russian",
+  "rtl": false,
+  "note": "Russian spells names by sound, one letter per sound. English 'j' is дж, 'h' is х, the short 'e' in Sam or Ben is э at the start or after hard sounds, and 'th' usually becomes т. Capitalize the first letter.",
+  "how_to_use": "Look up each sound in order, then capitalize the first letter.",
+  "sounds": {
+    "a": "а",
+    "b": "б",
+    "v": "в",
+    "w": "у",
+    "g": "г",
+    "d": "д",
+    "e": "е",
+    "eh": "э",
+    "yo": "ё",
+    "zh": "ж",
+    "z": "з",
+    "i": "и",
+    "ee": "и",
+    "y": "й",
+    "k": "к",
+    "c": "к",
+    "l": "л",
+    "m": "м",
+    "n": "н",
+    "o": "о",
+    "p": "п",
+    "r": "р",
+    "s": "с",
+    "t": "т",
+    "u": "у",
+    "oo": "у",
+    "f": "ф",
+    "h": "х",
+    "kh": "х",
+    "ts": "ц",
+    "ch": "ч",
+    "sh": "ш",
+    "j": "дж",
+    "yu": "ю",
+    "ya": "я",
+    "x": "кс",
+    "th": "т"
+  },
+  "examples": [
+    {
+      "name": "Maria",
+      "sounds": [
+        "m",
+        "a",
+        "r",
+        "i",
+        "ya"
+      ],
+      "written": "Мария"
+    },
+    {
+      "name": "John",
+      "sounds": [
+        "j",
+        "o",
+        "n"
+      ],
+      "written": "Джон"
+    },
+    {
+      "name": "David",
+      "sounds": [
+        "d",
+        "eh",
+        "v",
+        "i",
+        "d"
+      ],
+      "written": "Дэвид"
+    },
+    {
+      "name": "Sarah",
+      "sounds": [
+        "s",
+        "a",
+        "r",
+        "a"
+      ],
+      "written": "Сара"
+    },
+    {
+      "name": "Mike",
+      "sounds": [
+        "m",
+        "a",
+        "y",
+        "k"
+      ],
+      "written": "Майк"
+    },
+    {
+      "name": "Emma",
+      "sounds": [
+        "eh",
+        "m",
+        "m",
+        "a"
+      ],
+      "written": "Эмма"
+    },
+    {
+      "name": "Anna",
+      "sounds": [
+        "a",
+        "n",
+        "n",
+        "a"
+      ],
+      "written": "Анна"
+    },
+    {
+      "name": "Sam",
+      "sounds": [
+        "s",
+        "eh",
+        "m"
+      ],
+      "written": "Сэм"
+    },
+    {
+      "name": "Ben",
+      "sounds": [
+        "b",
+        "e",
+        "n"
+      ],
+      "written": "Бен"
+    },
+    {
+      "name": "Lisa",
+      "sounds": [
+        "l",
+        "i",
+        "z",
+        "a"
+      ],
+      "written": "Лиза"
+    }
+  ]
+}

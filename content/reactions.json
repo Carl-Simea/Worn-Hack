@@ -1,0 +1,77 @@
+{
+  "_about": "Short spoken + shown reactions after each /grade. Pick one line at random (avoid repeating the last one). Sounds are in content/sfx/ (served at /static/content/sfx/NAME.wav); play the sound, then speak the line. Goofy, never mean, nothing about culture or looks.",
+  "_rules": {
+    "correct": "grade.correct is true",
+    "close": "grade.correct is false and grade.score >= 50",
+    "wrong": "grade.correct is false and grade.score < 50",
+    "streak": "after 3, 5 or 10 correct in a row (replace {n})",
+    "milestone": "when a milestone from milestones.json fires (that file has the specific line)"
+  },
+  "correct": {
+    "sound": "ding",
+    "alt_sounds": ["kiss", "sparkle"],
+    "lines": [
+      "Chef's kiss!",
+      "Nailed it!",
+      "Clean strokes!",
+      "Look at that handwriting!",
+      "Ten out of ten, no notes.",
+      "Your pen knows what it's doing.",
+      "Textbook!",
+      "Smooth!"
+    ]
+  },
+  "close": {
+    "sound": "boing",
+    "alt_sounds": ["slide"],
+    "lines": [
+      "Ohhh, so close!",
+      "Almost! One tiny fix.",
+      "Sooo close. The pen believes in you.",
+      "Nearly there!",
+      "Close! Peek at the animation once more."
+    ]
+  },
+  "wrong": {
+    "sound": "buzzer",
+    "lines": [
+      "Bzzt! Let's try that one again.",
+      "Plot twist! One more go.",
+      "The paper says: one more time!",
+      "Not quite, but that was brave.",
+      "Watch the strokes again, then go for it."
+    ]
+  },
+  "streak": {
+    "sound": "drumroll",
+    "then": "cheer",
+    "at": [3, 5, 10],
+    "lines": [
+      "{n} in a row!",
+      "You're on a roll: {n} straight!",
+      "Streak! {n} perfect in a row.",
+      "Unstoppable: {n} in a row!"
+    ]
+  },
+  "milestone": {
+    "sound": "tada",
+    "then": "sparkle",
+    "lines": [
+      "Certified scribe!",
+      "New skill unlocked!",
+      "Frame that one!"
+    ]
+  },
+  "_sounds": {
+    "ding": "two bright bell notes (correct)",
+    "kiss": "lip pop + tiny ding (chef's kiss)",
+    "sparkle": "glassy high pings",
+    "boing": "springy boing (close)",
+    "slide": "whoops slide down (close)",
+    "buzzer": "cartoon game-show buzzer (wrong)",
+    "drumroll": "snare roll + crash (streak)",
+    "cheer": "crowd swell + happy arpeggio",
+    "tada": "ta-da fanfare (milestone)",
+    "_source": "all synthesized by content/tools/make_sfx.py for this project (no samples; CC0)"
+  }
+}

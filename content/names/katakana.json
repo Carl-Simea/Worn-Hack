@@ -1,0 +1,204 @@
+{
+  "script": "Katakana",
+  "lang": "japanese",
+  "rtl": false,
+  "note": "Japanese writes foreign names in katakana. There's no separate L and R (both use the r-row), most consonants get a vowel after them (Sam = sa-mu), ッ (Q) doubles the next consonant and ー (-) makes a vowel long.",
+  "how_to_use": "Split the name into Japanese-style syllables, then look each one up.",
+  "sounds": {
+    "a": "ア",
+    "i": "イ",
+    "u": "ウ",
+    "e": "エ",
+    "o": "オ",
+    "ka": "カ",
+    "ki": "キ",
+    "ku": "ク",
+    "ke": "ケ",
+    "ko": "コ",
+    "sa": "サ",
+    "su": "ス",
+    "se": "セ",
+    "so": "ソ",
+    "ta": "タ",
+    "te": "テ",
+    "to": "ト",
+    "na": "ナ",
+    "ni": "ニ",
+    "nu": "ヌ",
+    "ne": "ネ",
+    "no": "ノ",
+    "ha": "ハ",
+    "hi": "ヒ",
+    "he": "ヘ",
+    "ho": "ホ",
+    "ma": "マ",
+    "mi": "ミ",
+    "mu": "ム",
+    "me": "メ",
+    "mo": "モ",
+    "ra": "ラ",
+    "ri": "リ",
+    "ru": "ル",
+    "re": "レ",
+    "ro": "ロ",
+    "ga": "ガ",
+    "gi": "ギ",
+    "gu": "グ",
+    "ge": "ゲ",
+    "go": "ゴ",
+    "za": "ザ",
+    "zu": "ズ",
+    "ze": "ゼ",
+    "zo": "ゾ",
+    "da": "ダ",
+    "de": "デ",
+    "do": "ド",
+    "ba": "バ",
+    "bi": "ビ",
+    "bu": "ブ",
+    "be": "ベ",
+    "bo": "ボ",
+    "pa": "パ",
+    "pi": "ピ",
+    "pu": "プ",
+    "pe": "ペ",
+    "po": "ポ",
+    "shi": "シ",
+    "chi": "チ",
+    "tsu": "ツ",
+    "fu": "フ",
+    "ji": "ジ",
+    "ya": "ヤ",
+    "yu": "ユ",
+    "yo": "ヨ",
+    "wa": "ワ",
+    "wo": "ウォ",
+    "n": "ン",
+    "kya": "キャ",
+    "kyu": "キュ",
+    "kyo": "キョ",
+    "sha": "シャ",
+    "shu": "シュ",
+    "sho": "ショ",
+    "she": "シェ",
+    "cha": "チャ",
+    "chu": "チュ",
+    "cho": "チョ",
+    "che": "チェ",
+    "ja": "ジャ",
+    "ju": "ジュ",
+    "jo": "ジョ",
+    "je": "ジェ",
+    "nya": "ニャ",
+    "nyu": "ニュ",
+    "nyo": "ニョ",
+    "rya": "リャ",
+    "ryu": "リュ",
+    "ryo": "リョ",
+    "ti": "ティ",
+    "di": "ディ",
+    "tu": "トゥ",
+    "du": "ドゥ",
+    "fa": "ファ",
+    "fi": "フィ",
+    "fe": "フェ",
+    "fo": "フォ",
+    "wi": "ウィ",
+    "we": "ウェ",
+    "va": "ヴァ",
+    "vi": "ヴィ",
+    "ve": "ヴェ",
+    "vo": "ヴォ",
+    "Q": "ッ",
+    "-": "ー"
+  },
+  "examples": [
+    {
+      "name": "Maria",
+      "sounds": [
+        "ma",
+        "ri",
+        "a"
+      ],
+      "written": "マリア"
+    },
+    {
+      "name": "Emma",
+      "sounds": [
+        "e",
+        "ma"
+      ],
+      "written": "エマ"
+    },
+    {
+      "name": "John",
+      "sounds": [
+        "jo",
+        "n"
+      ],
+      "written": "ジョン"
+    },
+    {
+      "name": "Lisa",
+      "sounds": [
+        "ri",
+        "sa"
+      ],
+      "written": "リサ",
+      "note": "L becomes the r-row"
+    },
+    {
+      "name": "Sam",
+      "sounds": [
+        "sa",
+        "mu"
+      ],
+      "written": "サム"
+    },
+    {
+      "name": "David",
+      "sounds": [
+        "de",
+        "i",
+        "bi",
+        "Q",
+        "do"
+      ],
+      "written": "デイビッド"
+    },
+    {
+      "name": "Mike",
+      "sounds": [
+        "ma",
+        "i",
+        "ku"
+      ],
+      "written": "マイク"
+    },
+    {
+      "name": "Anna",
+      "sounds": [
+        "a",
+        "n",
+        "na"
+      ],
+      "written": "アンナ"
+    },
+    {
+      "name": "Ben",
+      "sounds": [
+        "be",
+        "n"
+      ],
+      "written": "ベン"
+    },
+    {
+      "name": "Sarah",
+      "sounds": [
+        "sa",
+        "ra"
+      ],
+      "written": "サラ"
+    }
+  ]
+}
