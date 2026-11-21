@@ -30,6 +30,81 @@
   0 problems. `/live` and `/app` render the content, including RTL Hebrew and Arabic, the Hindi conjuncts and the
   per-character romanization.
 
+
+## Item checklist (all 30 items, verified 2026-11-21)
+
+`python3 content/tools/verify_items.py` (offline; `--md` prints this table). For each item it checks:
+- native text, `chars[]` (the letters joined = the text), romanization, meaning and per-character romanization
+- the audio file decodes fully (afconvert) and is at least 0.4 s long
+- a stroke file exists for every char
+- each stroke file parses, its strokes are in document order, every point is inside the 100×100 box
+  (viewBox 0 0 109 109, box 4.5–104.5)
+- direction: Arabic/Hebrew joined words run right to left; Hindi multi-glyph files run left to right, with the
+  headline last
+
+Mandarin is checked as hanzi-writer JSON (strokes and medians agree). Nothing was missing, so nothing needed generating.
+### Mandarin Chinese
+
+| Item | Text | Chars | Rom. | Meaning | Audio | Strokes (files · strokes) | Result |
+|---|---|---|---|---|---|---|---|
+| hello | 你好 | ✓ 2 | ✓ nǐ hǎo | ✓ | ✓ 1.2 s | 2/2 · 13 | ✅ |
+| thank_you | 谢谢 | ✓ 2 | ✓ xièxie | ✓ | ✓ 1.2 s | 2/2 · 24 | ✅ |
+| water | 水 | ✓ 1 | ✓ shuǐ | ✓ | ✓ 1.0 s | 1/1 · 4 | ✅ |
+| friend | 朋友 | ✓ 2 | ✓ péngyou | ✓ | ✓ 1.2 s | 2/2 · 12 | ✅ |
+| one | 一 | ✓ 1 | ✓ yī | ✓ | ✓ 0.9 s | 1/1 · 1 | ✅ |
+
+### Hindi
+
+| Item | Text | Chars | Rom. | Meaning | Audio | Strokes (files · strokes) | Result |
+|---|---|---|---|---|---|---|---|
+| hello | नमस्ते | ✓ 3 | ✓ namaste | ✓ | ✓ 1.3 s | 3/3 · 12 | ✅ |
+| thank_you | धन्यवाद | ✓ 4 | ✓ dhanyavād | ✓ | ✓ 1.6 s | 4/4 · 15 | ✅ |
+| water | पानी | ✓ 2 | ✓ pānī | ✓ | ✓ 1.1 s | 2/2 · 9 | ✅ |
+| friend | दोस्त | ✓ 2 | ✓ dost | ✓ | ✓ 1.3 s | 2/2 · 10 | ✅ |
+| one | एक | ✓ 2 | ✓ ek | ✓ | ✓ 1.0 s | 2/2 · 7 | ✅ |
+
+### Arabic (right to left)
+
+| Item | Text | Chars | Rom. | Meaning | Audio | Strokes (files · strokes) | Result |
+|---|---|---|---|---|---|---|---|
+| hello | مرحبا | ✓ 6 | ✓ marḥaban | ✓ | ✓ 1.5 s | 6/6 · 9 | ✅ |
+| thank_you | شكرا | ✓ 5 | ✓ shukran | ✓ | ✓ 1.4 s | 5/5 · 14 | ✅ |
+| water | ماء | ✓ 4 | ✓ māʾ | ✓ | ✓ 1.1 s | 4/4 · 5 | ✅ |
+| friend | صديق | ✓ 5 | ✓ ṣadīq | ✓ | ✓ 1.6 s | 5/5 · 15 | ✅ |
+| one | واحد | ✓ 5 | ✓ wāḥid | ✓ | ✓ 1.3 s | 5/5 · 7 | ✅ |
+
+### Russian
+
+| Item | Text | Chars | Rom. | Meaning | Audio | Strokes (files · strokes) | Result |
+|---|---|---|---|---|---|---|---|
+| hello | привет | ✓ 6 | ✓ privet | ✓ | ✓ 1.2 s | 6/6 · 11 | ✅ |
+| thank_you | спасибо | ✓ 7 | ✓ spasibo | ✓ | ✓ 1.4 s | 7/7 · 9 | ✅ |
+| water | вода | ✓ 4 | ✓ voda | ✓ | ✓ 1.1 s | 4/4 · 9 | ✅ |
+| friend | друг | ✓ 4 | ✓ drug | ✓ | ✓ 1.1 s | 4/4 · 9 | ✅ |
+| one | один | ✓ 4 | ✓ odin | ✓ | ✓ 1.1 s | 4/4 · 8 | ✅ |
+
+### Hebrew (right to left)
+
+| Item | Text | Chars | Rom. | Meaning | Audio | Strokes (files · strokes) | Result |
+|---|---|---|---|---|---|---|---|
+| hello | שלום | ✓ 4 | ✓ shalom | ✓ | ✓ 1.1 s | 4/4 · 5 | ✅ |
+| thank_you | תודה | ✓ 4 | ✓ toda | ✓ | ✓ 1.0 s | 4/4 · 7 | ✅ |
+| water | מים | ✓ 3 | ✓ mayim | ✓ | ✓ 1.1 s | 3/3 · 4 | ✅ |
+| friend | חבר | ✓ 3 | ✓ chaver | ✓ | ✓ 1.1 s | 3/3 · 5 | ✅ |
+| one | אחד | ✓ 3 | ✓ echad | ✓ | ✓ 1.1 s | 3/3 · 7 | ✅ |
+
+### Greek
+
+| Item | Text | Chars | Rom. | Meaning | Audio | Strokes (files · strokes) | Result |
+|---|---|---|---|---|---|---|---|
+| hello | γεια σου | ✓ 7 | ✓ yia sou | ✓ | ✓ 1.1 s | 7/7 · 8 | ✅ |
+| thank_you | ευχαριστώ | ✓ 9 | ✓ efcharistó | ✓ | ✓ 1.5 s | 9/9 · 13 | ✅ |
+| water | νερό | ✓ 4 | ✓ neró | ✓ | ✓ 1.0 s | 4/4 · 5 | ✅ |
+| friend | φίλος | ✓ 5 | ✓ fílos | ✓ | ✓ 1.3 s | 5/5 · 8 | ✅ |
+| one | ένα | ✓ 3 | ✓ éna | ✓ | ✓ 1.0 s | 3/3 · 5 | ✅ |
+
+0 problems
+
 ## Needs people in the morning (not code)
 
 1. **Native-speaker check:** walk `content/REVIEW.md` with anyone at the venue who speaks Hindi, Arabic, Russian,
