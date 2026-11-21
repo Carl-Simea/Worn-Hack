@@ -21,6 +21,8 @@ final class VoiceListener {
         void onState(String state);
         void onUtterance(byte[] wav, int ms);
         void onLevel(float rms, float floor);
+        /** The wearer started talking over Scribi: stop the speaker; capture has already started. */
+        void onBargeIn(float rms, float echo);
     }
 
     private static final String TAG = "WornVoice";
@@ -60,7 +62,17 @@ final class VoiceListener {
     boolean isRunning() { return running; }
 
     /** Mute while our own audio plays. */
-    void pause() { paused = true; pausedAt = System.currentTimeMillis(); }
+    void pause() {
+        if (!paused) { echoEnv = 0; bargeRun = 0; }
+        paused = true; pausedAt = System.currentTimeMillis();
+    }
+    // Barge-in while our speaker plays: the speaker's echo at the mic is learned (slow envelope); a voice clearly
+    // above it (≥ BARGE_RATIO × echo and ≥ bargeMin) for 200 ms means the wearer is talking.
+    volatile boolean bargeEnabled = true;
+    volatile int bargeMin = 3000;
+    private static final float BARGE_RATIO = 2.5f;
+    private static final int BARGE_FRAMES = 10;
+    private float echoEnv; private int bargeRun; private long lastEchoLog;
     private volatile long pausedAt;
     /** Unmute, after a short tail so the end of our audio isn't heard. */
     void resume(long tailMs) { mutedUntil = System.currentTimeMillis() + tailMs; paused = false; }
@@ -121,10 +133,30 @@ final class VoiceListener {
                 float rms = (float) Math.sqrt(sum / n);
 
                 if (muted()) {
-                    if (inSpeech) { inSpeech = false; pcm.reset(); }
-                    voiced = 0;
-                    setState("listening");
-                    continue;
+                    boolean barged = false;
+                    long nowM = System.currentTimeMillis();
+                    if (paused && bargeEnabled) {
+                        ring[ringPos] = frame.clone();
+                        ringPos = (ringPos + 1) % PREROLL_FRAMES;
+                        boolean learning = nowM - pausedAt < 300;
+                        echoEnv = echoEnv == 0 ? rms : echoEnv * 0.97f + Math.min(rms, Math.max(echoEnv, 300f) * 3f) * 0.03f;
+                        float bargeT = Math.max(bargeMin, echoEnv * BARGE_RATIO);
+                        bargeRun = (!learning && rms > bargeT) ? bargeRun + 1 : 0;
+                        if (nowM - lastEchoLog > 500) { lastEchoLog = nowM; Log.v(TAG, "speaking: rms " + (int) rms + " echo " + (int) echoEnv + " barge>" + (int) bargeT); }
+                        if (bargeRun >= BARGE_FRAMES) {
+                            Log.i(TAG, "barge-in: rms " + (int) rms + " over echo " + (int) echoEnv);
+                            cb.onBargeIn(rms, echoEnv);
+                            paused = false; mutedUntil = 0; bargeRun = 0;
+                            voiced = START_FRAMES - 1;   // the next frame opens the utterance (with the pre-roll ring)
+                            barged = true;
+                        }
+                    }
+                    if (!barged) {
+                        if (inSpeech) { inSpeech = false; pcm.reset(); }
+                        voiced = 0;
+                        setState("listening");
+                        continue;
+                    }
                 }
                 long now = System.currentTimeMillis();
                 if (now - lastLevel > 1000) { lastLevel = now; cb.onLevel(rms, floor); }

@@ -110,10 +110,12 @@ public class MainActivity extends Activity {
         mic = new VoiceListener(new VoiceListener.Callback() {
             @Override public void onState(String s) { js("worn.mic(" + JSONObject.quote(s) + ")"); }
             @Override public void onUtterance(byte[] wav, int ms) { sendVoice(wav, ms); }
+            @Override public void onBargeIn(float rms, float echo) { ui.post(MainActivity.this::bargeIn); }
             @Override public void onLevel(float rms, float floor) {
                 Log.v("WornVoice", "rms " + (int) rms + " floor " + (int) floor);
             }
         });
+        initTts();
         applyIntent(getIntent());
     }
 
@@ -259,6 +261,7 @@ public class MainActivity extends Activity {
         tier2.shutdownNow();
         beat.shutdown();
         if (shutter != null) shutter.release();
+        if (tts != null) tts.shutdown();
         web.destroy();
         super.onDestroy();
     }
@@ -298,51 +301,130 @@ public class MainActivity extends Activity {
 
     // ------------------------------------------------------------------ speaker
 
-    private final ArrayDeque<String> audioQueue = new ArrayDeque<>();
+    /** One thing to play: a pronunciation clip, or a line of Scribi's (speech: has text, falls back, drives the face). */
+    private static final class Item {
+        final String url, text; final boolean speech; int attempt;
+        Item(String url, String text, boolean speech) { this.url = url; this.text = text; this.speech = speech; }
+    }
+    private final ArrayDeque<Item> audioQueue = new ArrayDeque<>();
     private MediaPlayer player;
+    private Item current;
+    private android.speech.tts.TextToSpeech tts;
+    private boolean ttsReady;
+    private boolean ttsSpeaking;
 
-    private void playUrl(String url) {
-        audioQueue.add(url);
-        if (player == null) playNext();
+    private void playUrl(String url) { enqueue(new Item(url, null, false)); }
+
+    /** Scribi says `text`: the backend's audio (url) first, then /say?text=, then Android TTS. */
+    private void speakLine(String url, String text) {
+        if ((url == null || url.isEmpty()) && api != null && text != null) url = api + "/say?text=" + Uri.encode(text);
+        enqueue(new Item(url, text, true));
+    }
+
+    private void enqueue(Item it) {
+        audioQueue.add(it);
+        if (player == null && !ttsSpeaking) playNext();
     }
 
     private void playNext() {
-        String url = audioQueue.poll();
-        if (url == null) {
-            mic.resume(350);
+        Item it = audioQueue.poll();
+        current = it;
+        if (it == null) {
+            mic.resume(300);
+            js("worn.talk('end')");
             js("worn.audioDone()");
             return;
         }
-        mic.pause();
+        mic.pause();   // listening for barge-in only, nothing is sent while Scribi talks
+        if (it.speech) js("worn.talk('start'," + JSONObject.quote(it.text == null ? "" : it.text) + ")");
+        if (it.url == null || it.url.isEmpty()) { fallback(it); return; }
         MediaPlayer mp = new MediaPlayer();
         player = mp;
         try {
             mp.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build());
-            mp.setDataSource(url);
+            mp.setDataSource(it.url);
             mp.setOnPreparedListener(MediaPlayer::start);
             mp.setOnCompletionListener(m -> finishPlayer(m));
-            mp.setOnErrorListener((m, what, extra) -> { Log.w(TAG, "audio error " + what + " " + url); finishPlayer(m); return true; });
+            mp.setOnErrorListener((m, what, extra) -> {
+                Log.w(TAG, "audio error " + what + " " + it.url);
+                releaseQuietly(m); if (player == m) player = null;
+                ui.post(() -> fallback(it));
+                return true;
+            });
             mp.prepareAsync();
-            ui.postDelayed(() -> { if (player == mp && !mp.isPlaying()) { Log.w(TAG, "audio stuck, skipping " + url); finishPlayer(mp); } }, 8000);
+            ui.postDelayed(() -> { if (player == mp && !mp.isPlaying()) { Log.w(TAG, "audio stuck " + it.url); releaseQuietly(mp); player = null; fallback(it); } }, 8000);
         } catch (Exception e) {
-            Log.w(TAG, "audio failed " + url, e);
-            finishPlayer(mp);
+            Log.w(TAG, "audio failed " + it.url, e);
+            releaseQuietly(mp); player = null;
+            fallback(it);
         }
     }
 
-    private void finishPlayer(MediaPlayer m) {
-        try { m.release(); } catch (Exception ignored) { }
-        if (player == m) player = null;
-        ui.post(() -> { if (player == null) playNext(); });
+    /** Speech that couldn't play: try /say, then the device's own TTS; clips are just skipped. */
+    private void fallback(Item it) {
+        if (current != it) return;
+        if (it.speech && it.text != null && !it.text.isEmpty()) {
+            String say = api == null ? null : api + "/say?text=" + Uri.encode(it.text);
+            if (it.attempt == 0 && say != null && !say.equals(it.url)) {
+                it.attempt = 1;
+                Item retry = new Item(say, it.text, true); retry.attempt = 1;
+                audioQueue.addFirst(retry);
+                ui.post(this::playNext);
+                return;
+            }
+            if (ttsReady) {
+                ttsSpeaking = true;
+                tts.speak(it.text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "scribi");
+                return;   // onDone → playNext
+            }
+        }
+        ui.post(this::playNext);
     }
+
+    private void finishPlayer(MediaPlayer m) {
+        releaseQuietly(m);
+        if (player == m) player = null;
+        ui.post(() -> { if (player == null && !ttsSpeaking) playNext(); });
+    }
+
+    private static void releaseQuietly(MediaPlayer m) { try { m.release(); } catch (Exception ignored) { } }
 
     private void stopAudio() {
         audioQueue.clear();
+        current = null;
         MediaPlayer m = player;
         player = null;
-        if (m != null) { try { m.stop(); } catch (Exception ignored) { } try { m.release(); } catch (Exception ignored) { } }
+        if (m != null) { try { m.stop(); } catch (Exception ignored) { } releaseQuietly(m); }
+        if (ttsSpeaking && tts != null) { tts.stop(); ttsSpeaking = false; }
         mic.resume(250);
+        js("worn.talk('end')");
+    }
+
+    /** Barge-in: the wearer talked over Scribi. Stop at once; the mic is already capturing the new utterance. */
+    private void bargeIn() {
+        audioQueue.clear();
+        current = null;
+        MediaPlayer m = player;
+        player = null;
+        if (m != null) { try { m.stop(); } catch (Exception ignored) { } releaseQuietly(m); }
+        if (ttsSpeaking && tts != null) { tts.stop(); ttsSpeaking = false; }
+        js("worn.talk('barge')");
+    }
+
+    private void initTts() {
+        tts = new android.speech.tts.TextToSpeech(this, status -> {
+            ttsReady = status == android.speech.tts.TextToSpeech.SUCCESS;
+            if (ttsReady) {
+                tts.setLanguage(java.util.Locale.US);
+                tts.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
+                    @Override public void onStart(String id) { }
+                    @Override public void onDone(String id) { ui.post(() -> { ttsSpeaking = false; playNext(); }); }
+                    @Override public void onError(String id) { ui.post(() -> { ttsSpeaking = false; playNext(); }); }
+                });
+            }
+            Log.i(TAG, "android tts " + (ttsReady ? "ready" : "not available (backend voice only)"));
+        });
     }
 
     private String abs(String u) {
@@ -567,10 +649,16 @@ public class MainActivity extends Activity {
         }
         @JavascriptInterface public void setScreen(String s) { if (s != null) screen = s; }
         @JavascriptInterface public void speak(String text) {
-            if (text == null || text.trim().isEmpty() || api == null) return;
-            String url = api + "/say?text=" + Uri.encode(text.trim());
-            ui.post(() -> playUrl(url));
+            if (text == null || text.trim().isEmpty()) return;
+            String t = text.trim();
+            ui.post(() -> speakLine(null, t));
         }
+        /** Scribi's line with the backend's own audio (audio_url / say_url); text is the caption + fallback. */
+        @JavascriptInterface public void speakUrl(String url, String text) {
+            String u = abs(url), t = text == null ? "" : text.trim();
+            ui.post(() -> speakLine(u, t));
+        }
+        @JavascriptInterface public void bargeIn(boolean on) { mic.bargeEnabled = on; }
         @JavascriptInterface public void play(String url) {
             String u = abs(url);
             if (u != null) ui.post(() -> playUrl(u));
