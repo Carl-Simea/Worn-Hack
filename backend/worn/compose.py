@@ -12,7 +12,7 @@ from . import config, llm, scripts
 MAX_TEXT = 80
 # Writable units per message: a Mandarin character carries a word, an alphabet letter doesn't.
 MAX_UNITS = {"mandarin": 8, "hindi": 10}
-MAX_ALPHA = 16
+MAX_ALPHA = 24  # e.g. Russian "nice to meet you" = 20 letters
 
 SYSTEM = ("You are a careful language tutor for English speakers. You translate short everyday messages. "
           "You never add religious, political or slang content, and you never state cultural facts. "
@@ -118,6 +118,26 @@ def _key(kind: str, lang: str, text: str) -> str:
     return f"{kind}:{lang}:{' '.join(text.lower().split())}"
 
 
+def _norm(s: str) -> str:
+    return " ".join(regex.sub(r"[\p{P}\p{S}]+", " ", (s or "").lower()).split())
+
+
+def _from_lessons(text: str, lang: str) -> dict | None:
+    """A message that IS a lesson phrase ('thank you', 'hello', 'water'...) comes from the checked
+    lesson content, never from a model."""
+    from . import content
+    lesson = content.load().get(lang)
+    if not lesson:
+        return None
+    want = _norm(text)
+    for it in lesson["items"]:
+        if want and _norm(it.get("meaning") or "") == want and it.get("text"):
+            units = scripts.split_units(it["text"], lang)
+            return {"native": it["text"], "romanization": it.get("romanization") or "",
+                    "back_translation": it.get("meaning"), "chars": units or list(it.get("chars") or [])}
+    return None
+
+
 class ComposeError(ValueError):
     """A friendly, user-facing reason the message could not be composed."""
 
@@ -168,6 +188,10 @@ async def compose_message(text: str, lang: str) -> tuple[dict, dict]:
         raise ComposeError("That's a bit long. Try a short message, like 'thank you, friend'.")
     prompt = COMPOSE_PROMPT.format(lang_name=config.LANGS[lang]["name"], text=text.replace('"', "'"),
                                    max_units=MAX_UNITS.get(lang, MAX_ALPHA), rule=_SCRIPT_RULE[lang], roman=_ROMAN[lang])
+    lesson_hit = _from_lessons(text, lang)
+    if lesson_hit:
+        return {**lesson_hit, "lang": lang, "text": text, "note": _note(lang, lesson_hit["chars"])}, \
+               {"model": "lesson content (checked)", "ms": 0, "fallback": False}
     try:
         data, meta = await _cached_tutor(_key("compose", lang, text), prompt, _validator(lang), 200)
     except llm.LLMError as e:

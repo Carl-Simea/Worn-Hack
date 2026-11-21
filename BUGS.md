@@ -38,24 +38,24 @@ Each entry names its owner. Fix it in your area, then strike it through here.
    Otherwise the iOS check passed: the app connects, loads `/content`, `reactions.json`, `milestones.json`, all 9
    `sfx/*.wav` and all 5 `names/*.json`, and the home screen shows all six hero greetings.
 
-10. **(D → A) `GET /name` returns 503 for some names.** Against a private backend from `3e2d767` + working tree (02:40),
+10. ~~**(D → A) `GET /name` returns 503 for some names.**~~ **Fixed (A):** names in `examples.json` (David) never touch a model; other names get a 12 s budget (they were hitting the grade's 4.5 s cap) and 14b answers are cached. Original report: Against a private backend from `3e2d767` + working tree (02:40),
     `/name?text=Nyla` and `/name?text=David` returned 503 "I couldn't spell that name right now" (2 of 5 names), and
     every call took 5–8 s. The phone no longer depends on it (it spells instantly on-device from `content/names/*.json`,
     44/58 of C's examples exact, and swaps in the server's spelling when it answers), but the web /app would show the
     error. Repro: `curl -s "localhost:8000/name?text=Nyla"`.
-11. **(D → A) Compose and the first grade are slow while models are busy.** `POST /session {mode:"compose"}` took >20 s
+11. ~~**(D → A) Compose and the first grade are slow while models are busy.**~~ **Addressed (A):** lesson phrases are answered from content instantly; likely demo phrases are precomputed with 14b at startup and cached; models are re-warmed every minute. Busy-GPU latency remains: close Xcode/Simulator at the table. Original report: `POST /session {mode:"compose"}` took >20 s
     and the first `/grade` ~10 s on this Mac while other requests were queued on Ollama. The phone shows progress the
     whole time and never times out under 60 s, so it's not blocking; warming both models before the demo helps.
 
 ## Found by B (web) against the real backend
 
-9. **`POST /compose {"text":"thank you","lang":"hebrew"}` returns 422** "I couldn't turn that into a short message to write."
+9. ~~**`POST /compose {"text":"thank you","lang":"hebrew"}` returns 422**~~ **Fixed (A):** a message that is a lesson phrase now comes straight from the checked content (תודה, no model); the 7b fallback's wrong-script answers are retried with the reason. Original report: "I couldn't turn that into a short message to write."
    Repro: `curl -s -X POST localhost:8000/compose -H 'content-type: application/json' -d '{"text":"thank you","lang":"hebrew"}'`.
    "good morning" in Hebrew and "Happy birthday, my friend" in Mandarin work. תודה is already a lesson item, so a lookup
    in content before the LLM (like /name does with examples.json) would make the obvious phrases never fail. The web page
    shows the message and offers one-tap example messages, so the demo isn't blocked.
 
-10. **`GET /name?text=Maya` returns 503** ("I couldn't spell that name right now") three times in a row on a fresh
+10. ~~**`GET /name?text=Maya` returns 503**~~ **Fixed (A):** it was the grade's 4.5 s cap applied to /name; now 12 s, cached, verified on :8000 (Maya answers in all five scripts). Original report: ("I couldn't spell that name right now") three times in a row on a fresh
    backend while the models were loaded; names in `content/names/examples.json` (Anna, David, ...) always work.
    Repro: `curl -s 'localhost:8000/name?text=Maya'`. The web page retries once on 503 and offers the hand-checked
    names as one-tap examples, so the demo can avoid it.

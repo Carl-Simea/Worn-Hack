@@ -7,13 +7,19 @@ view, `/live` and `/app` all read.
 ollama serve                                  # models: qwen2.5vl:7b, qwen2.5:14b, qwen2.5:7b
 cd backend && uv run uvicorn app:app --host 0.0.0.0 --port 8000
 ipconfig getifaddr en0                        # the IP the phone uses
-uv run pytest                                 # 52 fast tests (models mocked)
+uv run pytest                                 # 59 fast tests (models mocked)
 uv run pytest -m live                         # + real qwen2.5vl on teammates' handwriting
 uv run python eval_handwriting.py --live      # writes test_data/eval_results.md
 ```
 
-All three models are warmed at startup and re-warmed every 10 min (`keep_alive` 12 h) with small
-fixed contexts (2k tutor, 4k vision), so they all fit on a 32 GB Mac at once. No cold starts.
+All three models are warmed at startup with small fixed contexts (2k tutor, 4k vision), so they all fit
+on a 32 GB Mac at once. Every minute any model Ollama has unloaded (e.g. after an Ollama restart) is
+loaded again, so a grade never pays a cold start.
+
+`/compose` and `/name` keep 14b quality: every qwen2.5:14b answer is cached in `data/llm_cache.json`.
+When a request falls back to 7b, 14b redoes it in the background, so the next identical request gets the
+14b answer instantly. About 45 s after startup, six likely demo phrases × six languages and six names are
+precomputed with 14b. Names in `content/names/examples.json` (checked by hand) never touch a model.
 
 ## Contract
 
@@ -52,8 +58,8 @@ with its latency:
 - **observe**: the target, the item and the learner's memory for this character
 - **evaluate**: `grade_character` (qwen2.5vl reads the ink) and `compare_to_template` (OpenCV), run in parallel
 - **decide**: qwen2.5:14b picks `advance|retry|review` plus a mood and a spoken reaction (strict JSON).
-  It's a hedged call: if 14b hasn't answered by 1.5 s, qwen2.5:7b starts too, and at 3 s whichever
-  answered is used. Guardrails: there's no advancing past a miss before 3 tries, and no retry after a
+  It's a hedged call: if 14b hasn't answered by 1 s, qwen2.5:7b starts too; at 3 s whichever answered
+  is used, and the whole step stops at 4.5 s. Guardrails: there's no advancing past a miss before 3 tries, and no retry after a
   correct answer. If both models fail, a rule policy decides, and that is logged too.
 - **act**: `choose_next_item` (adaptive, from the per-user mistake memory in `data/memory.json`) and `react`
 
@@ -85,6 +91,6 @@ Mandarin, Hindi, Arabic, Russian, Hebrew, Greek (Japanese and ASL cut). Content 
 
 ## Env
 
-`WORN_TUTOR_BUDGET` (3), `WORN_HEDGE_AFTER` (1.5), `WORN_TUTOR_CTX` (2048), `WORN_VISION_CTX` (4096),
+`WORN_TUTOR_BUDGET` (3), `WORN_HEDGE_AFTER` (1.0), `WORN_DECIDE_CAP` (4.5: the grade's decide step, then rules), `WORN_TUTOR_CTX` (2048), `WORN_VISION_CTX` (4096),
 `WORN_KEEP_ALIVE` (12h), `WORN_WARM` (1), `WORN_FAKE_GRADE=1` (a canned pass if vision is down; demo
 safety net only), `WORN_DATA_DIR`, `WORN_CAPTURE_DIR`, `WORN_CONTENT_DIR`, `WORN_WEB_DIR`.

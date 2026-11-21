@@ -447,3 +447,11 @@ def test_compose_fallback_answer_is_upgraded_and_cached(client, monkeypatch):
     second = client.post("/compose", json={"text": "thanks  a LOT", "lang": "russian"}).json()
     assert calls == ["qwen2.5:14b"]
     assert second["native"] == "спасибо" and "cached" in second["model"]
+
+
+def test_compose_lesson_phrase_needs_no_model(client, monkeypatch):
+    async def boom(*a, **k):
+        raise AssertionError("lesson phrases must not call a model")
+    monkeypatch.setattr(llm, "tutor_json", boom)
+    d = client.post("/compose", json={"text": "Hello!", "lang": "hebrew"}).json()
+    assert d["native"] == "שלום" and d["chars"] == ["ש", "ל", "ו", "ם"] and "lesson" in d["model"]
