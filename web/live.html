@@ -217,12 +217,17 @@
   .ck .d { grid-column: 2 / -1; font: 500 .7em/1.25 var(--ui); color: var(--ink-3); margin-top: -.3em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ck .ms { font: 600 .62em/1 var(--mono); color: var(--ink-3); }
   #bars { display: flex; flex-direction: column; gap: .42em; }
-  .bar { display: grid; grid-template-columns: 7.2em minmax(2em, 1fr) 1.9em; align-items: center; gap: .5em; font-size: .7em; }
+  .bar { display: grid; grid-template-columns: 8.4em minmax(2em, 1fr) 1.9em; align-items: center; gap: .5em; font-size: .7em; }
   .bar b { font-weight: 650; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .bar .tr { height: .55em; border-radius: 99px; background: var(--paper-2); overflow: hidden; }
   .bar .tr i { display: block; height: 100%; width: 0; border-radius: 99px; background: var(--accent); transition: width 1s cubic-bezier(.25, .9, .3, 1); }
   .bar.b-red .tr i { background: #e5484d; } .bar.b-amber .tr i { background: #f5a524; } .bar.b-green .tr i { background: #2fbf71; }
   .bar em { font: 700 1em/1 var(--ui); font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+  .bar.weak b { color: var(--ink); }
+  .fixtag { font: 800 .62em/1 var(--ui); letter-spacing: .1em; text-transform: uppercase; color: var(--on-accent); background: var(--accent);
+    padding: .25em .4em; border-radius: 4px; vertical-align: .15em; }
+  .bar.weak .tr { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .meas { font: 600 .58em/1.3 var(--mono); color: var(--ink-3); margin-top: .15em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .bar small { grid-column: 1 / -1; margin-top: -.35em; font-size: .78em; color: var(--ink-3); }
   #idleSide { color: var(--ink-3); font-size: .85em; line-height: 1.35; }
   #idleSide b { display: block; color: var(--ink); font-family: var(--display); font-weight: 400; font-size: 1.5em; line-height: 1.15; margin-bottom: .25em; }
@@ -596,7 +601,7 @@
   function side(which) { ["idleSide", "steps", "bars"].forEach(function (id) { $(id).classList.toggle("hide", id !== which); }); }
 
   // per-stroke chips from tier-2 steps (run_id "t2", data {score, stroke_index, stroke_count, done}) of this character
-  var chipSeen = {}, chipScores = [], chipLessonKey = null;
+  var chipSeen = {}, chipScores = [], chipLessonKey = null, lastRes = null;
   function renderChips(steps, s, g) {
     var key = lessonKey;
     if (key !== chipLessonKey) {
@@ -613,6 +618,10 @@
       if (d.stroke_count && total && d.stroke_count !== total) return;
       chipScores[d.stroke_index] = Math.max(chipScores[d.stroke_index] || 0, Math.round(d.score));
       changed = true;
+    });
+    var extra = (lastRes && lastRes.stroke_scores) || (grading && grading.stroke_count === total && grading.stroke_scores);
+    if (extra && extra.length) extra.forEach(function (v, i) {
+      if (typeof v === "number" && chipScores[i] === undefined) { chipScores[i] = Math.round(v); changed = true; }
     });
     if (!changed && $("chips").children.length) return;
     var html = "";
@@ -640,10 +649,18 @@
       if (ckBase[x.id] || x.run_id === "t1" || x.run_id === "t2") return;
       (ckGot[x.phase] = ckGot[x.phase] || []).push(x);
     });
-    var o = ckGot.observe, e = ckGot.evaluate, d = ckGot.decide || ckGot.act;
-    tick(1, o || e || d ? "ok" : "on", o && o[0]);
-    tick(2, e || d ? "ok" : o ? "on" : "", e && e[e.length - 1], e);
-    tick(3, d ? "ok" : e ? "on" : "", d && d[0]);
+    // A's tools: find_writing → compare_to_template → grade_character (older runs: observe → evaluate → decide)
+    var all = [].concat(ckGot.observe || [], ckGot.evaluate || [], ckGot.decide || [], ckGot.act || []);
+    var by = function (t) { return all.filter(function (x) { return x.tool === t; }); };
+    var f1 = by("find_writing"), f2 = by("compare_to_template"), f3 = by("grade_character").concat(ckGot.decide || []);
+    if (!f1.length && ckGot.observe) f1 = ckGot.observe;
+    if (!f2.length && !f1.length && ckGot.evaluate) f2 = ckGot.evaluate;
+    var n = f3.length ? 3 : f2.length ? 2 : f1.length ? 1 : 0;
+    if (grading && grading.phase === "analyzing" && typeof grading.step === "number") n = Math.max(n, grading.step);
+    if (ckGot.decide || ckGot.act) n = 3;
+    tick(1, n >= 1 ? "ok" : "on", f1[f1.length - 1]);
+    tick(2, n >= 2 ? "ok" : n === 1 ? "on" : "", f2[f2.length - 1]);
+    tick(3, n >= 3 && (ckGot.decide || ckGot.act) ? "ok" : n >= 2 ? "on" : "", f3[f3.length - 1]);
   }
   function tick(n, state, step, all) {
     var el = $("ck" + n);
@@ -659,7 +676,7 @@
   function subRows(r) {
     var sub = r.subscores || r.sub_scores || (r.agent && r.agent.subscores);
     if (sub && typeof sub === "object") {
-      return SUBS.filter(function (k) { return typeof sub[k[0]] === "number"; }).map(function (k) { return [k[1], sub[k[0]]]; });
+      return SUBS.filter(function (k) { return typeof sub[k[0]] === "number"; }).map(function (k) { return [k[1], sub[k[0]], null, k[0] === r.weakest]; });
     }
     var rows = [], vis = r.agent && typeof r.agent.model_score === "number" ? r.agent.model_score : r.score;
     if (typeof vis === "number") rows.push(["Recognizable", vis, "vision model"]);
@@ -671,15 +688,25 @@
   function renderBars(r) {
     var rows = subRows(r), box = $("bars");
     box.innerHTML = rows.map(function (x, i) {
-      return '<div class="bar b-' + band(x[1]) + '"><b>' + esc(x[0]) + '</b><span class="tr"><i data-w="' + Math.max(2, Math.min(100, x[1])) + '"></i></span><em data-v="' + Math.round(x[1]) + '">0</em>' +
+      return '<div class="bar b-' + band(x[1]) + (x[3] ? " weak" : "") + '"><b>' + esc(x[0]) + (x[3] ? ' <span class="fixtag">fix</span>' : "") + '</b><span class="tr"><i data-w="' + Math.max(2, Math.min(100, x[1])) + '"></i></span><em data-v="' + Math.round(x[1]) + '">0</em>' +
         (x[2] && rows.length <= 3 ? "<small>" + esc(x[2]) + "</small>" : "") + "</div>";
-    }).join("");
+    }).join("") + measured(r);
     Array.prototype.forEach.call(box.querySelectorAll(".bar"), function (b, i) {
       setTimeout(function () {
         var bar = b.querySelector("i"); bar.style.width = bar.getAttribute("data-w") + "%";
         countNum(b.querySelector("em"), +b.querySelector("em").getAttribute("data-v"), 900);
       }, 350 + i * 140);
     });
+  }
+  // one line of what was actually measured (A's shape metrics + whether Scribi's rubric answered in time)
+  function measured(r) {
+    var sh = r.shape || {}, m = sh.metrics || {}, bits = [];
+    if (typeof m.iou === "number") bits.push("overlap " + Math.round(m.iou * 100) + "%");
+    if (typeof sh.coverage === "number") bits.push("coverage " + Math.round(sh.coverage * 100) + "%");
+    if (typeof sh.precision === "number") bits.push("precision " + Math.round(sh.precision * 100) + "%");
+    if (r.rubric) bits.push(r.rubric.error ? "shape only" : typeof r.rubric.score === "number" ? "rubric " + r.rubric.score : "rubric");
+    if (r.grade_ms && r.grade_ms.total) bits.push((r.grade_ms.total / 1000).toFixed(1) + " s");
+    return bits.length ? '<div class="meas">' + esc(bits.join(" · ")) + "</div>" : "";
   }
   function countNum(el, n, dur) {
     var t0 = null;
@@ -709,6 +736,20 @@
     shownResultKey = key;
     var check = $("check"), rb = $("ringBox");
     rb.classList.toggle("scanning", phase === "checking" && !matches);
+    lastRes = matches ? r : null;
+    if (matches && (r.status === "no_writing" || r.score === null || r.score === undefined)) {
+      tutor.classList.remove("waiting");
+      side("idleSide");
+      setText($("idleBig"), "No writing found");
+      setText($("idleSmall"), "Scribi couldn’t find ink in the photo.");
+      ringTo(0, null); rb.classList.remove("scanning");
+      $("score").innerHTML = "–"; setText($("ringLbl"), "try again");
+      check.classList.remove("on"); check.classList.add("retry"); $("checkPath").setAttribute("d", "M24 14v13M24 34v.5");
+      swapText(fb, r.feedback || "Hold the paper flat, about 30 cm away.");
+      $("reaction").innerHTML = r.reaction ? '<span class="line">“' + esc(r.reaction) + "”</span>" : "&nbsp;";
+      hideShot();
+      return;
+    }
     if (matches) {
       tutor.classList.remove("waiting");
       if (!ckBase) { ckBase = {}; ckGot = {}; }
@@ -772,7 +813,7 @@
       drawCrop(img, !r.crop_url);
       $("shotRef").textContent = s.char || r.char || "";
       $("shotRef").setAttribute("data-lang", s.lang || "");
-      $("shotRef").style.fontSize = ($("shot").clientWidth * .72) + "px";
+      $("shotRef").style.fontSize = ($("shot").clientWidth * (r.crop_url ? .9 : .72)) + "px";
       setText($("shotLbl"), (r.correct ? "Graded ✓ " : "Graded ") + (r.score !== undefined ? r.score : ""));
       $("shot").classList.add("on");
     };
@@ -984,7 +1025,9 @@
     var c = window.__wornLangs && window.__wornLangs[l];
     return c ? c.name : l ? l.charAt(0).toUpperCase() + l.slice(1) : "";
   }
+  var grading = null;
   function renderApp(a) {
+    if (a && a.grading) grading = a.grading;
     if (!a || (!a.screen && !a.last_voice && !a.hint)) return;
     $("app").classList.add("hasVoice");
     if (!appSeen) { appSeen = true; $("idle").classList.add("hide"); } // the wearer's menus are the show now, even before a lesson
