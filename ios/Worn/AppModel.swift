@@ -132,7 +132,11 @@ final class AppModel {
     }
 
     private func adopt(_ s: SessionState, fromServer: Bool) {
-        if let v = s.version { knownVersion = max(knownVersion, v) }
+        if let v = s.version {
+            // Rapid Prev/Next taps can return out of order; the newest version is what the glasses show.
+            if v < knownVersion { return }
+            knownVersion = v
+        }
         let changed = s != session
         session = s
         if changed { status = .waiting }

@@ -97,6 +97,8 @@ struct ConnectingView: View {
                 Text(msg).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 Text("Is the laptop server running, and is this phone on the \"event\" wifi?")
                     .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                Text("If you tapped Don't Allow on the Local Network prompt: Settings › Privacy & Security › Local Network › Worn.")
+                    .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 Button("Change address") { showSettings = true }.buttonStyle(.borderedProminent)
             } else {
                 ProgressView()

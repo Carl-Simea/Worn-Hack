@@ -2,11 +2,18 @@
 
 SwiftUI, iOS 17+. Pure HTTP to the laptop backend. It does **not** use the MicroLumin iOS SDK: the glasses app (B) talks to the backend over wifi itself, so the phone never needs Bluetooth. No SDK files live in this folder.
 
-## Run it
-1. Install Xcode (16 or newer; the project uses synced folders, objectVersion 77).
-2. Open `ios/Worn.xcodeproj`. Under Target Worn › Signing & Capabilities, pick your Team. If it's taken, change the bundle id from `com.worn.phone`.
-3. Plug in the iPhone and press Run. First launch: accept **Local Network**, then enter the laptop IP (`ipconfig getifaddr en0` on the laptop; the `:8000` is added automatically).
-4. Phone and laptop must both be on the `event` wifi.
+## Build to an iPhone
+1. Open Xcode once and accept the license. When asked which platforms to install, tick **iOS** (or later: Settings › Components › iOS).
+2. Run `sudo xcode-select -s /Applications/Xcode.app` in Terminal.
+3. Add your Apple ID under Xcode › Settings › Accounts. A free account works; it becomes a "Personal Team".
+4. On the iPhone, open Settings › Privacy & Security › Developer Mode, turn it on, and let the phone restart. (The option only appears after the phone has been plugged into Xcode once.)
+5. Run `open ios/Worn.xcodeproj`. Click the Worn project, then target **Worn** › Signing & Capabilities. Leave "Automatically manage signing" checked and pick your Team.
+   - If you see "bundle identifier not available", change `com.worn.phone` to something unique, e.g. `com.<yourname>.worn`.
+6. Plug the iPhone in by cable, unlock it, and tap **Trust**. Pick the phone from the device menu at the top of the window (not a simulator).
+7. Press ⌘R. The first build takes about a minute.
+   - With a free account, the phone may block the app as an "Untrusted Developer". Allow it under Settings › General › VPN & Device Management › your Apple ID › Trust, then press ⌘R again.
+8. In the app, allow **Local Network**. Then enter the laptop IP (from `ipconfig getifaddr en0` on the laptop). Phone and laptop must both be on the `event` wifi.
+9. Free-account builds expire after 7 days. Rebuild Saturday morning to be safe.
 
 ## What it does
 - Writing only (ASL was cut: the asl lesson is filtered out and ASL sessions from elsewhere are ignored).
@@ -20,7 +27,7 @@ SwiftUI, iOS 17+. Pure HTTP to the laptop backend. It does **not** use the Micro
 
 ## Tested
 - Typechecks against the macOS SDK (`swiftc -typecheck`). iOS-only bits are behind `#if os(iOS)`.
-- A headless harness drove `AppModel` + `API` against a private backend on :8765: connect, start, grade, auto-advance, stale-result filter, external handoff, external ASL ignored, lesson end, prev, offline. 12/12 passed.
+- A headless harness drove `AppModel` + `API` against a private backend on :8765: connect, start, grade, auto-advance, stale-result filter, external handoff, external ASL ignored, lesson end, prev, offline. rapid Prev/Next taps, 13/13 passed.
 - **Not yet built for iOS on this Mac** (no Xcode here). The camera picker, AVAudioSession, and keyboard modifiers are untested.
 
 ## TODO
