@@ -3,83 +3,97 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Stroke Check</title>
-<!-- Pre-demo self-check (owner: agent C). Open http://<laptop-ip>:8000/static/web/stroke-test.html on any device,
-     including the glasses' WebView. It animates every Mandarin character with worn-strokes.js (the same code
-     glasses.html and mirror.html use) and confirms each one steps through all its strokes.
-     It does NOT touch /session, so it is safe to run while the glasses are live. -->
+<title>Worn Stroke Check</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,500&family=Noto+Serif+SC:wght@500&family=Noto+Serif+JP:wght@500&family=Noto+Serif+Devanagari:wght@500&family=Noto+Naskh+Arabic:wght@500&family=Noto+Serif:wght@500&display=swap">
+<link rel="stylesheet" href="/static/web/worn.css">
+<!-- Pre-demo check (owner: agent B). Animates every lesson character in all five scripts with worn-ink.js,
+     the renderer /live, /glasses and /app use, and reports which data each one uses. Never touches /session.
+     Open /static/web/stroke-test.html. ?lang=hindi shows one language. -->
 <style>
-  :root { --bg:#000; --fg:#fff; --dim:#8a93a0; --ok:#3ef08a; --bad:#ff4d4d; }
-  body { margin:0; padding:16px; background:var(--bg); color:var(--fg); font:15px/1.4 system-ui,sans-serif; }
-  h1 { font-size:20px; margin:0 0 4px; } p { color:var(--dim); margin:0 0 12px; }
-  #grid { display:flex; flex-wrap:wrap; }
-  .cell { width:120px; margin:0 10px 12px 0; text-align:center; }
-  .box { width:110px; height:110px; margin:0 auto; border:1px solid #2a2f36; border-radius:8px; }
-  .lbl { font-size:12px; color:var(--dim); height:18px; }
-  .st { font-weight:700; } .ok { color:var(--ok); } .bad { color:var(--bad); }
-  #sum { font-size:18px; font-weight:700; margin:8px 0 14px; }
-  #routes span { margin-right:14px; }
+  body { padding: 28px clamp(16px, 4vw, 48px) 60px; }
+  h1 { font-size: 44px; margin: 0; }
+  .sum { margin: 8px 0 22px; color: var(--ink-2); }
+  .sum b { color: var(--ink); }
+  h2 { font: 600 13px/1 var(--ui); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); margin: 30px 0 12px; display: flex; gap: 12px; align-items: baseline; }
+  h2 .script { font-size: 22px; letter-spacing: 0; text-transform: none; color: var(--ink); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+  .cell { padding: 10px; }
+  .cell .box { aspect-ratio: 1; position: relative; border-radius: 12px; }
+  .cell .ink { position: absolute; inset: 10%; }
+  .meta { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 13px; gap: 6px; }
+  .meta .script { font-size: 20px; }
+  .tag { font: 600 11px/1 var(--ui); letter-spacing: .06em; text-transform: uppercase; padding: 5px 7px; border-radius: 6px; background: var(--paper-2); color: var(--ink-2); white-space: nowrap; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .lbl { font-size: 12px; color: var(--ink-3); min-height: 1.2em; margin-top: 2px; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 </style>
 </head>
 <body>
-<h1>Mandarin stroke check</h1>
-<p>Each character should step through all of its strokes. Doesn't change what the glasses show.</p>
-<div id="routes"></div>
-<div id="sum">running…</div>
-<div id="grid"></div>
-<script src="/static/web/vendor/hanzi-writer.min.js"></script>
-<script src="/static/web/worn-strokes.js"></script>
+<h1 class="display">Stroke check</h1>
+<div class="sum" id="sum">Loading lessons…</div>
+<div class="bar">
+  <button class="btn" id="mode">Show on glasses black</button>
+  <a class="btn ghost" href="/live">Open /live</a>
+</div>
+<div id="out"></div>
+<script src="/static/web/worn-ink.js"></script>
 <script>
 (function () {
   "use strict";
-  var API = (new URLSearchParams(location.search).get("api") || "").replace(/\/$/, "");
-  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
-  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt) e.textContent = txt; return e; }
+  var qs = new URLSearchParams(location.search);
+  var API = (qs.get("api") || "").replace(/\/$/, "");
+  var only = qs.get("lang");
+  var dark = qs.get("glasses") === "1";
+  var LABEL = { hanzi: ["true order", "ok"], pen: ["stroke paths", "ok"], worn: ["stroke paths", "ok"], glyph: ["font trace", "warn"] };
+  document.getElementById("mode").textContent = dark ? "Show on paper" : "Show on glasses black";
+  document.getElementById("mode").onclick = function () { qs.set("glasses", dark ? "0" : "1"); location.search = qs.toString(); };
 
-  async function checkRoutes() {
-    var out = document.getElementById("routes");
-    for (var r of ["/glasses", "/mirror"]) {
-      var ok = false;
-      try { ok = (await fetch(API + r, { cache: "no-store" })).ok; } catch (e) {}
-      out.appendChild(el("span", ok ? "ok" : "bad", r + (ok ? " ✓" : " missing")));
-    }
+  function strokeUrl(l, p, ch, i) {
+    var lang = l.lang;
+    if (p.strokes && p.strokes[i]) return p.strokes[i];
+    if (p.stroke_urls && p.stroke_urls[i]) return p.stroke_urls[i];
+    if (l.rtl && Array.from(ch).length > 1) return null; // a joined Arabic word: traced from the font
+    return "/static/content/strokes/" + lang + "/" + WornInk.hexOf(ch) + (lang === "mandarin" ? ".json" : ".svg");
   }
 
-  async function checkChar(c) {
-    var cell = el("div", "cell"), box = el("div", "box"), lbl = el("div", "lbl"), st = el("div", "st", "…");
-    cell.appendChild(box); cell.appendChild(lbl); cell.appendChild(st);
-    document.getElementById("grid").appendChild(cell);
-    var url = "/static/content/strokes/mandarin/" + c.codePointAt(0).toString(16) + ".json";
-    var n = 0;
-    try { n = (await (await fetch(API + url)).json()).strokes.length; } catch (e) {}
-    if (!n) { st.textContent = "no stroke file"; st.className = "st bad"; return false; }
-    var a = WornStrokes.create(box, lbl, API);
-    a.animate({ char: c, stroke_url: url, rtl: false });
-    var seen = {}, t0 = Date.now();
-    while (Date.now() - t0 < 20000 && Object.keys(seen).length < n) {   // wait for every "stroke k of n"
-      var m = /^stroke (\d+) of (\d+)$/.exec(lbl.textContent);
-      if (m && +m[2] === n) seen[m[1]] = 1;
-      if (/trace/.test(lbl.textContent)) break;
-      await sleep(60);
-    }
-    var ok = Object.keys(seen).length === n;
-    st.textContent = ok ? "✓ " + n + " strokes" : "✗ " + Object.keys(seen).length + "/" + n;
-    st.className = "st " + (ok ? "ok" : "bad");
-    return ok;
-  }
-
-  (async function main() {
-    checkRoutes();
-    var c = await (await fetch(API + "/content", { cache: "no-store" })).json();
-    var zh = c.langs.filter(function (l) { return l.lang === "mandarin"; })[0];
-    var chars = [];
-    zh.phrases.forEach(function (p) { p.chars.forEach(function (ch) { if (chars.indexOf(ch) < 0) chars.push(ch); }); });
-    var results = await Promise.all(chars.map(checkChar));
-    var pass = results.filter(Boolean).length;
-    var sum = document.getElementById("sum");
-    sum.textContent = pass + " / " + chars.length + " characters animate" + (pass === chars.length ? " ✓" : "");
-    sum.className = pass === chars.length ? "ok" : "bad";
-  })().catch(function (e) { document.getElementById("sum").textContent = "error: " + e.message; });
+  fetch(API + "/content", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (c) {
+    var out = document.getElementById("out"), total = 0, done = 0, okN = 0, traced = [];
+    c.langs.filter(function (l) { return !only || l.lang === only; }).forEach(function (l) {
+      var h = document.createElement("h2");
+      h.setAttribute("data-lang", l.lang);
+      h.innerHTML = (l.name || l.lang) + ' <span class="script">' + l.phrases.map(function (p) { return p.text; }).join(" · ") + "</span>";
+      out.appendChild(h);
+      var g = document.createElement("div"); g.className = "grid"; g.setAttribute("data-lang", l.lang); out.appendChild(g);
+      var seen = {};
+      l.phrases.forEach(function (p) {
+        (p.chars || []).forEach(function (ch, i) {
+          if (seen[ch]) return; seen[ch] = 1;
+          total++;
+          var cell = document.createElement("div"); cell.className = "card cell";
+          cell.innerHTML = '<div class="box ' + (dark ? "lens" : "field-grid") + '"><div class="ink"></div></div>' +
+            '<div class="meta"><span class="script"></span><span class="tag">loading</span></div><div class="lbl"></div>';
+          cell.querySelector(".script").textContent = ch;
+          g.appendChild(cell);
+          var ink = WornInk.create(cell.querySelector(".ink"), { theme: dark ? "glasses" : "paper", label: cell.querySelector(".lbl"), api: API });
+          ink.load({ lang: l.lang, char: ch, rtl: l.rtl, stroke_url: strokeUrl(l, p, ch, i) }).then(function (n) {
+            var k = ink.kind(), lab = LABEL[k] || [k, ""], tag = cell.querySelector(".tag");
+            tag.textContent = lab[0] + (k !== "glyph" ? " · " + n : "");
+            tag.className = "tag " + lab[1];
+            if (k === "glyph") traced.push(l.lang + " " + ch); else okN++;
+            ink.loop();
+            done++;
+            if (done === total) {
+              document.getElementById("sum").innerHTML = "<b>" + okN + " of " + total + "</b> characters have stroke-order data." +
+                (traced.length ? " Font trace only: " + traced.join(", ") + "." : " Every character animates stroke by stroke.");
+            }
+          });
+        });
+      });
+    });
+  }).catch(function (e) { document.getElementById("sum").textContent = "Couldn't load /content: " + e; });
 })();
 </script>
 </body>

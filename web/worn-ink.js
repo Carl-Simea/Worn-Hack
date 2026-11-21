@@ -8,9 +8,10 @@
  *   ink.full()                                     // whole character, no animation
  *   ink.stop()
  *
- * Data sources, picked from the session's stroke_url, else web/strokes/{lang}/{hex}.json:
+ * Data sources, picked from the session's stroke_url (content/strokes/, see content/README.md):
  *   .json with "medians"  -> hanzi-writer data (Mandarin): per-stroke outline revealed along its median
- *   .svg                  -> KanjiVG centerlines (Japanese): drawn as pen lines
+ *   .svg                  -> centerlines in a 109 box: KanjiVG (Japanese) and C's suggested order
+ *                            (Hindi, Arabic, Russian), drawn as pen lines
  *   .json with "outline"  -> Worn stroke file (Hindi, Arabic, Russian): Noto glyph outline revealed
  *                            stroke by stroke along hand-authored centerlines (see web/strokes/README.md)
  *   nothing               -> the font glyph, traced (shape only; label says so)
@@ -199,7 +200,6 @@
       var urls = [];
       if (s.stroke_url) urls.push(s.stroke_url);
       var base = opts.api || "";
-      urls.push("/static/web/strokes/" + s.lang + "/" + hexOf(s.char) + ".json");
       function tryNext(k) {
         if (k >= urls.length) return Promise.reject(new Error("no stroke data"));
         var u = /^https?:/.test(urls[k]) ? urls[k] : base + urls[k];
