@@ -125,6 +125,24 @@ Tier 2 only tracks stroke progress. The right/wrong verdict is `/grade` (A: 100%
 A long dark single stroke that fills the frame (the first stroke of ر ת א χ 友) used to be dropped as a "page
 edge". A fixed it in dce8978. Re-verified: all 6 languages pass at full-frame size (`CHAR=1.0`) and at half-frame size.
 
+
+### On the real M6 glasses (11:19–11:24, by voice through `/voice`)
+Each language ran this sequence: "home", "learn <language>", "hello", "next", "what does this mean", "I'm done".
+Screenshots are in `content/review/glasses_6langs.png` (watch and result for each language).
+
+| Language | Menu → words | Lesson (strokes, strip, romanization) | Grade → result | Voice | Result |
+|---|---|---|---|---|---|
+| Mandarin | ✓ | ✓ 你 7 strokes, then 好 | ✓ | ✓ | **PASS** |
+| Hindi | ✓ | ✓ न (strip न म स्ते after D's fix 7e63c10) | ✓ | ✓ | **PASS** |
+| Arabic | ✓ | ✓ م ر …, right to left, + joined word | ✓ | ✓ | **PASS** |
+| Russian | ✓ | ✓ п | ✓ | ✓ | **PASS** |
+| Hebrew | ✓ | ✓ ש ל, right to left | ✓ | ✓ | **PASS** |
+| Greek | ✓ | ✓ γ (the strip has no word gap yet; reported to D) | ✓ | ✓ | **PASS** |
+
+Nothing was written on paper during this run, so each grade correctly came back as a 0 / retry. Grading of real
+handwriting is covered by `e2e_strokes.py` (above) and A's live eval. The Mandarin pass was rerun because another
+agent's commands interleaved with the first one.
+
 ## Needs people in the morning (not code)
 
 1. **Native-speaker check:** walk `content/REVIEW.md` with anyone at the venue who speaks Hindi, Arabic, Russian,
