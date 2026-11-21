@@ -829,10 +829,30 @@ class AppStateIn(BaseModel):
     screen: str | None = None
 
 
+def _sync_session(f: dict) -> None:
+    """The glasses are the source of truth for which lesson is open: after a backend restart (or a lesson the
+    glasses opened on their own) rebuild the session, so /grade and auto-grading know the character."""
+    if V.norm_screen(f.get("screen")) != "lesson" or not f.get("lang") or not f.get("item_id"):
+        return
+    try:
+        ci = int(f.get("char_index") or 0)
+    except (TypeError, ValueError):
+        ci = 0
+    s = LIVE.session or {}
+    if (s.get("lang"), s.get("item_id"), s.get("char_index")) == (f["lang"], f["item_id"], ci):
+        return
+    try:
+        _start_item(f["lang"], f["item_id"], ci, s.get("mode", "write") if s.get("item_id") == f["item_id"] else "write")
+        LIVE.add_event("session_sync", {"lang": f["lang"], "item_id": f["item_id"], "char_index": ci})
+    except HTTPException as e:
+        log.warning("app-state lesson %s/%s#%s not found: %s", f["lang"], f["item_id"], ci, e.detail)
+
+
 @app.post("/app-state")
 def post_app_state(s: AppStateIn):
     """The glasses report where they are: {screen, breadcrumb, hint, phase, listening, last_heard, lang, ...}."""
     fields = s.model_dump(exclude_none=True)
+    _sync_session(fields)
     st = V.update_state(fields, source="glasses")
     if "listening" in fields:
         LIVE.listening = bool(fields["listening"])

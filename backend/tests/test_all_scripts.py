@@ -75,3 +75,14 @@ def test_voice_learn_word_and_how_do_i_write(vc, nlu, lang):
     vc.post("/reset")
     d = say(vc, f"how do I write {word} in {NAMES[lang]}", "home")
     assert d["intent"] == "select" and d["session"]["lang"] == lang and d["session"]["item_id"] == word
+
+
+@pytest.mark.parametrize("lang,item,ci,target,wrong", CASES, ids=[c[0] for c in CASES])
+def test_glasses_lesson_restores_the_session_after_a_restart(client, fake, lang, item, ci, target, wrong):
+    client.post("/reset")  # backend lost its session (restart)
+    client.post("/app-state", json={"screen": "lesson", "lang": lang, "item_id": item, "char_index": ci,
+                                    "phase": "your_turn"})
+    s = client.get("/session").json()
+    assert (s["lang"], s["item_id"], s["char_index"]) == (lang, item, ci)
+    g = client.post("/grade", files={"image": ("p.jpg", write_on_paper(s["char"]), "image/jpeg")})
+    assert g.status_code == 200 and g.json()["status"] == "ok"
