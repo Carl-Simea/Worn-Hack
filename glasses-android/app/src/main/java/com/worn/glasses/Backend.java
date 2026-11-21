@@ -73,6 +73,36 @@ final class Backend {
         HttpError(int code, String body) { super("HTTP " + code + ": " + body); this.code = code; }
     }
 
+    /** POST /stroke-match multipart {image, stroke_index, char?, lang?} (tier 2, OpenCV, < 300 ms server-side). */
+    String strokeMatch(byte[] jpeg, int strokeIndex, String ch, String lang) throws IOException {
+        String boundary = "----worns" + System.nanoTime();
+        HttpURLConnection c = open("/stroke-match");
+        c.setConnectTimeout(3000);
+        c.setReadTimeout(8000);
+        c.setDoOutput(true);
+        c.setRequestMethod("POST");
+        c.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+        ByteArrayOutputStream body = new ByteArrayOutputStream(jpeg.length + 512);
+        field(body, boundary, "stroke_index", String.valueOf(strokeIndex));
+        if (ch != null && !ch.isEmpty()) field(body, boundary, "char", ch);
+        if (lang != null && !lang.isEmpty()) field(body, boundary, "lang", lang);
+        ascii(body, "--" + boundary + "\r\n"
+                + "Content-Disposition: form-data; name=\"image\"; filename=\"stroke.jpg\"\r\n"
+                + "Content-Type: image/jpeg\r\n\r\n");
+        body.write(jpeg);
+        ascii(body, "\r\n--" + boundary + "--\r\n");
+        c.setFixedLengthStreamingMode(body.size());
+        try {
+            try (OutputStream out = c.getOutputStream()) { body.writeTo(out); }
+            int code = c.getResponseCode();
+            String resp = read(code < 400 ? c.getInputStream() : c.getErrorStream());
+            if (code >= 400) throw new HttpError(code, resp);
+            return resp;
+        } finally {
+            c.disconnect();
+        }
+    }
+
     /** POST /voice multipart {audio (16 kHz mono WAV), screen}. Returns the raw JSON reply
      *  {heard, intent, args, say, say_url, nav, hint, session?}. */
     String voice(byte[] wav, String screen) throws IOException {

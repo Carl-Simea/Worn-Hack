@@ -62,11 +62,48 @@
   #step { font-size:34px; font-weight:700; color:var(--fg); margin-top:2px; }
   #bar { height:6px; background:#1d2127; border-radius:3px; margin-top:8px; overflow:hidden; }
   #bar i { display:block; height:100%; width:0; background:var(--say); }
-  #res { position:absolute; top:0;left:0;right:0;bottom:0; display:none; align-items:center; justify-content:center; flex-direction:column; text-align:center; background:#000; }
+  #res { position:absolute; top:-10px;left:0;right:0;bottom:0; z-index:5; display:none; align-items:center; justify-content:center; flex-direction:column; text-align:center; background:#000; }
   #res .score { font-size:96px; font-weight:800; line-height:1; }
   #res .line { font-size:28px; margin-top:10px; max-width:560px; }
   #res .fix { font-size:22px; color:var(--gold); margin-top:12px; max-width:560px; }
   #res.ok .score { color:var(--say); } #res.no .score { color:var(--acc); }
+  /* accuracy ring around the character */
+  #ring { position:absolute; left:-6px; top:-6px; width:312px; height:312px; pointer-events:none; }
+  #ring circle { fill:none; stroke-width:6; }
+  #ring .track { stroke:#15181d; }
+  #ring .fill { stroke:#3a3f48; stroke-linecap:round; transform:rotate(-90deg); transform-origin:156px 156px;
+    transition:stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1), stroke .4s; }
+  #ringPct { position:absolute; right:6px; top:6px; font-size:18px; font-weight:700; color:var(--dim); transition:color .4s; }
+  .pop { position:absolute; right:14px; top:30px; font-size:30px; font-weight:800; pointer-events:none;
+    animation:pop 1.2s cubic-bezier(.2,.8,.2,1) forwards; text-shadow:0 0 12px rgba(0,0,0,.9); }
+  @keyframes pop { 0% { opacity:0; transform:translateY(14px) scale(.7); } 18% { opacity:1; transform:translateY(0) scale(1.12); }
+    70% { opacity:1; transform:translateY(-16px) scale(1); } 100% { opacity:0; transform:translateY(-30px) scale(.96); } }
+  .red { color:#ff5a4a !important; } .amber { color:#ffbf3a !important; } .green { color:#5ef08a !important; }
+
+  /* analysing: a light sweep over the character + three steps */
+  #scan { position:absolute; left:0; right:0; top:0; bottom:0; overflow:hidden; display:none; pointer-events:none; }
+  #scan i { position:absolute; left:-10%; right:-10%; height:70px; top:-70px;
+    background:linear-gradient(180deg, rgba(110,190,255,0) 0%, rgba(110,190,255,.18) 55%, rgba(170,225,255,.85) 92%, rgba(110,190,255,0) 100%);
+    animation:sweep 1.25s cubic-bezier(.45,.05,.55,.95) infinite; will-change:transform; }
+  #scan b { position:absolute; left:0; right:0; top:0; bottom:0; background:rgba(0,0,0,.25); }
+  @keyframes sweep { from { transform:translateY(0); } to { transform:translateY(370px); } }
+  #checklist { display:none; margin-top:auto; }
+  #checklist div { font-size:21px; height:38px; display:flex; align-items:center; color:#4b505a; transition:color .3s; }
+  #checklist div em { width:28px; height:28px; margin-right:10px; border-radius:50%; border:2px solid #2a2e35; display:inline-flex;
+    align-items:center; justify-content:center; font-style:normal; font-size:17px; flex:none; transition:all .3s; }
+  #checklist div.on { color:var(--fg); }
+  #checklist div.on em { border-color:var(--blue); border-top-color:transparent; animation:sp .8s linear infinite; }
+  #checklist div.ok { color:var(--fg); }
+  #checklist div.ok em { border-color:var(--say); background:var(--say); color:#000; animation:none; }
+
+  /* result: count-up inside a big ring */
+  #res .dial { position:relative; width:210px; height:210px; }
+  #res .dial svg { position:absolute; left:0; top:0; width:210px; height:210px; transform:rotate(-90deg); }
+  #res .dial circle { fill:none; stroke-width:12; stroke-linecap:round; }
+  #res .dial .num { position:absolute; left:0; right:0; top:58px; text-align:center; font-size:84px; font-weight:800; line-height:1; }
+  #res .dial .of { position:absolute; left:0; right:0; top:146px; text-align:center; font-size:17px; color:var(--dim); }
+  #res .line, #res .fix { opacity:0; transform:translateY(8px); transition:opacity .35s, transform .35s; }
+  #res.shown .line, #res.shown .fix { opacity:1; transform:none; }
   .spin { width:54px; height:54px; border:5px solid #222; border-top-color:var(--blue); border-radius:50%; animation:sp 0.8s linear infinite; margin:0 auto 14px; }
   @keyframes sp { to { transform:rotate(360deg); } }
 
@@ -99,7 +136,7 @@
 (function () {
   "use strict";
   var N = window.Native || { ready: function () {}, setScreen: function () {}, speak: function (t) { console.log("SAY " + t); },
-    play: function () {}, stopAudio: function () {}, listen: function () {}, capture: function () {}, quiet: function () {}, watchInk: function () {},
+    play: function () {}, stopAudio: function () {}, listen: function () {}, capture: function () {}, quiet: function () {}, watchInk: function () {}, strokeShot: function () {},
     backend: function () { return location.origin; }, via: function () { return "web"; } };
   var $ = function (id) { return document.getElementById(id); };
   var LANGS = ["mandarin", "hindi", "arabic", "russian", "hebrew", "greek"];
@@ -155,6 +192,7 @@
   function chrome(c, h, h2) {
     crumbs = c; hint = h || ""; hint2 = h2 || "";
     $("crumb").innerHTML = c.map(function (x, i) { return i === c.length - 1 ? "<b>" + esc(x) + "</b>" : esc(x); }).join(" › ");
+    $("hint").style.color = ""; $("hint2").style.color = "";
     $("hint").textContent = hint;
     $("hint2").textContent = hint2;
     report();
@@ -175,6 +213,7 @@
   function idTrail() {
     var sc = st.screen;
     if (sc === "home") return ["home"];
+    if (sc === "idle") return ["idle"];
     if (sc === "learn") return ["home", "learn"];
     if (sc === "words") return ["home", "learn", "words"];
     if (sc === "lesson") {
@@ -199,7 +238,8 @@
     var el = $("toast"); el.textContent = t; el.style.display = "block";
     later("toast", ms || 2600, function () { el.style.display = "none"; });
   }
-  function say(t) { if (t) N.speak(t); }
+  var holdSay = 0, heldLines = [];
+  function say(t) { if (!t) return; if (holdSay > 0) { heldLines.push(t); return; } N.speak(t); }
 
   // ------------------------------------------------------------------ navigation
   var SCREEN_ALIAS = { daily: "daily5", help: "howto", words: "words", lesson: "lesson" };
@@ -258,6 +298,21 @@
     chrome(["Home", "Learn", langName(l)], "Say a word: “" + first + "” or “number two”", "“next” to move · “start” to open · “back”");
     if (!o.keep) say(langName(l) + ". Say a word to learn, like " + first + ".");
   };
+
+  // Idle: after "exit" / "goodbye". Nearly black (see-through), mic still on, wakes on "Hey Scribi" or any button.
+  RENDER.idle = function (o) {
+    if (ink) ink.stop();
+    $("main").innerHTML = "<div style='text-align:center;margin-top:120px;color:#4b505a;font-family:Newsreader,Georgia,serif;font-size:44px'>Worn</div>";
+    chrome([], "Say “Hey Scribi”", "or press the button");
+    $("hint").style.color = "#3f8f58"; $("hint2").style.color = "#3a3f48";
+    if (!o.quiet) say(o.bye || "Bye for now. Say hey Scribi when you need me.");
+  };
+  var WAKE = /\b(hey|hi|hello|ok|okay|yo)?\s*(scribi|scribby|scribbie|scribe|scruby|scrubby|scribie|skribi|scrivy|scribble|scruffy)\b/i;
+  function sleepNow(bye) { stack = []; go("idle", { bye: bye }, true); }
+  function wake(rest) {
+    $("hint").style.color = ""; $("hint2").style.color = "";
+    go("home", { greet: rest ? "" : "Hi, I'm Scribi. What would you like to do?" }, true);
+  }
 
   RENDER.howto = function () {
     $("main").innerHTML = "<div class='title'>Just talk to Scribi</div><div class='cmds'>" + [
@@ -370,12 +425,17 @@
   // phases: watch → your_turn → check → result → (next char | next word)
   RENDER.lesson = function (o) {
     st.from = o.from || st.from;
-    $("main").innerHTML = "<div id='lesson'><div id='board'><div class='grid'></div><div id='ink'></div></div>" +
-      "<div id='side'><div id='strip'></div><div id='rom'></div><div id='meaning'></div><div id='phase'></div><div id='step'></div><div id='bar'><i></i></div></div>" +
+    $("main").innerHTML = "<div id='lesson'><div id='board'><div class='grid'></div><div id='ink'></div>" +
+      "<svg id='ring' viewBox='0 0 312 312'><circle class='track' cx='156' cy='156' r='150'/><circle class='fill' id='ringFill' cx='156' cy='156' r='150'/></svg>" +
+      "<div id='ringPct'></div><div id='scan'><b></b><i></i></div></div>" +
+      "<div id='side'><div id='strip'></div><div id='rom'></div><div id='meaning'></div><div id='phase'></div><div id='step'></div><div id='bar'><i></i></div>" +
+      "<div id='checklist'><div id='ck1'><em></em>Finding your writing</div><div id='ck2'><em></em>Comparing strokes</div><div id='ck3'><em></em>Scribi is reviewing…</div></div></div>" +
       "<div id='res'></div></div>";
     ink = window.WornInk ? WornInk.create($("ink"), { theme: "glasses", numbers: true }) : null;
     if (o.session) { startSession(o.session); return; }
     var body = { lang: o.lang || st.lang, item_id: o.item_id, char_index: o.char_index || 0, mode: "write" };
+    if (!o.item_id) { st.loading = false; return; }   // composeLesson fills it in
+    st.loading = true;
     st.lang = body.lang;
     phaseUI("Loading…", "", 0);
     chrome(lessonCrumbs(), "One moment…", "");
@@ -400,6 +460,8 @@
     return c;
   }
   function startSession(s) {
+    st.loading = false;
+    st.strokeScores = []; if ($("ringFill")) resetRing();
     st.session = s; st.lang = s.lang; st.charIdx = s.char_index || 0;
     st.strokeCount = s.stroke_count || 0; st.stroke = 0; st.tries = 0;
     if (st.from !== "daily5" && st.from !== "compose" && st.from !== "name") {
@@ -421,9 +483,50 @@
   }
   function inkLoad() {
     if (!ink) return Promise.resolve(0);
-    if (st.inkFor === st.session) return Promise.resolve(st.strokeCount);
+    if (st.inkFor === st.session && st.inkPromise) return st.inkPromise;
     st.inkFor = st.session;
-    return ink.load(st.session).then(function (n) { if (n) st.strokeCount = n; return n; }).catch(function () { return 0; });
+    st.inkPromise = ink.load(st.session).then(function (n) { if (n) st.strokeCount = n; return n; }).catch(function () { return 0; });
+    return st.inkPromise;
+  }
+
+  // ---- accuracy ring: fills as strokes are scored (tier 2 /stroke-match), colour = running average
+  var RING_C = 2 * Math.PI * 150;
+  function band(v) { return v < 50 ? "red" : v <= 75 ? "amber" : "green"; }
+  var BAND_HEX = { red: "#ff5a4a", amber: "#ffbf3a", green: "#5ef08a" };
+  function resetRing() {
+    st.strokeScores = [];
+    var f = $("ringFill"); if (!f) return;
+    f.style.transition = "none"; f.setAttribute("stroke-dasharray", RING_C); f.setAttribute("stroke-dashoffset", RING_C);
+    f.style.stroke = "#3a3f48"; void f.getBoundingClientRect(); f.style.transition = "";
+    $("ringPct").textContent = ""; $("ringPct").className = "";
+  }
+  function updateRing() {
+    var f = $("ringFill"); if (!f) return;
+    var sc = (st.strokeScores || []).filter(function (x) { return x != null; });
+    var n = Math.max(1, st.strokeCount || 1);
+    var done = (st.strokeScores || []).filter(function (x) { return x !== undefined; }).length;
+    f.setAttribute("stroke-dashoffset", RING_C * (1 - Math.min(1, done / n)));
+    if (!sc.length) return;
+    var avg = Math.round(sc.reduce(function (a, b) { return a + b; }, 0) / sc.length);
+    f.style.stroke = BAND_HEX[band(avg)];
+    $("ringPct").textContent = avg + "%"; $("ringPct").className = band(avg);
+    st.ringAvg = avg;
+  }
+  function popScore(v) {
+    var b = $("board"); if (!b) return;
+    var el = document.createElement("div");
+    el.className = "pop " + (v == null ? "" : band(v));
+    el.textContent = v == null ? "·" : "+" + v + "%";
+    if (v == null) el.style.color = "#5b616b";
+    b.appendChild(el);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 1300);
+  }
+  function scoreStroke(idx) {
+    // the stroke just written: one photo → /stroke-match; the ring fills when the score comes back
+    if (!st.strokeScores) st.strokeScores = [];
+    var s = st.session || {};
+    st.strokeScores[idx] = st.strokeScores[idx];   // pending
+    N.strokeShot(idx, s.char || "", s.lang || "");
   }
 
   function watch(again) {
@@ -448,10 +551,15 @@
   function yourTurn() {
     st.phase = "your_turn"; clearLessonTimers();
     st.stroke = 0;
-    if (ink) ink.stop();
+    resetRing();
     N.watchInk(true);
     say("Your turn. Stroke one.");
-    showStroke("start");
+    // the strokes may still be loading (a multi-step reply can jump straight here)
+    inkLoad().then(function () {
+      if (st.phase !== "your_turn") return;
+      if (ink) ink.stop();          // only once loaded: stopping mid-load would drop the strokes
+      showStroke("start");
+    });
   }
   function showStroke(trigger) {
     var n = st.strokeCount || 1;
@@ -464,7 +572,12 @@
     var ms = Math.round(4200 * st.speed);
     later("stroke", ms, function () { nextStroke("timeout"); });
   }
-  function nextStroke(trigger) { if (st.phase !== "your_turn") return; st.stroke++; showStroke(trigger); }
+  function nextStroke(trigger) {
+    if (st.phase !== "your_turn") return;
+    if (trigger === "ink" || trigger === "voice") scoreStroke(st.stroke);
+    else { if (!st.strokeScores) st.strokeScores = []; st.strokeScores[st.stroke] = null; updateRing(); }   // timer: not scored
+    st.stroke++; showStroke(trigger);
+  }
   function prevStroke() { if (st.phase !== "your_turn") return; st.stroke = Math.max(0, st.stroke - 1); showStroke("voice"); }
   function lastStrokeDone() {
     st.phase = "your_turn"; clear("stroke");
@@ -480,8 +593,13 @@
     if (st.screen !== "lesson" || st.phase === "check") return;
     clearLessonTimers();
     st.phase = "check";
-    $("res").className = ""; $("res").style.display = "flex";
-    $("res").innerHTML = "<div class='spin'></div><div class='line'>Looking at your paper…</div><div class='fix' style='color:var(--dim)'>Hold still for a second</div>";
+    hideRes();
+    if (ink) { ink.stop(); ink.full(); }
+    $("scan").style.display = "block";
+    ["phase", "step", "bar"].forEach(function (id) { $(id).style.display = "none"; });
+    $("checklist").style.display = "block";
+    tick(1, "on"); tick(2, ""); tick(3, "");
+    watchSteps();
     chrome(lessonCrumbs(), "Hold the paper still…", "");
     say("Let me look.");
     event("grade.start", { source: "glasses" });
@@ -489,7 +607,37 @@
     later("gradeTimeout", 45000, function () { if (st.phase === "check") gradeError("That took too long. Say check to try again."); });
     report();
   }
-  function hideRes() { var r = $("res"); if (r) { r.style.display = "none"; r.innerHTML = ""; } }
+  function hideRes() {
+    var r = $("res"); if (r) { r.style.display = "none"; r.innerHTML = ""; r.className = ""; }
+    endScan();
+  }
+  function endScan() {
+    clear("steps"); clear("ck2"); clear("ck3");
+    if ($("scan")) $("scan").style.display = "none";
+    if ($("checklist")) { $("checklist").style.display = "none"; ["phase", "step", "bar"].forEach(function (id) { $(id).style.display = ""; }); }
+  }
+  function tick(n, state) { var el = $("ck" + n); if (el) { el.className = state; el.firstChild.textContent = state === "ok" ? "✓" : ""; } }
+  // Ticks follow the grader's real steps (GET /live/state agent_steps: observe → evaluate → decide);
+  // timers only fill in if the backend doesn't report steps.
+  function watchSteps() {
+    var seen = null, t0 = Date.now(), got = { observe: false, evaluate: false, decide: false };
+    function apply() {
+      if (st.phase !== "check") return;
+      if (got.observe || got.evaluate || got.decide) tick(1, "ok");
+      if (got.evaluate || got.decide) { tick(2, "ok"); tick(3, "on"); } else if (got.observe) tick(2, "on");
+    }
+    (function poll() {
+      if (st.phase !== "check") return;
+      getJSON("/live/state").then(function (ls) {
+        var steps = (ls && ls.agent_steps) || [];
+        if (seen === null) { seen = {}; steps.forEach(function (x) { seen[x.id] = 1; }); }
+        else steps.forEach(function (x) { if (!seen[x.id]) { seen[x.id] = 1; if (got.hasOwnProperty(x.phase)) got[x.phase] = true; } });
+        apply();
+      }).catch(function () {}).then(function () { timers.steps = setTimeout(poll, 350); });
+    })();
+    later("ck2", 4000, function () { if (st.phase === "check" && !got.evaluate) { got.observe = true; apply(); } });
+    later("ck3", 7000, function () { if (st.phase === "check") { got.evaluate = true; apply(); } });
+  }
 
   function graded(r) {
     if (st.phase !== "check") return;
@@ -498,19 +646,48 @@
     var ok = !!r.correct;
     var pick = window.WornSfx ? WornSfx.forResult(r) : null;
     N.quiet(1800);
-    var line = r.reaction || (pick && pick.line) || (ok ? "Nailed it!" : "Close!");
-    var fix = !ok ? (r.feedback || r.fix || "") : "";
-    $("res").className = ok ? "ok" : "no";
-    $("res").innerHTML = "<div class='score'>" + (r.score != null ? r.score : ok ? "✓" : "✗") + "</div><div class='line'>" + esc(line) + "</div>" + (fix ? "<div class='fix'>" + esc(fix) + "</div>" : "");
-    if (ok && window.WornConfetti) WornConfetti.burst({ x: 0.5, y: 0.35, count: 140 });
-    var wantRetry = !ok && st.tries < 2 && !(r.next && r.next.action && r.next.action !== "retry");
-    chrome(lessonCrumbs(), ok ? "Say “next” for the next one" : wantRetry ? "Say “again” to try once more" : "Say “next” to move on",
-      ok ? "“again” · “back” · “home”" : "“next” to move on · “show me again”");
-    say(ok ? line : line + ". " + fix);
-    later("afterResult", ok ? 7000 : 12000, function () { if (wantRetry) watch(true); else nextChar(); });
+    var score = r.score != null ? Math.max(0, Math.min(100, Math.round(r.score))) : (ok ? 100 : 0);
+    var party = r.score != null ? score >= 70 : ok;
+    var line = r.reaction || (pick && pick.line) || (party ? "Nailed it!" : "Close!");
+    var fix = !party ? (r.feedback || r.fix || "") : "";
+    tick(1, "ok"); tick(2, "ok"); tick(3, "ok");
+    later("toResult", 350, function () { showDial(score, line, fix, party); });
+    var wantRetry = !party && st.tries < 2 && !(r.next && r.next.action && r.next.action !== "retry");
+    chrome(lessonCrumbs(), party ? "Say “next” for the next one" : wantRetry ? "Say “again” to try once more" : "Say “next” to move on",
+      party ? "“again” · “back” · “home”" : "“next” to move on · “show me again”");
+    say(party ? line : line + ". " + fix);
+    later("afterResult", party ? 7500 : 12000, function () { if (wantRetry) watch(true); else nextChar(); });
     report();
   }
+  // the score counts up inside a ring that fills and changes colour as it goes; then confetti or the fix
+  function showDial(score, line, fix, party) {
+    endScan();
+    var R = 93, C = 2 * Math.PI * R;
+    var res = $("res");
+    res.className = party ? "ok" : "no"; res.style.display = "flex";
+    res.innerHTML = "<div class='dial'><svg viewBox='0 0 210 210'><circle cx='105' cy='105' r='" + R + "' stroke='#15181d'/>" +
+      "<circle id='dialFill' cx='105' cy='105' r='" + R + "' stroke='#ff5a4a' stroke-dasharray='" + C + "' stroke-dashoffset='" + C + "'/></svg>" +
+      "<div class='num' id='dialNum'>0</div><div class='of'>out of 100</div></div>" +
+      "<div class='line'>" + esc(line) + "</div>" + (fix ? "<div class='fix'>" + esc(fix) + "</div>" : "");
+    var t0 = null, dur = 300 + score * 9;   // ~1.2 s to 100
+    function frame(t) {
+      if (!t0) t0 = t;
+      var k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3), v = Math.round(score * e);
+      var num = $("dialNum"), f = $("dialFill"); if (!num || !f) return;
+      num.textContent = v; num.className = "num " + band(v);
+      f.setAttribute("stroke-dashoffset", C * (1 - v / 100)); f.setAttribute("stroke", BAND_HEX[band(v)]);
+      if (k < 1) requestAnimationFrame(frame);
+      else {
+        res.className += " shown";
+        if (party && window.WornConfetti) WornConfetti.burst({ x: 0.5, y: 0.4, count: 150 });
+        if (party && window.WornSfx) WornSfx.play("tada");
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
   function gradeError(msg) {
+    endScan();
     clear("gradeTimeout");
     st.phase = "result";
     $("res").className = "no"; $("res").style.display = "flex";
@@ -546,6 +723,7 @@
   }
   function openLesson(lang, itemId, charIdx) {
     clearLessonTimers(); hideRes();
+    st.loading = true;
     st.lang = lang;
     phaseUI("Loading…", "", 0);
     var tries = 0;
@@ -561,7 +739,7 @@
     })();
   }
   function clearLessonTimers() {
-    N.watchInk(false); ["watch", "watchBar", "stroke", "autocheck", "afterResult", "gradeTimeout"].forEach(clear); }
+    N.watchInk(false); ["watch", "watchBar", "stroke", "autocheck", "afterResult", "gradeTimeout", "steps", "ck2", "ck3", "toResult"].forEach(clear); }
   function leaveLesson() { if (st.screen === "lesson") { clearLessonTimers(); if (ink) ink.stop(); st.phase = null; } }
   function meaning() {
     var s = st.session;
@@ -690,6 +868,7 @@
       var nm = m[1].trim().split(" ").slice(0, 3).join(" ");
       if (!/^(done|finished|ready)\b/.test(nm)) return { intent: "write_name", args: { name: nm.replace(/\b\w/g, function (c) { return c.toUpperCase(); }) } };
     }
+    if (/\b(exit|goodbye|good bye|bye scribi|go to sleep|stop listening|that's all|close (the )?app|i'm finished for today)\b/.test(t)) return { intent: "exit" };
     if (/\b(what can i say|help|commands|how (do i|to) use)\b/.test(t)) return { intent: "help" };
     if (/\b(home|main menu|start over)\b/.test(t)) return { intent: "home" };
     if (/\b(go back|back)\b/.test(t) && !/again/.test(t)) return { intent: "back" };
@@ -723,10 +902,116 @@
   }
 
   // ------------------------------------------------------------------ voice replies
+  // ---- tool replies (A's NLU): actions run in order, then nav/session reconcile, then `say` once
+  var TOOL_ALIAS = {
+    go_home: "home", home: "home", go_back: "back", back: "back", exit_app: "exit", exit: "exit", sleep: "exit", goodbye: "exit",
+    wake: "wake", open_screen: "open", open: "open", navigate: "open", learn_language: "learn", learn: "learn", choose_language: "learn",
+    open_word: "select", select_word: "select", select: "select", practice: "select", open_lesson: "select", pick: "pick",
+    start: "start", start_writing: "start", next: "next", next_stroke: "next", previous: "previous", previous_stroke: "previous",
+    prev: "previous", show_again: "show_again", replay: "show_again", repeat: "repeat", play_audio: "play_audio", pronounce: "play_audio",
+    slower: "slower", faster: "faster", check: "check", grade: "check", retry: "again", again: "again", skip: "skip",
+    next_word: "skip", meaning: "meaning", explain: "meaning", spell_word: "compose", compose: "compose", translate: "compose",
+    how_write: "compose", write_name: "write_name", spell_name: "write_name", say: "say", speak: "say", show_text: "show_text",
+    toast: "show_text", set_phase: "set_phase", help: "help", open_daily: "daily5", daily5: "daily5", open_journal: "journal", journal: "journal"
+  };
+  function waitIdle(maxMs) {
+    var t0 = Date.now();
+    return new Promise(function (res) {
+      (function poll() {
+        var busy = st.loading || (st.screen === "compose" && st.compose && !st.compose.result && !st.compose.failed) ||
+          (st.screen === "name" && st.name && !st.nameResult);
+        if (!busy || Date.now() - t0 > (maxMs || 8000)) res(); else setTimeout(poll, 120);
+      })();
+    });
+  }
+  function setPhase(ph) {
+    if (st.screen !== "lesson" || !st.session) return;
+    if (ph === "watch") watch(true); else if (ph === "your_turn" || ph === "write") yourTurn();
+    else if (ph === "check") check(); else if (ph === "result" && st.phase !== "result") check();
+  }
+  function runTool(name, a) {
+    a = a || {};
+    var t = TOOL_ALIAS[name] || name;
+    console.log("tool " + name + " " + JSON.stringify(a));
+    switch (t) {
+      case "exit": sleepNow(a.say || a.text); return;
+      case "wake": if (st.screen === "idle") wake(true); return;
+      case "say": if (a.text) say(a.text); return;
+      case "show_text": if (a.text) toast(a.text, a.ms || 3000); return;
+      case "set_phase": setPhase(a.phase); return;
+      case "play_audio": if (a.url) N.play(a.url); else if (st.session && st.session.audio_url) N.play(st.session.audio_url); return;
+      case "daily5": case "journal": go(t); return;
+      case "open": if (a.screen === "idle") { sleepNow(); return; } act("open", a); return;
+      case "compose": act("compose", { text: a.text || a.word, lang: a.lang || a.language, result: a.result, session: a.session }); return;
+      case "pick": act("pick", { ordinal: a.ordinal || a.n }); return;
+      case "home": go("home", { quiet: true }); return;
+    }
+    act(t, a);
+  }
+  function sameAsNow(nav) {
+    if (!nav || !nav.screen) return true;
+    var sc = SCREEN_ALIAS[nav.screen] || nav.screen;
+    if (sc !== st.screen) return false;
+    if (sc === "words") return !nav.lang || nav.lang === st.lang;
+    if (sc === "lesson") { var s = st.session || {}; return (!nav.item_id || nav.item_id === s.item_id) && (nav.char_index == null || nav.char_index === st.charIdx) && (!nav.lang || nav.lang === s.lang); }
+    return true;
+  }
+  function applyNav(nav, session) {
+    if (!nav || !nav.screen) return;
+    var sc = SCREEN_ALIAS[nav.screen] || nav.screen;
+    if (!sameAsNow(nav)) {
+      if (sc === "idle") { sleepNow(); return; }
+      if (sc === "lesson") {
+        if (st.screen !== "lesson") st.from = { daily5: "daily5", compose: "compose", name: "name" }[st.screen] || st.from || "learn";
+        if (session) { st.lang = session.lang; if (st.screen === "lesson") { st.inkFor = null; clearLessonTimers(); hideRes(); startSession(session); } else go("lesson", { session: session, from: st.from }); }
+        else if (nav.item_id) { if (st.screen === "lesson") openLesson(nav.lang || st.lang, nav.item_id, nav.char_index || 0); else startItem(nav.lang || st.lang, nav.item_id, nav.char_index || 0, st.from); }
+      } else if (sc === "words") startLang(nav.lang || st.lang);
+      else go(sc, { lang: nav.lang });
+    }
+    if (nav.phase && sc === "lesson") waitIdle().then(function () { if (st.phase !== nav.phase) setPhase(nav.phase); });
+  }
+  function speakReply(r) {
+    if (r.say_url) N.play(r.say_url); else if (r.say) N.speak(r.say);
+  }
+  function applyReply(r, heard) {
+    var acts = r.actions || r.tools || r.steps || r.tool_calls || [];
+    if (!Array.isArray(acts)) acts = [acts];
+    acts = acts.map(function (x) { return typeof x === "string" ? { tool: x, args: {} } : { tool: x.tool || x.name || x.action || x.type, args: x.args || x.arguments || x.input || {} }; })
+      .filter(function (x) { return x.tool; });
+    var hasSay = !!(r.say || r.say_url);
+    if (hasSay) { holdSay++; heldLines = []; }
+    event("voice", { heard: heard, intent: r.intent, tools: acts.map(function (x) { return x.tool; }), nav: r.nav || null, screen: st.screen, source: "glasses" });
+    var chain = Promise.resolve();
+    acts.forEach(function (x) { chain = chain.then(function () { runTool(x.tool, x.args); return waitIdle(); }); });
+    return chain.then(function () {
+      applyNav(r.nav, r.session);
+      return waitIdle(1500);
+    }).catch(function (e) { console.log("apply error " + e); }).then(function () {
+      if (hasSay) { holdSay = Math.max(0, holdSay - 1); heldLines = []; speakReply(r); }
+      report();
+    });
+  }
+
   function handleVoice(r) {
     var heard = r.heard || r.text || "";
-    showHeard(heard);
-    if (!heard && !r.intent) { setMic("listening"); return; }
+    if (st.screen !== "idle") showHeard(heard);
+    if (!heard && !r.intent && !r.actions && !r.tools && !r.steps) { setMic("listening"); return; }
+    // Idle: only "Hey Scribi" (or the backend's wake) gets through; everything else is ignored silently.
+    if (st.screen === "idle") {
+      var toolsIn = (r.actions || r.tools || r.steps || []).map(function (x) { return typeof x === "string" ? x : (x.tool || x.name || ""); });
+      var woke = WAKE.test(heard) || r.intent === "wake" || toolsIn.indexOf("wake") >= 0;
+      if (!woke) { console.log("idle, ignored: " + heard); return; }
+      var rest = heard.replace(WAKE, "").replace(/^[\s,.!]+|[\s,.!?]+$/g, "");
+      var real = toolsIn.filter(function (t) { return t && t !== "wake"; }).length || (r.intent && r.intent !== "wake" && r.intent !== "unknown");
+      showHeard(heard);
+      wake(!!(rest && real));
+      if (!(rest && real)) return;
+    }
+    if (r.actions || r.tools || r.steps || r.tool_calls) {
+      console.log("voice heard=" + JSON.stringify(heard) + " -> tools " + JSON.stringify(r.actions || r.tools || r.steps || r.tool_calls) + " nav " + JSON.stringify(r.nav));
+      applyReply(r, heard);
+      return;
+    }
     var intent = r.intent, args = r.args || {};
     // trust the backend's intent, but fill gaps with ours (and our list context)
     var mine = match(heard);
@@ -736,6 +1021,8 @@
     else if (intent === "select" && !args.item_id && !args.lang && mine.args) args = mine.args;
     event("voice", { heard: heard, intent: intent, args: args, screen: st.screen, source: "glasses" });
     console.log("voice heard=" + JSON.stringify(heard) + " -> " + intent + " " + JSON.stringify(args) + " on " + st.screen + " sel=" + st.sel);
+    if (intent === "exit") { sleepNow(r.say); return; }
+    if (intent === "wake") { if (st.screen === "idle") wake(); return; }
     if (intent === "unknown") {
       // From the open mic this is often someone nearby: only a quiet nudge, never a spoken one.
       if (r.typed) say(r.say || ("Try saying: " + hint.replace(/^Say /, "").replace(/[“”]/g, "")));
@@ -744,12 +1031,9 @@
     }
     var nav = r.nav;
     // when the backend already started a lesson session for us, use it directly
-    if (nav && nav.screen === "lesson" && r.session) {
-      if (st.screen !== "lesson") st.from = { daily5: "daily5", compose: "compose", name: "name" }[st.screen] || "learn";
-      st.lang = r.session.lang;
-      go("lesson", { session: r.session, from: st.from }); if (r.say && !/^(okay|ok)\.?$/i.test(r.say)) say(r.say); return;
-    }
-    act(intent, args, nav);
+    if (nav && nav.screen === "lesson" && r.session) { applyReply({ nav: nav, session: r.session, say: r.say, say_url: r.say_url }, heard); return; }
+    // legacy single intent: run it as one tool, then reconcile with nav and speak the backend's line once
+    applyReply({ actions: [{ tool: intent, args: args }], nav: nav, session: r.session, say: r.say, say_url: r.say_url }, heard);
   }
 
   // ------------------------------------------------------------------ native → page
@@ -775,6 +1059,7 @@
         .catch(function () { setMic("listening"); handleVoice({ heard: text, typed: true }); });
     },
     key: function (k) {
+      if (st.screen === "idle") { wake(); return; }
       if (k === "tap") { if (st.screen === "lesson") doLesson(st.phase === "your_turn" && st.stroke >= st.strokeCount ? "check" : "next"); else startHere(); }
       else if (k === "double") back();
       else if (k === "long") { if (st.screen === "lesson") doLesson("check"); else go("howto"); }
@@ -786,11 +1071,24 @@
       nextStroke("ink");
     },
     audioDone: function () { if (micState === "speaking") setMic("listening"); },
+    captured: function () { if (st.phase === "check") { tick(1, "ok"); tick(2, "on"); } },
+    strokeScore: function (idx, json) {
+      if (st.screen !== "lesson" || !st.strokeScores) return;
+      var v = null;
+      try { var r = typeof json === "string" ? JSON.parse(json) : json; if (r && r.score != null) v = Math.max(0, Math.min(100, Math.round(r.score))); } catch (e) {}
+      st.strokeScores[idx] = v;
+      updateRing(); popScore(v);
+      event("stroke_match", { stroke: idx, score: v, source: "glasses" });
+    },
     graded: function (json) { var r; try { r = typeof json === "string" ? JSON.parse(json) : json; } catch (e) { r = {}; } graded(r); },
     error: function (msg) { if (st.phase === "check") gradeError(msg || "I couldn't check that. Say check to try again."); else toast(msg, 2500); },
     test: function (what) {   // adb --es js "worn.test(1)": 1 = pass, 0 = fail (forces a result while checking)
-      st.phase = "check"; $("res").style.display = "flex";
+      st.phase = "check";
       graded(what ? { correct: true, score: 94, reaction: "Nailed it!" } : { correct: false, score: 41, reaction: "So close!", feedback: "The second stroke should start higher." });
+    },
+    testStrokes: function () {   // debug: adb --es js "worn.testStrokes()" (sample scores, to see the ring)
+      if (st.phase !== "your_turn") return;
+      [87, 62, 41].forEach(function (v, i) { setTimeout(function () { st.strokeScores[i] = v; updateRing(); popScore(v); st.stroke = i + 1; showStroke("voice"); }, i * 900); });
     },
     state: function () { return JSON.stringify({ screen: st.screen, phase: st.phase, stroke: st.stroke, strokeCount: st.strokeCount, lang: st.lang, sel: st.sel }); },
     go: go

@@ -12,7 +12,8 @@ final class InkWatcher {
 
     private static final int S = GlassesCamera.THUMB;
     private static final float STROKE_MIN = 0.006f;   // ≥ ~25 of 4096 pixels
-    private static final float SCENE_CHANGE = 0.18f;  // more than this = the view moved, not a stroke
+    private static final float SCENE_CHANGE = 0.04f;  // more new "ink" than one stroke = the view moved
+    private static final float PAGE_MIN = 0.60f;      // share of the view near paper brightness: it's a page
     private static final long COOLDOWN_MS = 900;
 
     private final Listener listener;
@@ -29,6 +30,7 @@ final class InkWatcher {
         if (!enabled) { base = null; pending = null; return; }
         long t0 = System.nanoTime();
         boolean[] ink = mask(g);
+        if (ink == null) { base = null; pending = null; return; }   // not looking at a page: start over when we are
         if (base == null) { base = ink; pending = null; return; }
         boolean[] near = dilate(base);
         boolean[] cand = new boolean[S * S];
@@ -56,8 +58,11 @@ final class InkWatcher {
         int target = (int) (g.length * 0.70), acc = 0, paper = 255;
         for (int v = 0; v < 256; v++) { acc += hist[v]; if (acc >= target) { paper = v; break; } }
         int cut = (int) (paper * 0.62f);
+        if (paper < 110) return null;  // too dark to be a lit page
+        int near = 0, lo = (int) (paper * 0.85f);
+        for (byte b : g) if ((b & 0xff) >= lo) near++;
+        if (near < g.length * PAGE_MIN) return null;   // a room, a desk, a face: not a page
         boolean[] m = new boolean[g.length];
-        if (paper < 110) return m;  // too dark to be a lit page: no ink detection
         for (int i = 0; i < g.length; i++) m[i] = (g[i] & 0xff) < cut;
         return m;
     }

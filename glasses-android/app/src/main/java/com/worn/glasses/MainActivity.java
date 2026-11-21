@@ -59,6 +59,7 @@ public class MainActivity extends Activity {
     private final ExecutorService net = Executors.newSingleThreadExecutor();   // /grade
     private final ExecutorService talk = Executors.newSingleThreadExecutor();  // /voice
     private final ExecutorService beat = Executors.newSingleThreadExecutor();  // heartbeat, backend choice
+    private final ExecutorService tier2 = Executors.newSingleThreadExecutor(); // /stroke-match
 
     private WebView web;
     private GlassesCamera camera;
@@ -144,6 +145,14 @@ public class MainActivity extends Activity {
         if (say != null && !say.isEmpty()) {
             if (pageReady) js("worn.heard(" + JSONObject.quote(say) + ")"); else pendingSay = say;
         }
+        String r64 = intent == null ? null : intent.getStringExtra("reply64"); // debug: feed a /voice reply (base64 JSON)
+        if (r64 != null && pageReady) {
+            try {
+                String json = new String(android.util.Base64.decode(r64, android.util.Base64.DEFAULT), "UTF-8");
+                js("worn.voice(" + JSONObject.quote(json) + ")");
+            } catch (Exception e) { Log.w(TAG, "reply64", e); }
+        }
+        if (intent != null) intent.removeExtra("reply64");
         String dbg = intent == null ? null : intent.getStringExtra("js");   // debug: run page script
         if (dbg != null && pageReady) js(dbg);
         if (intent != null) intent.removeExtra("js");
@@ -239,6 +248,7 @@ public class MainActivity extends Activity {
         camera.release();
         net.shutdownNow();
         talk.shutdownNow();
+        tier2.shutdownNow();
         beat.shutdown();
         if (shutter != null) shutter.release();
         web.destroy();
@@ -362,6 +372,8 @@ public class MainActivity extends Activity {
 
     // ------------------------------------------------------------------ photo -> grade
 
+    private int captureRetries;
+
     private void capture() {
         if (busy) { Log.i(TAG, "capture ignored, still busy"); return; }
         if (!has(Manifest.permission.CAMERA)) { js("worn.error(" + JSONObject.quote("No camera permission") + ")"); return; }
@@ -369,11 +381,18 @@ public class MainActivity extends Activity {
         camera.takePicture(new GlassesCamera.Callback() {
             @Override public void onJpeg(byte[] jpeg) {
                 ui.post(() -> shutter.play(MediaActionSound.SHUTTER_CLICK));
+                captureRetries = 0;
+                js("worn.captured()");
                 net.execute(() -> grade(jpeg));
             }
             @Override public void onError(String message) {
                 Log.w(TAG, "camera: " + message);
-                ui.post(() -> { busy = false; js("worn.error(" + JSONObject.quote(message) + ")"); });
+                // A stroke photo may still be in flight: wait for it rather than failing the check.
+                if (message != null && message.startsWith("Still") && captureRetries++ < 6) {
+                    ui.postDelayed(() -> { busy = false; capture(); }, 500);
+                    return;
+                }
+                ui.post(() -> { busy = false; captureRetries = 0; js("worn.error(" + JSONObject.quote(message) + ")"); });
             }
         });
     }
@@ -392,6 +411,28 @@ public class MainActivity extends Activity {
             Log.e(TAG, "grade failed", e);
             done("worn.error(" + JSONObject.quote("Can't reach the server. Say check again.") + ")");
         }
+    }
+
+    /** One photo after a stroke → POST /stroke-match → worn.strokeScore(json | null). Skipped while a check runs. */
+    private void strokeShot(int index, String ch, String lang) {
+        if (busy || !has(Manifest.permission.CAMERA)) { js("worn.strokeScore(" + index + ",null)"); return; }
+        camera.takePicture(new GlassesCamera.Callback() {
+            @Override public void onJpeg(byte[] jpeg) {
+                final String a = api;
+                tier2.execute(() -> {
+                    long t0 = System.currentTimeMillis();
+                    try {
+                        String json = new Backend(a).strokeMatch(jpeg, index, ch, lang);
+                        Log.i(TAG, "stroke " + index + " matched in " + (System.currentTimeMillis() - t0) + "ms: " + json);
+                        js("worn.strokeScore(" + index + "," + JSONObject.quote(json) + ")");
+                    } catch (Exception e) {
+                        Log.w(TAG, "stroke-match " + index + ": " + e.getMessage());
+                        js("worn.strokeScore(" + index + ",null)");
+                    }
+                });
+            }
+            @Override public void onError(String message) { js("worn.strokeScore(" + index + ",null)"); }
+        });
     }
 
     private void done(String script) { ui.post(() -> { busy = false; js(script); }); }
@@ -490,6 +531,7 @@ public class MainActivity extends Activity {
             inkWatch.enabled = on;
             if (on) inkWatch.reset();
         }
+        @JavascriptInterface public void strokeShot(int index, String ch, String lang) { ui.post(() -> strokeShot(index, ch, lang)); }
         @JavascriptInterface public void capture() { ui.post(MainActivity.this::capture); }
         @JavascriptInterface public String backend() { return api; }
         @JavascriptInterface public String via() { return api != null && api.equals(primary) ? "wifi" : "usb"; }
