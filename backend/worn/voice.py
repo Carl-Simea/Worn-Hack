@@ -32,11 +32,11 @@ OPEN_SCREENS = ("learn", "journal", "daily5", "howto", "name", "compose")
 
 HINTS = {
     "idle": 'Say "Hey Scribi" anytime.',
-    "home": 'Say "learn Mandarin", "daily five", "journal", "write my name", or "help".',
+    "home": 'Say "learn Mandarin", "help me write", "how do I write my name", "daily five", or "help".',
     "learn": 'Say a language: Mandarin, Hindi, Arabic, Russian, Hebrew or Greek. Or "back".',
     "words": 'Say a word: hello, thank you, water, friend or one. Or "back".',
     "lesson": 'Say "check" when you\'re done. Or "repeat", "slower", "next", "skip", "what does this mean".',
-    "name": 'Say "write my name" and your name, like "write my name, Sam". Or "home".',
+    "name": 'Say "my name is" and your name, like "my name is Sam". Or "home".',
     "compose": 'Say "how do I write" something "in" a language, like "how do I write good morning in Greek".',
     "daily5": 'Say "start" for your Daily 5, or "next", "back", "home".',
     "journal": 'Say "back" or "home". Or "learn" and a language.',
@@ -101,7 +101,8 @@ STT_MODEL = os.environ.get("WORN_STT_MODEL", "base")
 _stt = None
 _stt_lock = threading.Lock()
 ASSISTANT = "Scribi"  # the voice tutor inside the Worn app
-VOCAB = ("Hey Scribi. Commands: home, back, next, previous, repeat, slower, show me again, check, I'm done, skip, help, "
+VOCAB = ("Hey Scribi. Take me home. Go back. Help me write. Write this word. How do I write my name. "
+         "Teach me Chinese. Commands: home, back, next, previous, repeat, slower, show me again, check, I'm done, skip, help, "
          "what can I say, what does this mean, open learn, open journal, daily five, write my name, "
          "how do I write thank you in Hindi. Learn Mandarin, Hindi, Arabic, Russian, Hebrew, Greek. "
          "Hello, thank you, water, friend, one.")
@@ -180,7 +181,7 @@ def transcribe(audio: bytes, filename: str = "audio.wav", screen: str | None = N
     if pcm.size < 1600:  # < 0.1 s
         return ""
     try:
-        segs, _info = m.transcribe(pcm, language="en", beam_size=1, vad_filter=True,
+        segs, _info = m.transcribe(pcm, language="en", beam_size=5, vad_filter=True,
                                    initial_prompt=(SCREEN_VOCAB.get(norm_screen(screen), "") + " " + VOCAB).strip(), condition_on_previous_text=False,
                                    without_timestamps=True)
         text = " ".join(s.text.strip() for s in segs).strip()

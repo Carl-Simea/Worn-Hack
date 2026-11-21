@@ -38,7 +38,9 @@ def nlu(monkeypatch):
 
 
 @pytest.fixture
-def vc(client, nlu):
+def vc(client, nlu, monkeypatch):
+    import app as app_mod
+    monkeypatch.setattr(app_mod, "DEDUPE_S", 0)  # tests repeat phrases on purpose
     V.reset_state()
     return client
 
@@ -124,11 +126,10 @@ def test_compose_lesson_phrase_goes_straight_to_the_lesson(vc):
 
 
 def test_compose_then_practice(vc, fake):
-    d = say(vc, "how do I write thank you friend in Greek", "home")
+    d = say(vc, "how do I write thank you friend in Greek", "home")  # straight into the guided stroke lesson
     assert d["intent"] == "compose" and d["args"]["result"]["native"] == "ευχαριστώ φίλε"
-    assert d["nav"]["screen"] == "compose"
-    d = say(vc, "practice it", "compose")
-    assert d["intent"] == "select" and d["session"]["mode"] == "compose" and d["session"]["char"] == "ε"
+    assert d["nav"]["screen"] == "lesson" and d["session"]["mode"] == "compose" and d["session"]["char"] == "ε"
+    assert d["say"].startswith("Let's write thank you friend!")
 
 
 def test_compose_without_language_asks_by_example(vc):
@@ -259,7 +260,7 @@ def test_content_matcher_start_and_pick(monkeypatch):
 
 
 def test_assistant_is_scribi_app_is_worn(vc):
-    assert say(vc, "go home", "learn")["say"].startswith("Hi, I'm Scribi.")
+    assert "Hi, I'm Scribi." in say(vc, "go home", "learn")["say"]
     assert "Just talk to Scribi" in say(vc, "how to use", "home")["say"]
     assert say(vc, "hey scribi, open journal", "home")["nav"] == {"screen": "journal"}
 

@@ -658,6 +658,9 @@ async def _act(intent: str, args: dict, screen: str | None, heard: str) -> dict:
                         "back_translation": res["back_translation"], "note": res["note"]}}
                     args.update({"result": res, "item_id": iid})
                     nav = {"screen": "compose", "lang": lang, "item_id": iid}
+                    if args.get("guided"):  # "write water" / "write this word": straight into the stroke lesson
+                        out_sess = _start_item(lang, iid, 0, "compose")
+                        nav = _lesson_nav(out_sess)
                     say = (f"In {_lang_name(lang)}, {text} is: {res['romanization']}. "
                            f"{len(res['chars'])} to write. Say practice to write it, or ask for another phrase.")
                 except compose.ComposeError as e:
@@ -735,7 +738,46 @@ def _action(r: dict) -> dict | None:
     return None
 
 
+_LAST_VOICE: dict = {"key": None, "ts": 0.0, "out": None}
+DEDUPE_S = 2.5
+
+CONFIRM = {"home": "Going home!", "back": "Going back!", "next": "Next one!", "previous": "Back one!",
+           "repeat": "Again!", "slower": "Slowing down!", "faster": "Speeding up!", "show_again": "Watch again!",
+           "check": "Checking!", "skip": "Skipping!"}
+
+
+def _confirm(r: dict) -> str:
+    """2-4 words said as the action happens, so the wearer always knows it worked."""
+    i, a, nav = r["intent"], r.get("args") or {}, r.get("nav") or {}
+    if not nav and i not in ("repeat", "slower", "faster", "show_again", "check"):
+        return ""
+    if i in CONFIRM:
+        return CONFIRM[i]
+    if i == "learn":
+        return f"Opening {_lang_name(nav.get('lang')).split()[0]}!"
+    if i == "select" and r.get("session"):
+        return f"Let's write {r['session'].get('meaning') or r['session'].get('text')}!"
+    if i == "compose" and a.get("text"):
+        return f"Let's write {a['text']}!"
+    if i == "write_name" and a.get("name"):
+        return f"Writing {a['name']}!"
+    if i == "open":
+        return {"journal": "Opening your journal!", "daily5": "Opening Daily 5!", "learn": "Pick a language!",
+                "compose": "Let's write a word!", "name": "Let's write your name!",
+                "howto": "Here's how!"}.get(nav.get("screen"), "")
+    return ""
+
+
 async def _do_voice(heard: str, screen: str | None) -> dict:
+    key = (V.norm(heard), V.norm_screen(screen))
+    if key[0] and _LAST_VOICE["key"] == key and time.time() - _LAST_VOICE["ts"] < DEDUPE_S and _LAST_VOICE["out"]:
+        return {**_LAST_VOICE["out"], "duplicate": True, "actions": [], "session": None}  # same clip posted twice
+    out = await _do_voice_once(heard, screen)
+    _LAST_VOICE.update({"key": key, "ts": time.time(), "out": out})
+    return out
+
+
+async def _do_voice_once(heard: str, screen: str | None) -> dict:
     run = agent.Run("voice")
     st, scr, langs, ctx = _voice_ctx(screen)
     p = await VA.plan(heard, scr, st, ctx)
@@ -766,6 +808,9 @@ async def _do_voice(heard: str, screen: str | None) -> dict:
         said = " ".join(x for x in (p.get("chat_say") or "", facts) if x).strip()
         companion.remember(heard, said, [st["tool"] for st in (p.get("tools") or [])])
     say = " ".join(x for x in (said, p.get("say") or "") if x).strip()
+    conf = next((c for c in (_confirm(r) for r in reversed(results)) if c), "")
+    if conf and not say.startswith(conf):
+        say = f"{conf} {say}".strip()
     nav = next((r["nav"] for r in reversed(results) if r["nav"]), None)
     sess = next((r["session"] for r in reversed(results) if r["session"]), None)
     intent = "ask" if (p.get("pending") and not results) else ("chat" if p.get("via") == "chat" and not results

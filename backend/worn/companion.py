@@ -72,7 +72,7 @@ def learn_name(heard: str) -> None:
     m = re.search(r"\b(?:my name is|my name's|i'm called|call me)\s+([a-z][a-z' -]{1,30})", heard.lower())
     if m:
         name = V._clean_name(m.group(1).split(" and ")[0])
-        if name and len(name.split()) <= 3:
+        if name and len(name.split()) <= 3 and name.lower().split()[0] not in ("hey", "hi", "scribi", "um", "uh", "ok"):
             NOTES["name"] = name
 
 

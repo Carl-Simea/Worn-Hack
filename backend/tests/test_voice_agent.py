@@ -9,7 +9,7 @@ from worn import voice_agent as VA
 def test_one_word_commands_skip_the_model(vc, nlu):
     for w, screen in [("next", "lesson"), ("back", "words"), ("home", "learn"), ("check", "lesson"), ("help", "home")]:
         d = say(vc, w, screen)
-        assert d["matcher"] == "fast" and d["intent"] != "unknown"
+        assert d["matcher"] in ("fast", "command") and d["intent"] != "unknown"
     assert nlu.calls == []
 
 
@@ -73,7 +73,7 @@ def test_exit_goes_idle_and_wake_returns(vc, nlu):
     assert d["nav"] == {"screen": "idle"} and "Hey Scribi" in d["say"] and d["actions"][0]["tool"] == "exit_app"
     assert vc.get("/app-state").json()["screen"] == "idle"
     d = say(vc, "what time is it", "idle")  # no wake word: ignored, silent
-    assert d["nav"] is None and d["say"] == "" and nlu.calls[-1] != "what time is it"
+    assert d["nav"] is None and d["say"] == "" and "what time is it" not in nlu.calls
     d = say(vc, "hey scribi", "idle")
     assert d["intent"] == "wake" and d["nav"]["screen"] == "home"
     nlu.replies["hey scribi, learn greek"] = 'start_lesson {"language": "greek"}'
@@ -92,7 +92,7 @@ def test_model_down_falls_back_to_rules(vc, nlu):
     d = say(vc, "go to the main menu", "words")  # no fake reply → timeout → rules
     assert d["matcher"] == "rules" and d["intent"] == "home"
     d = say(vc, "how do I write water in Greek", "home")  # fixed-shape sentence: the rule path, no model
-    assert d["matcher"] == "fast" and d["intent"] == "select" and d["session"]["lang"] == "greek"
+    assert d["matcher"] in ("fast", "command") and d["intent"] == "select" and d["session"]["lang"] == "greek"
 
 
 def test_parse_lines_tolerates_aliases_and_junk():

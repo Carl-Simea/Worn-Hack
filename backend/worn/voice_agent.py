@@ -10,6 +10,7 @@ the rule matcher answers, so voice never breaks.
 from __future__ import annotations
 
 import asyncio
+import difflib
 import json
 import logging
 import re
@@ -349,6 +350,9 @@ async def plan(heard: str, screen: str, state: dict, ctx: dict) -> dict:
             return {"intents": intents, **(ask or {}), "pending": (ask or {}).get("pending"), "via": "pending",
                     "ms": ms()}
 
+    cmd = command(heard, screen, ctx)
+    if cmd is not None:
+        return {"intents": cmd, "via": "command", "ms": ms()}
     fp = fast_path(heard, screen, ctx) or exact_path(heard, screen, ctx)
     if fp:
         return {"intents": [{"intent": fp["intent"], "args": fp["args"]}], "via": "fast", "ms": ms()}
@@ -372,6 +376,8 @@ async def plan(heard: str, screen: str, state: dict, ctx: dict) -> dict:
             kept = gate(intents, heard)
             if intents and not kept:
                 kept, reply = [], ""  # room speech: stay quiet
+            if not kept and not ask and REQUEST_RX.search(t) and len(t.split()) <= 9:
+                raise RuntimeError("request without an action: ask the planner for its best guess")
             return {"intents": kept, **(ask or {}), "pending": (ask or {}).get("pending"), "via": "chat",
                     "tools": steps, "chat_say": reply, "ms": ms()}
         except Exception as e:
@@ -420,3 +426,112 @@ def LIVE_word(state: dict) -> str | None:  # noqa: N802
 
 def remember(heard: str, intents: list[dict], say: str) -> None:
     HISTORY.append((heard[:80], json.dumps([i["intent"] for i in intents]), (say or "")[:60]))
+
+
+# ------------------------------------------------------------------ deterministic command table (always wins)
+
+CMD_FILLER = re.compile(
+    r"^(?:(?:hey|hi|ok|okay|so|um|uh|erm|well|oh|alright|yo|whoa|wait|yeah|hmm|actually|no|ah|scribi|scribe|scribby|please|now|can you|could you|"
+    r"would you|will you|i want to|i wanna|i'd like to|let's|lets|just|go ahead and)\s+)+")
+CMD_TAIL = re.compile(r"\s+(?:please|now|scribi|thanks|thank you|for me)$")
+LANGS_RX = r"(mandarin|chinese|hindi|arabic|russian|hebrew|greek)"
+TABLE: list[tuple[str, re.Pattern]] = [
+    ("exit", re.compile(r"^(?:exit|close(?: the app| worn)?|stop listening|bye|goodbye|bye bye|i'?m done(?: for (?:today|now))?|quit)$")),
+    ("home", re.compile(r"^(?:home|go home|take me home|take me back home|back home|go back home|main menu|menu|start over|"
+                        r"home ?page|take me to the home ?page|go to the home ?page|home screen|go to home|take me to home)$")),
+    ("back", re.compile(r"^(?:back|go back|undo|previous screen|take me back|back please)$")),
+    ("learn", re.compile(rf"^(?:learn|teach me|open|switch to|do|start|study|practi[cs]e|go to)?\s*(?:some |a bit of |something in |something |in )?{LANGS_RX}$")),
+    ("name", re.compile(r"^(?:how do i write my name|write my name|help me write my name|spell my name|show me my name)$")),
+    ("name_is", re.compile(r"^(?:(?:how do i )?write my name|my name is|my name's|i'?m called|call me)[ ,]+(?P<name>[a-z' -]{2,30})$")),
+    ("write_in", re.compile(rf"^(?:how do i|how do you|how would i|how can i)?\s*(?:write|spell|say) (?P<text>[a-z' ]{{1,40}}?) in {LANGS_RX}$")),
+    ("compose", re.compile(r"^(?:help me write|write this word|write a word|help me write something|compose)$")),
+    ("write_word", re.compile(r"^(?:how do i |how do you )?(?:write|spell) (?P<text>(?!my name)[a-z' ]{1,40})$")),
+    ("journal", re.compile(r"^(?:(?:open|show|show me) )?(?:my )?journal$")),
+    ("daily5", re.compile(r"^(?:(?:open|start|show|show me) )?(?:the )?(?:daily (?:five|5)|daily review)$")),
+    ("next", re.compile(r"^(?:next|next one|go next|move on|keep going|continue)$")),
+    ("previous", re.compile(r"^(?:previous|previous one|go back one|last one)$")),
+    ("repeat", re.compile(r"^(?:repeat|repeat that|say (?:it|that) again|again|what did you say)$")),
+    ("slower", re.compile(r"^(?:slower|slow down|too fast|more slowly)$")),
+    ("faster", re.compile(r"^(?:faster|speed up|too slow)$")),
+    ("show_again", re.compile(r"^(?:show me again|show again|replay|watch again)$")),
+    ("check", re.compile(r"^(?:check|check it|check this|check my writing|i'?m finished|done|finished|grade it|how did i do)$")),
+    ("skip", re.compile(r"^(?:skip|skip it|skip this|skip this one)$")),
+    ("meaning", re.compile(r"^(?:what does (?:this|it|that) mean|what is this|what's this|meaning)$")),
+    ("help", re.compile(r"^(?:help|what can i say|commands)$")),
+    ("howto", re.compile(r"^(?:how does this work|how to use|how do i use this|instructions)$")),
+]
+SINGLE = {"exit": "exit_app", "home": "go_home", "back": "go_back", "next": "next", "previous": "previous",
+          "repeat": "repeat", "slower": "slower", "faster": "faster", "show_again": "show_again", "check": "check",
+          "skip": "skip", "meaning": "explain", "help": "help"}
+CANON = ["home", "go home", "take me home", "go back", "back", "exit", "next", "repeat", "slower", "check", "skip",
+         "help", "help me write", "write my name", "how do i write my name", "show me again", "what does this mean",
+         "journal", "daily five", "main menu", "previous"]
+
+
+def cmd_norm(heard: str) -> str:
+    t = V.norm(heard)
+    for _ in range(3):
+        t = CMD_FILLER.sub("", t).strip()
+        t = CMD_TAIL.sub("", t).strip()
+    t = re.sub(r"^(?:take me to|go to|open|show me) (?:the )?(learn|lessons?|languages?)$", "learn_menu", t)
+    return t
+
+
+def command(heard: str, screen: str, ctx: dict) -> list[dict] | None:
+    """→ intents, or None. Deterministic; runs before any model."""
+    t = cmd_norm(heard)
+    if not t or len(t.split()) > 9:
+        return None
+    if screen == "lesson" and t in ("i'm done", "im done", "i am done", "done", "i'm finished"):
+        return [{"intent": "check", "args": {}}]  # in a lesson "I'm done" means grade it, not exit
+    if t == "learn_menu" or t in ("learn", "lessons", "languages"):
+        return [{"intent": "open", "args": {"screen": "learn"}}]
+    for name, rx in TABLE:
+        m = rx.match(t)
+        if not m:
+            continue
+        if name in SINGLE:
+            return to_intents([{"tool": SINGLE[name], "args": {}}], ctx, heard)[0]
+        if name == "learn":
+            return [{"intent": "learn", "args": {"lang": V.find_lang(m.group(1))}}]
+        if name == "name":
+            return [{"intent": "open", "args": {"screen": "name"}}]
+        if name == "name_is":
+            return [{"intent": "write_name", "args": {"name": V._clean_name(m.group("name"))}}]
+        if name == "write_in":
+            return [{"intent": "compose", "args": {"text": m.group("text").strip(), "lang": V.find_lang(m.group(2)),
+                                                    "guided": True}}]
+        if name == "compose":
+            return [{"intent": "open", "args": {"screen": "compose"}}]
+        if name == "write_word":
+            lang = ctx.get("lang")
+            if not lang:
+                return None  # the AI / question path asks which language
+            return [{"intent": "compose", "args": {"text": m.group("text").strip(), "lang": lang, "guided": True}}]
+        if name in ("journal", "daily5", "howto"):
+            return [{"intent": "open", "args": {"screen": name}}]
+    # a near-miss of a short canonical command ("take me hom", "chek it")
+    if len(t.split()) <= 4:
+        hit = difflib.get_close_matches(t, CANON, n=1, cutoff=0.82)
+        if hit:
+            return command(hit[0], screen, ctx)
+    return None
+
+
+_LAST: dict = {"key": None, "ts": 0.0, "plan": None}
+
+
+def dedupe(heard: str, screen: str) -> dict | None:
+    """The glasses sometimes post the same clip twice: same words within 4 s → same answer, not a second action."""
+    key = (V.norm(heard), screen)
+    if _LAST["key"] == key and time.time() - _LAST["ts"] < 4 and _LAST["plan"] is not None:
+        return {**_LAST["plan"], "intents": [], "via": "duplicate", "ms": 0}
+    return None
+
+
+def remember_plan(heard: str, screen: str, p: dict) -> None:
+    _LAST.update({"key": (V.norm(heard), screen), "ts": time.time(), "plan": p})
+
+
+REQUEST_RX = re.compile(r"\b(take me|go to|open|show me|start|teach|learn|write|spell|help me|switch|let'?s do|"
+                        r"can you|i want|play|stop|close|exit|next|back|repeat|check|skip)\b")
