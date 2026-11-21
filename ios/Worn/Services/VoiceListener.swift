@@ -65,7 +65,7 @@ final class VoiceListener {
         req.shouldReportPartialResults = true
         if recognizer.supportsOnDeviceRecognition { req.requiresOnDeviceRecognition = true }
         req.taskHint = .confirmation
-        req.contextualStrings = ["next", "again", "slower", "check", "switch to", "help me write",
+        req.contextualStrings = ["next", "back", "again", "slower", "check", "switch to", "help me write",
                                  "Mandarin", "Hindi", "Arabic", "Russian", "Hebrew", "Greek"]
         request = req
 

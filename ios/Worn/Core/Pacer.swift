@@ -22,6 +22,8 @@ struct Pacer: Equatable, Sendable {
     var speed: Double = 1
     /// Seconds to wait after the last stroke before taking the final photo (lets the pen lift).
     var settle: TimeInterval = 1.2
+    /// false = step by step: no timeout advance, only the learner moves on (button / voice).
+    var autoAdvance = true
 
     private(set) var shown = 1
     private(set) var lastProgress: Date
@@ -77,10 +79,19 @@ struct Pacer: Equatable, Sendable {
             finalizing = true
             return [.finalize(trigger: .ink)]
         }
-        if now.timeIntervalSince(lastProgress) >= timeout {
+        if autoAdvance, now.timeIntervalSince(lastProgress) >= timeout {
             return advance(.timeout, now: now)
         }
         return []
+    }
+
+    /// One stroke back (step-by-step mode).
+    mutating func back(now: Date = Date()) -> [Action] {
+        guard !finalizing, shown > 1 else { return [] }
+        shown -= 1
+        lastStrokeWrittenAt = nil
+        lastProgress = now
+        return [.showStroke(index: shown, of: strokeCount, trigger: .manual)]
     }
 
     /// "again": show the first stroke again.

@@ -25,6 +25,7 @@ struct PracticeView: View {
         }
         .onDisappear { engine?.stop() }
         .onChange(of: app.closePracticeRequest) { _, _ in close() }
+        .sheet(item: Binding(get: { app.feedbackDraft }, set: { if $0 == nil { app.feedbackDraft = nil } })) { FeedbackSheet(draft: $0) }
     }
 
     private func close() {
@@ -115,7 +116,7 @@ private struct TopBar: View {
                 QueueDots(total: engine.queue.count, index: engine.index, outcomes: engine.outcomes)
             }
             Spacer()
-            MicBadge()
+            FeedbackButton(size: 40)
             SourceBadge(source: engine.source)
         }
         .padding(.horizontal, 16)
@@ -183,8 +184,8 @@ private struct CharacterCard: View {
         VStack(spacing: 12) {
             StrokeCanvas(lang: item.lang, char: item.char, strokes: engine.strokes,
                          shown: resultShowsAll ? 0 : engine.shownStroke, epoch: engine.strokeEpoch,
-                         speed: engine.speed, hidden: !engine.revealed)
-                .frame(maxWidth: 236)
+                         speed: engine.speed, hidden: !engine.revealed, numbers: engine.manual && engine.revealed)
+                .frame(maxWidth: engine.manual ? 300 : 236)
                 .padding(.horizontal, 20)
                 .id(item.id)
                 .transition(.asymmetric(insertion: .scale(scale: 0.9).combined(with: .opacity), removal: .opacity))
@@ -401,6 +402,36 @@ private struct PacingStrip: View {
     let engine: PracticeEngine
 
     var body: some View {
+        if engine.manual { stepBody } else { autoBody }
+    }
+
+    /// Step by step: you decide when the next stroke appears.
+    private var stepBody: some View {
+        let n = max(1, engine.strokes?.count ?? 1)
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("Stroke \(engine.shownStroke)").font(Theme.display(30, weight: .medium)).contentTransition(.numericText())
+                Text("of \(n)").font(Theme.display(20)).foregroundStyle(Theme.inkSoft)
+                Spacer()
+            }
+            if n > 1 {
+                HStack(spacing: 5) {
+                    ForEach(1...n, id: \.self) { i in
+                        Capsule().fill(i < engine.shownStroke ? Theme.ink : (i == engine.shownStroke ? Theme.accent : Theme.hairline))
+                            .frame(height: 8)
+                    }
+                }
+            }
+            Text(engine.pacer.isOnLastStroke ? "Write it on paper, then tap Check." : "Tap Next, or say “next”.")
+                .font(Theme.sans(16)).foregroundStyle(Theme.inkSoft)
+            Button { engine.setStepByStep(false) } label: { Label("Follow my pen instead", systemImage: "pencil.tip") }
+                .font(Theme.sans(15, weight: .semibold))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: engine.shownStroke)
+    }
+
+    private var autoBody: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 if engine.mode == .dictation {
@@ -425,6 +456,10 @@ private struct PacingStrip: View {
                 Spacer(minLength: 0)
             }
             Text(hint).font(Theme.sans(13)).foregroundStyle(Theme.inkSoft)
+            if engine.mode != .dictation {
+                Button { engine.setStepByStep(true) } label: { Label("Step by step", systemImage: "list.number") }
+                    .font(Theme.sans(15, weight: .semibold))
+            }
             if engine.source == .glasses {
                 Button { engine.switchToPhoneCamera() } label: {
                     Label("Use phone camera", systemImage: "iphone.rear.camera")
@@ -502,12 +537,21 @@ private struct Controls: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Button { engine.again() } label: { Label("Again", systemImage: "arrow.counterclockwise") }
-                .buttonStyle(QuietButtonStyle())
-            Button { engine.slower() } label: { Label("Slower", systemImage: "tortoise") }
-                .buttonStyle(QuietButtonStyle())
-                .disabled(engine.phase != .writing)
-            Spacer()
+            if engine.manual && engine.phase == .writing {
+                Button { engine.back() } label: { Label("Back", systemImage: "chevron.left").labelStyle(.iconOnly) }
+                    .buttonStyle(QuietButtonStyle())
+                    .disabled(engine.shownStroke <= 1)
+                Button { engine.replay() } label: { Label("Replay", systemImage: "arrow.counterclockwise").labelStyle(.iconOnly) }
+                    .buttonStyle(QuietButtonStyle())
+            } else {
+                Button { engine.again() } label: { Label("Again", systemImage: "arrow.counterclockwise").labelStyle(.iconOnly) }
+                    .buttonStyle(QuietButtonStyle())
+                Button { engine.slower() } label: { Label("Slower", systemImage: "tortoise").labelStyle(.iconOnly) }
+                    .buttonStyle(QuietButtonStyle())
+                    .disabled(engine.phase != .writing)
+            }
+            Spacer(minLength: 0)
+            VoiceButton(size: 54)
             switch engine.phase {
             case .writing:
                 Button(engine.mode == .dictation || engine.pacer.isOnLastStroke ? "Check" : "Next stroke") {

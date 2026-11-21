@@ -17,6 +17,8 @@ struct StrokeCanvas: View {
     var showGrid = true
     /// Dictation: hide the character until it's revealed.
     var hidden = false
+    /// Numbered badges at each stroke's start (stroke order at a glance).
+    var numbers = false
 
     @State private var progress: CGFloat = 1
 
@@ -80,7 +82,15 @@ struct StrokeCanvas: View {
                     .frame(width: rect.width, height: rect.height)
                     .position(x: rect.midX, y: rect.midY)
             }
-            if n == shown && shown > 0, let start = s.centerline.first.flatMap(Self.point) {
+            if numbers && shown > 0 && n <= shown, let start = s.centerline.first.flatMap(Self.point) {
+                let d = max(22, rect.width * 0.1)
+                Text("\(n)")
+                    .font(.system(size: d * 0.6, weight: .bold, design: .rounded)).foregroundStyle(.white)
+                    .frame(width: d, height: d)
+                    .background(n == shown ? Theme.accent : Theme.ink.opacity(0.6), in: Circle())
+                    .position(x: rect.minX + start.x * rect.width, y: rect.minY + start.y * rect.height)
+                    .opacity(n == shown && progress < 0.05 ? 0 : 1)
+            } else if n == shown && shown > 0, let start = s.centerline.first.flatMap(Self.point) {
                 // Where the pen starts.
                 Circle().fill(current).frame(width: lineWidth * 1.1, height: lineWidth * 1.1)
                     .position(x: rect.minX + start.x * rect.width, y: rect.minY + start.y * rect.height)

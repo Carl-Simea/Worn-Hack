@@ -49,6 +49,8 @@ final class AppModel {
 
     /// The practice run on screen, if any (voice commands go to it).
     var practice: PracticeEngine?
+    /// The feedback window, while open (screenshot + context are saved when it opens).
+    var feedbackDraft: FeedbackDraft?
     /// Navigation from voice ("switch to …", "help me write …").
     var route: [Route] = []
     var pendingCompose: (text: String, lang: String?)?
@@ -329,7 +331,7 @@ final class AppModel {
     private func handle(_ cmd: VoiceCommand) {
         report("voice", ["command": .string("\(cmd)"), "heard": .string(voice.lastHeard)])
         switch cmd {
-        case .next, .again, .slower, .check:
+        case .next, .back, .again, .slower, .check:
             practice?.voice(cmd)
         case .switchTo(let lang):
             guard lesson(lang) != nil else { return }

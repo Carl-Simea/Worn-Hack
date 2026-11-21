@@ -1,7 +1,7 @@
 import Foundation
 
 enum VoiceCommand: Equatable, Sendable {
-    case next, again, slower, check
+    case next, back, again, slower, check
     case switchTo(lang: String)
     case helpMeWrite(message: String, lang: String?)
 }
@@ -51,6 +51,7 @@ enum VoiceCommandParser {
         }
         let last = t.split(separator: " ").suffix(3).joined(separator: " ")
         if last.range(of: #"\b(next|next one|go on|continue|done)$"#, options: .regularExpression) != nil { return .next }
+        if last.range(of: #"\b(back|go back|previous|previous one)$"#, options: .regularExpression) != nil { return .back }
         if last.range(of: #"\b(again|repeat|one more time|start over)$"#, options: .regularExpression) != nil { return .again }
         if last.range(of: #"\b(slower|slow down|too fast)$"#, options: .regularExpression) != nil { return .slower }
         if last.range(of: #"\b(check|check it|grade|grade it|how did i do|finished)$"#, options: .regularExpression) != nil { return .check }

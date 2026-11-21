@@ -60,6 +60,10 @@ final class PracticeEngine {
     private(set) var lastPhoto: CGImage?
     /// "Use phone camera": set by the button, or automatically after the glasses camera fails twice in a row.
     private(set) var usePhoneCamera = false
+    /// Step by step (default): the learner moves through the strokes with Next / Back / Replay or voice.
+    /// Nothing advances on its own: no timer, no camera guess. Off = the old auto-pacing (pen, voice or timer).
+    private(set) var stepByStep = true
+    var manual: Bool { stepByStep && mode != .dictation }
     private var glassesFailures = 0
     /// Where this practice takes its photos.
     var source: PhotoSource { usePhoneCamera ? .phone : app.photoSource }
@@ -176,6 +180,7 @@ final class PracticeEngine {
         let count = mode == .dictation ? 1 : max(1, strokes?.count ?? 1)
         pacer = Pacer(strokeCount: count, now: Date(), speed: speed)
         // Whole-letter tracing (no stroke data) and dictation: wait longer for the pen to settle.
+        pacer.autoAdvance = !manual
         pacer.settle = (mode == .dictation || !hasStrokeOrder) ? 2.6 : 1.3
         if mode == .dictation { pacer.baseTimeout = 25 } else if !hasStrokeOrder { pacer.baseTimeout = 9 }
         shownStroke = 1
@@ -259,7 +264,7 @@ final class PracticeEngine {
 
     /// Simulator / no camera: a pretend writer adds the shown stroke ~1.4 s after it appears.
     private func simulatePen() {
-        guard source == .phone, app.camera.usesSimulatedPage else { return }
+        guard source == .phone, app.camera.usesSimulatedPage, !manual else { return }
         let page = app.camera.simulated
         let target = mode == .dictation ? (strokes?.count ?? 3) : shownStroke
         let delay = mode == .dictation ? 0.9 : 1.4 * pacer.speed
@@ -272,6 +277,7 @@ final class PracticeEngine {
     private func inkArrived(_ frame: CGImage) {
         lastInkAt = Date()
         if mode == .dictation { dictationInkAt = Date(); return }
+        if manual { return }   // step by step: the page never moves the stroke on by itself
         apply(pacer.strokeWritten(.ink))
         if app.useStrokeMatch, let jpeg = PhoneCamera.jpeg(frame, quality: 0.6), let item = current, let api = app.api {
             let strokeIndex = max(0, shownStroke - 2)   // the stroke that was just written (0-based)
@@ -323,6 +329,7 @@ final class PracticeEngine {
     func voice(_ cmd: VoiceCommand) {
         switch cmd {
         case .next: next()
+        case .back: back()
         case .again: again()
         case .slower: slower()
         case .check: check()
@@ -341,8 +348,29 @@ final class PracticeEngine {
         }
     }
 
+    /// Step by step: one stroke back.
+    func back() {
+        guard phase == .writing, mode != .dictation else { return }
+        apply(pacer.back())
+    }
+
+    /// Step by step: play the stroke on screen once more.
+    func replay() {
+        guard phase == .writing else { return }
+        strokeEpoch += 1
+        app.report("replay", ["stroke": .int(shownStroke)])
+    }
+
+    func setStepByStep(_ on: Bool) {
+        guard on != stepByStep else { return }
+        stepByStep = on
+        pacer.autoAdvance = !manual
+        app.report("step_mode", ["on": .bool(on)])
+    }
+
     func again() {
         guard current != nil else { return }
+        if manual, phase == .writing { replay(); return }
         app.report("again", ["char": .string(current?.char ?? "")])
         if case .writing = phase {
             apply(pacer.again())

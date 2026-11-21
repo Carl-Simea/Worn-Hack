@@ -8,7 +8,27 @@ struct HomeView: View {
         app.lessons.sorted { (ScriptInfo.order.firstIndex(of: $0.lang) ?? 99) < (ScriptInfo.order.firstIndex(of: $1.lang) ?? 99) }
     }
 
+    private var header: some View {
+        HStack(spacing: 10) {
+            ScribiMark().fill(Theme.ink)
+                .frame(width: 46, height: 17)
+                .accessibilityLabel("Scribi")
+            Spacer()
+            NavigationLink(value: Route.connect) { StatusPill() }
+            Button { showSettings = true } label: {
+                Image(systemName: "slider.horizontal.3").font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(Theme.ink).frame(width: 44, height: 44)
+            }
+            .accessibilityLabel("Settings")
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 6)
+        .frame(height: 52)
+    }
+
     var body: some View {
+        VStack(spacing: 0) {
+        header
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 if !app.hasServer || (app.lessons.isEmpty && app.link != .unknown) {
@@ -41,28 +61,11 @@ struct HomeView: View {
             }
             .padding(.horizontal, 18)
             .padding(.top, 8)
-            .padding(.bottom, 40)
+            .padding(.bottom, 24)
+        }
         }
         .background(Theme.paper.ignoresSafeArea())
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                ScribiMark().fill(Theme.ink)
-                    .frame(width: 24, height: 9)
-                    .offset(y: 1)  // the mark's weight sits in its top bar; nudge so it reads optically centred
-                    .frame(width: 40, height: 40)
-                    .background(Theme.card, in: Circle())
-                    .overlay(Circle().strokeBorder(Theme.hairline))
-                    .accessibilityLabel("Scribi")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(value: Route.connect) { StatusPill() }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { showSettings = true } label: { Image(systemName: "slider.horizontal.3") }
-                    .accessibilityLabel("Settings")
-            }
-        }
-        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showSettings) { SettingsView() }
     }
 
