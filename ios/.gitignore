@@ -1,0 +1,5 @@
+# Generated glasses build (copy of the confidential MLDemo project + SDK). Never commit.
+build-glasses/
+DerivedData/
+*.xcuserstate
+xcuserdata/
