@@ -361,6 +361,20 @@ HINTS = {"home": "Say “learn Mandarin”, “daily five” or “what can I sa
 
 
 def mock_intent(text, screen):
+    """Use agent C's reference matcher (content/tools/voice_match.py) when it's there, so the mock answers like A's /voice."""
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(CONTENT / "tools"))
+        import voice_match  # noqa: E402
+        v = voice_match.match(text, screen if screen in ("home", "learn", "words", "lesson", "name", "compose", "daily5", "journal", "howto") else "home")
+        if v.get("intent") or not text:
+            return {"heard": text, "intent": v.get("intent") or "none", "args": v.get("args") or {}, "say": v.get("say"), "nav": v.get("nav")}
+    except Exception as e:  # fall back to the built-in matcher below
+        print("voice_match unavailable:", e)
+    return _mock_intent(text, screen)
+
+
+def _mock_intent(text, screen):
     import re
     t = re.sub(r"[^\w\s',]", "", text.lower()).strip()
     lang = next((v for k, v in LANG_WORDS.items() if re.search(rf"\b{k}\b", t)), None)
@@ -399,7 +413,10 @@ def mock_intent(text, screen):
 
 def nav_state(nav, st):
     scr, _, arg = str(nav).partition(":")
-    crumbs = {"home": ["Home"], "learn": ["Home", "Learn"], "journal": ["Home", "Journal"], "daily": ["Home", "Daily 5"],
+    lv = (st.app.get("last_voice") or {}).get("args") or {}
+    arg = arg or lv.get("language") or lv.get("lang") or ""
+    scr = {"daily": "daily5"}.get(scr, scr)
+    crumbs = {"daily5": ["Home", "Daily 5"], "home": ["Home"], "learn": ["Home", "Learn"], "journal": ["Home", "Journal"], "daily": ["Home", "Daily 5"],
               "name": ["Home", "Write my name"], "compose": ["Home", "Help me write"], "howto": ["Home", "How to use"]}
     bc = crumbs.get(scr)
     if scr == "words":
@@ -407,7 +424,7 @@ def nav_state(nav, st):
     if scr == "lesson":
         s = st.session or {}
         bc = ["Home", "Learn", TITLE.get(s.get("lang"), "Lesson"), (s.get("item") or {}).get("text") or s.get("char", "")]
-    return {"screen": scr, "breadcrumb": bc or ["Home"], "hint": HINTS.get(scr, "Say “what can I say”")}
+    return {"screen": scr, "breadcrumb": [c for c in (bc or ["Home"]) if c], "hint": HINTS.get(scr, "Say “what can I say”")}
 
 
 def mock_compose(text, lang):

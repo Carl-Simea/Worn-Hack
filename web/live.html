@@ -678,11 +678,12 @@
       if (id !== lastVoiceId) {
         lastVoiceId = id;
         var intent = v.intent && v.intent !== "unknown" && v.intent !== "none" ? (VOICE_ICON[v.intent] || String(v.intent).replace(/_/g, " ")) : "";
-        var arg = v.args && (v.args.lang || v.args.target || v.args.name || v.args.word);
+        var A = v.args || {}, arg = A.language || A.lang || A.screen || A.target || A.name || A.text || A.word;
+        if (arg && (A.language || A.lang) && (A.text || A.word)) arg = (A.text || A.word) + " · " + (A.language || A.lang);
         var el = $("said");
         el.innerHTML = (v.heard ? '<span class="q">“' + esc(iso(v.heard)) + '”</span>' : "") +
           (intent ? '<span class="intent">' + esc(intent + (arg ? " · " + arg : "")) + "</span>" : "") +
-          (v.say ? '<span class="reply">' + esc(v.say) + "</span>" : "") +
+          (v.say && !/\{\w+\}/.test(v.say) ? '<span class="reply">' + esc(v.say) + "</span>" : "") +
           (typeof v.ms === "number" ? '<span class="ms">' + Math.round(v.ms) + " ms</span>" : "");
         el.classList.remove("fresh"); void el.offsetWidth; el.classList.add("fresh");
       }

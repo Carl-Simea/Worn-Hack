@@ -500,7 +500,7 @@
   window.addEventListener("scroll", function () { $("top").classList.toggle("scrolled", scrollY > 6); }, { passive: true });
 
   // ---------------------------------------------------------------- voice (POST /voice; the backend turns speech into an intent)
-  var curView = "home", SCREEN = { home: "home", lang: "words", practice: "lesson", compose: "compose", name: "name", daily: "daily", help: "howto" };
+  var curView = "home", SCREEN = { home: "home", lang: "words", practice: "lesson", compose: "compose", name: "name", daily: "daily5", help: "howto" };
   var NAVS = { home: "#/", learn: "#/", words: null, lesson: "#/practice", practice: "#/practice", compose: "#/compose", help_me_write: "#/compose",
                name: "#/name", write_my_name: "#/name", daily: "#/daily", daily5: "#/daily", daily_five: "#/daily", help: "#/help", howto: "#/help",
                how_to_use: "#/help", journal: "/app/journal" };
@@ -531,8 +531,18 @@
     if (NAVS[p[0]]) { go(NAVS[p[0]]); return true; }
     return false;
   }
+  function fillSay(t) {
+    if (!t || t.indexOf("{") < 0) return t;
+    var s = (live && live.session) || {}, item = s.item || {}, L = LANGS[s.lang] || {};
+    var vals = { text: item.text || s.char, word: item.text || item.meaning, char: s.char, romanization: s.char_romanization || item.romanization,
+                 meaning: item.meaning || s.meaning, language: L.name || s.lang, n: (s.stroke_index || 0) + 1, m: s.stroke_count };
+    t = t.replace(/\{(\w+)\}/g, function (all, k) { return vals[k] !== undefined && vals[k] !== null && vals[k] !== "" ? vals[k] : all; });
+    return /\{\w+\}/.test(t) ? "" : t; // never say a raw template
+  }
   function act(v) {
-    var it = v.intent || "", a = v.args || {}, s = live && live.session;
+    v.say = fillSay(v.say);
+    var it = v.intent || "", a = Object.assign({}, v.args || {}), s = live && live.session;
+    a.lang = a.lang || a.language; a.target = a.target || a.screen; a.word = a.word || a.text; // C's matcher names them language/screen/text
     var onP = curView === "practice";
     WornVoice.say(v.say);
     bubble(v.heard ? "“" + v.heard + "”" : "", v.say || "", it && it !== "unknown" && it !== "none" ? it.replace(/_/g, " ") : "");
@@ -548,6 +558,13 @@
         if (curView === "lang" && curLang) { var first = items(curLang)[0]; if (first) return start({ lang: curLang, item_id: first.id, char_index: 0, mode: mode }); }
         break;
       case "previous": if (onP && !$("prev").disabled) return $("prev").click(); break;
+      case "word": {
+        var wl = langOf(a.lang) || curLang || (s && s.lang), w = String(a.word || "").toLowerCase();
+        var hit = wl && items(wl).filter(function (x) { return x.id === w || String(x.meaning || "").toLowerCase() === w || String(x.romanization || "").toLowerCase() === w; })[0];
+        if (hit) return start({ lang: wl, item_id: hit.id, char_index: 0, mode: mode });
+        break;
+      }
+      case "retry": case "try_again": case "faster":
       case "repeat": case "show_again": case "show_me_again": case "slower":
         if (onP) { $("replay").click(); hear(); if (it === "slower") toast("Slower: watch one stroke at a time"); return; } break;
       case "check": case "done":
@@ -617,6 +634,7 @@
     var b = e.target.closest && e.target.closest(".cmd");
     if (b) sendVoice({ text: b.getAttribute("data-say") });
   });
+  window.wornSay = function (t) { return sendVoice({ text: t }); }; // console / test hook: same path as speaking
   $("vSend").onclick = function () { var t = $("vType").value.trim(); if (t) { $("vType").value = ""; sendVoice({ text: t }); } };
   $("vType").addEventListener("keydown", function (e) { if (e.key === "Enter") $("vSend").click(); });
 
