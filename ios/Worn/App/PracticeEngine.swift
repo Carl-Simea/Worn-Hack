@@ -66,6 +66,11 @@ final class PracticeEngine {
     /// The app watches the page and moves on by itself, but only once the stroke is finished (pen lifted).
     private(set) var followPen = true
     private(set) var tracker = StrokeTracker()
+    /// Phone with a real camera: the phone lies next to the paper while you write; on Check you lift it over the page.
+    var holdMode: Bool { source == .phone && !app.camera.usesSimulatedPage }
+    /// Seconds left to aim the phone at the page (nil = not aiming).
+    private(set) var aimCountdown: Int?
+    private var aimTask: Task<Void, Never>?
     var trackState: StrokeTracker.State { tracker.state }
     var manual: Bool { stepByStep && mode != .dictation }
     private var glassesFailures = 0
@@ -133,7 +138,7 @@ final class PracticeEngine {
 
     func stop() {
         running = false
-        loopTask?.cancel(); tickTask?.cancel(); advanceTask?.cancel()
+        loopTask?.cancel(); tickTask?.cancel(); advanceTask?.cancel(); aimTask?.cancel()
         if app.practice === self { app.practice = nil }
         app.camera.stop()
         app.report("practice.stop", ["done": .int(outcomes.count)])
@@ -227,6 +232,12 @@ final class PracticeEngine {
         dictationInkAt = nil
         dictationStartedAt = Date()
         phase = .writing
+        aimTask?.cancel(); aimCountdown = nil
+        if holdMode {
+            // The phone lies next to the paper: the camera stays off until the learner taps Check.
+            followPen = false
+            return
+        }
         if source == .phone {
             Task { await app.camera.start() }
             app.camera.simulated.reset(strokes: strokes, glyph: current?.char ?? "")
@@ -316,6 +327,7 @@ final class PracticeEngine {
     private func tick() {
         now = Date()
         guard phase == .writing else { return }
+        if holdMode { return }   // phone: nothing to watch until Check
         if mode == .dictation {
             if let at = dictationInkAt, now.timeIntervalSince(at) > 3.2 { finalize(.ink) }
             else if now.timeIntervalSince(dictationStartedAt) > pacer.timeout { finalize(.timeout) }
@@ -328,7 +340,7 @@ final class PracticeEngine {
         for a in actions {
             switch a {
             case .showStroke(let i, _, let trigger): showStroke(i, trigger: trigger)
-            case .finalize(let trigger): finalize(trigger)
+            case .finalize(let trigger): if holdMode { startAim() } else { finalize(trigger) }
             }
         }
     }
@@ -365,7 +377,7 @@ final class PracticeEngine {
     func next() {
         switch phase {
         case .writing:
-            if mode == .dictation { finalize(.voice) } else { apply(pacer.advance(.voice)) }
+            if mode == .dictation { check() } else { apply(pacer.advance(.voice)) }
         case .result, .failed:
             Task { await begin(index: index + 1) }
         default: break
@@ -425,6 +437,43 @@ final class PracticeEngine {
 
     func check() {
         guard phase == .writing else { return }
+        if aimCountdown != nil { captureNow(); return }
+        if holdMode { startAim() } else { finalize(.voice) }
+    }
+
+    /// Phone: three seconds to lift the phone over the page, then the photo is taken and checked.
+    func startAim() {
+        guard phase == .writing, aimCountdown == nil else { return }
+        aimCountdown = 3
+        app.report("aim.start", [:])
+        Task { await app.camera.start() }
+        aimTask = Task { [weak self] in
+            for left in [2, 1, 0] {
+                try? await Task.sleep(for: .seconds(1))
+                guard let self, !Task.isCancelled, self.aimCountdown != nil else { return }
+                self.aimCountdown = left
+                if left > 0 { Sounds.shared.effect(.tick) }
+            }
+            self?.finishAim()
+        }
+    }
+
+    func captureNow() {
+        guard aimCountdown != nil else { return }
+        aimTask?.cancel()
+        finishAim()
+    }
+
+    func cancelAim() {
+        aimTask?.cancel()
+        aimCountdown = nil
+        pacer.cancelFinalize()
+        app.camera.stop()
+        app.report("aim.cancel", [:])
+    }
+
+    private func finishAim() {
+        aimCountdown = nil
         finalize(.voice)
     }
 
@@ -485,6 +534,7 @@ final class PracticeEngine {
             jpeg = Self.cropped(f, box: writingBox(for: f), grow: 0.15)
         }
         if jpeg == nil { jpeg = app.camera.jpeg() ?? lastPhoto.flatMap { PhoneCamera.jpeg($0) } }
+        if holdMode { app.camera.stop() }
         guard let jpeg, let api = app.api else {
             phase = .failed("No photo to check. Is the camera pointed at the page?")
             return

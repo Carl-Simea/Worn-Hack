@@ -55,6 +55,8 @@ struct AppBar: View {
         switch app.voice.state {
         case .listening: return app.voice.lastHeard.isEmpty ? "Say “next”" : "“\(app.voice.lastHeard.split(separator: " ").suffix(3).joined(separator: " "))”"
         case .unauthorized: return "Allow microphone in Settings"
+        case .unavailable: return "Voice isn't available"
+        case .off: return "Voice off"
         default: return nil
         }
     }

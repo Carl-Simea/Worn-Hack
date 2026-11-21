@@ -51,8 +51,9 @@ private struct PracticeContent: View {
                         StatusPanel(engine: engine, item: item)
                         HStack(alignment: .top, spacing: 12) {
                             if engine.source == .glasses { GlassesMirror(engine: engine, item: item) }
-                            if engine.source == .phone { CameraCard(engine: engine) }
+                            if engine.source == .phone && (!engine.holdMode || engine.aimCountdown != nil) { CameraCard(engine: engine) }
                         }
+                        if engine.aimCountdown != nil { AimBar(engine: engine) }
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
@@ -322,6 +323,28 @@ private struct GlassesMirror: View {
     }
 }
 
+/// Phone: the countdown while you lift the phone over the page.
+private struct AimBar: View {
+    let engine: PracticeEngine
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 14) {
+                Text("\(engine.aimCountdown ?? 0)").font(Theme.display(44, weight: .medium)).foregroundStyle(Theme.accent)
+                    .contentTransition(.numericText())
+                Text("Hold the phone over your page").font(Theme.sans(17, weight: .semibold)).foregroundStyle(Theme.ink)
+                Spacer(minLength: 0)
+            }
+            HStack(spacing: 10) {
+                Button("Cancel") { engine.cancelAim() }.buttonStyle(QuietButtonStyle())
+                Button("Take photo now") { engine.captureNow() }.buttonStyle(PrimaryButtonStyle())
+            }
+        }
+        .card()
+        .animation(.default, value: engine.aimCountdown)
+    }
+}
+
 private struct CameraCard: View {
     @Environment(AppModel.self) private var app
     let engine: PracticeEngine
@@ -449,19 +472,22 @@ private struct PacingStrip: View {
                     }
                 }
             }
-            Label(trackingLine, systemImage: engine.followPen ? (engine.trackState == .writing ? "pencil.line" : "eye") : "hand.tap")
+            Label(trackingLine, systemImage: engine.holdMode ? "iphone.and.arrow.forward" : engine.followPen ? (engine.trackState == .writing ? "pencil.line" : "eye") : "hand.tap")
                 .font(Theme.sans(16, weight: .medium)).foregroundStyle(engine.trackState == .writing && engine.followPen ? Theme.accent : Theme.inkSoft)
                 .contentTransition(.symbolEffect(.replace))
-            Button { engine.setFollowPen(!engine.followPen) } label: {
-                Label(engine.followPen ? "Pen tracking on" : "Pen tracking off", systemImage: engine.followPen ? "checkmark.circle.fill" : "circle")
+            if !engine.holdMode {
+                Button { engine.setFollowPen(!engine.followPen) } label: {
+                    Label(engine.followPen ? "Pen tracking on" : "Pen tracking off", systemImage: engine.followPen ? "checkmark.circle.fill" : "circle")
+                }
+                .font(Theme.sans(15, weight: .semibold))
             }
-            .font(Theme.sans(15, weight: .semibold))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: engine.shownStroke)
     }
 
     private var trackingLine: String {
+        if engine.holdMode { return "Write on paper next to your phone. When you're done, tap Check and lift the phone over the page." }
         guard engine.followPen else { return "Use the arrows or say “next”." }
         if engine.trackState == .writing { return "Writing… I move on when you lift the pen." }
         return engine.pacer.isOnLastStroke ? "Write the last stroke, then tap Check." : "Watching your page. Arrows or “next” also work."

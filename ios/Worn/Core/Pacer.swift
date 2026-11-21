@@ -85,6 +85,11 @@ struct Pacer: Equatable, Sendable {
         return []
     }
 
+    /// The learner backed out of the final check (phone: cancelled the lift-the-phone step).
+    mutating func cancelFinalize(now: Date = Date()) {
+        finalizing = false; lastStrokeWrittenAt = nil; lastProgress = now
+    }
+
     /// One stroke back (step-by-step mode).
     mutating func back(now: Date = Date()) -> [Action] {
         guard !finalizing, shown > 1 else { return [] }
