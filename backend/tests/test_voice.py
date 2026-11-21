@@ -239,3 +239,10 @@ def test_assistant_is_scribi_app_is_worn(vc):
     assert say(vc, "go home", "learn")["say"].startswith("Hi, I'm Scribi.")
     assert "Just talk to Scribi" in say(vc, "how to use", "home")["say"]
     assert say(vc, "hey scribi, open journal", "home")["nav"] == {"screen": "journal"}
+
+
+def test_back_works_with_display_name_breadcrumbs(vc):
+    vc.post("/app-state", json={"screen": "words", "lang": "mandarin", "breadcrumb": ["Home", "Learn", "Mandarin"]})
+    assert say(vc, "back", "words")["nav"] == {"screen": "learn"}
+    vc.post("/app-state", json={"screen": "lesson", "breadcrumb": ["Home", "Daily 5", "你"]})
+    assert say(vc, "back", "lesson")["nav"]["screen"] in ("words", "daily5")

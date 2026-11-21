@@ -526,6 +526,8 @@ async def _do_voice(heard: str, screen: str | None) -> dict:
         nav, say = {"screen": "home"}, f"Hi, I'm {V.ASSISTANT}. " + V.HINTS["home"]
     elif intent == "back":
         bc = list(st.get("breadcrumb") or ["home"])
+        if not bc or any(b not in V.SCREENS for b in bc) or bc[-1] != screen:  # display names from the glasses
+            bc = V.breadcrumb(screen, None, [b for b in bc if b in V.SCREENS])
         prev = bc[-2] if len(bc) >= 2 else "home"
         nav = {"screen": prev, **({"lang": ctx_lang} if prev in ("words", "lesson") and ctx_lang else {})}
         say = {"words": f"{_lang_name(ctx_lang)} words. " + V.HINTS["words"], "learn": V.HINTS["learn"]}.get(
