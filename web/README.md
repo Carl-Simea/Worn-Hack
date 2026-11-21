@@ -22,6 +22,13 @@ loop, follow-the-glasses sync, static partial and word-gap helpers), `worn-confe
 Fonts: Inter and Newsreader are self-hosted in `web/fonts/` (`fonts.css`), so the brand survives a venue network
 without internet. The Noto script faces come from Google Fonts and fall back to the system's fonts offline.
 
+**Live grading on `/live`:** the Scribi card mirrors the glasses' automatic grading:
+- an accuracy ring that fills stroke by stroke from the tier-2 scores (red under 50, amber to 75, green above), with "+N%" chips per stroke;
+- the "Finding your writing → Comparing strokes → Scribi is reviewing…" checklist, ticked by the grader's real agent steps (with each step's ms);
+- on the result, the ring sweeps to the score while it counts up, and the sub-score bars animate in. The bars use `subscores` when the grade has them; otherwise only real numbers: vision, template, stroke average.
+**Live camera:** the middle panel draws `/ws/camera?role=view` on a canvas, newest frame only, with an fps and latency badge. It falls back to `/camera.mjpg`, then to the latest still. It only connects when `/openapi.json` lists a camera route, so an older backend logs no errors. The graded still is pinned in the corner, cropped to the ink (`crop_url` if the grader sends one), with the model glyph overlaid. Tap it to enlarge; `o` or the button toggles the overlay. `?cam=URL` uses another camera server, `?cam=0` turns it off, `?camws=0` forces MJPEG.
+Test without hardware: `uv run --with pillow python web/dev/cam_sim.py --port 8097`, then `/live?cam=http://127.0.0.1:8097`. `mock_server.py --subscores` adds sub-scores to grades.
+
 **Voice-first (`/voice`, `/app-state`):** `/live` has a voice bar under the header. It shows where the wearer is
 (breadcrumb), what they said, the command Worn understood, its reply (with latency) and the "Say …" hint, read from
 `GET /app-state` every 500 ms. It stays hidden on a backend without that endpoint. `/app` has a mic button on every screen

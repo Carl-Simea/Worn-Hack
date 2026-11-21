@@ -6,6 +6,10 @@
   and rainbow confetti on a pass or a confetti event. Below that: the agent's steps (tool, model, ms), a timeline that reads
   every iOS event, latency chips INK/STROKE/VISION/TUTOR, a listening pill with the last thing heard, the glasses dot, a
   demo-mode tag and a milestone banner. It polls every 500 ms with `?since=` and only re-renders on change.
+- **Live grading + live camera on `/live`**: the Scribi card mirrors D's glasses grading (stroke ring, per-stroke chips, the
+  analysing checklist from the real agent steps, count-up, sub-score bars). The camera panel is live over A's `/ws/camera`
+  (tested end to end on a private backend: 14 fps, 1 ms; MJPEG fallback 12 fps), with the graded still cropped and overlaid in
+  the corner. Sub-score bars switch to A's five rubric scores as soon as `/grade` returns `subscores`.
 - **Voice-first web side**: the `/live` voice bar (breadcrumb, heard → intent → reply + ms, "Say …" hint, mic state), plus
   push-to-talk on every `/app` screen and a "What can I say" page. Tested against A's real `/voice` and `/app-state` (private copy
   on :8093): learn Greek → hello → what does this mean → back → home, help me write, write my name and Daily 5 all navigate

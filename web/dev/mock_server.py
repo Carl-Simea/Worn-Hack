@@ -253,6 +253,10 @@ class Live:
                                      "thought": "Clear match, move on." if correct else "Last stroke too short.",
                                      "action": nxt["action"], "steps": 6},
                            "latency_ms": random.randint(1400, 3200), "tier3_ms": random.randint(700, 1500), "ts": time.time()}
+            if SUBSCORES:  # the shape A's grader will report (--subscores to test it)
+                j = lambda: random.randint(-12, 8)
+                self.result["subscores"] = {k: max(5, min(100, score + j())) for k in
+                                            ("recognizable", "proportions", "placement", "completeness", "neatness")}
             self.next = nxt
             self.glasses.update(showing="result", phase="result")
             self.journal.append({"lang": s["lang"], "item_id": s["item_id"], "char_index": s["char_index"], "char": s["char"],
@@ -347,6 +351,7 @@ class Demo(threading.Thread):
 
 
 ST = Live()
+SUBSCORES = False
 
 # ---------------------------------------------------------------- voice (mock of A's POST /voice; real STT lives in the backend)
 LANG_WORDS = {"mandarin": "mandarin", "chinese": "mandarin", "hindi": "hindi", "arabic": "arabic", "russian": "russian",
@@ -493,6 +498,8 @@ class H(BaseHTTPRequestHandler):
             if q.get("since") and int(q["since"]) == ST.version:
                 return self.send(200, {"unchanged": True, "version": ST.version})
             return self.send(200, ST.snapshot())
+        if path == "/openapi.json":  # /live checks this for a camera route; the mock has none
+            return self.send(200, {"openapi": "3.1.0", "paths": {"/live/state": {}, "/app-state": {}}})
         if path == "/app-state":
             return self.send(200, ST.app_state())
         if path == "/glasses/screen/status":  # the mock has no adb: /live keeps its synthesized glasses view
@@ -608,7 +615,9 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8090)
     ap.add_argument("--no-demo", action="store_true")
+    ap.add_argument("--subscores", action="store_true", help="grade results carry subscores (like A's grader will)")
     a = ap.parse_args()
+    SUBSCORES = a.subscores
     if not a.no_demo:
         Demo(ST).start()
     print(f"worn mock on http://127.0.0.1:{a.port}  (live: /live, app: /app)")
