@@ -35,7 +35,7 @@
   h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); margin:34px 0 12px; font-weight:600; }
 
   /* coverage */
-  .cov { display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:10px; }
+  .cov { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:10px; }
   .covc { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; cursor:pointer; }
   .covc.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
   .covc .n { font-weight:600; font-size:16px; }
@@ -78,8 +78,8 @@
   .stage { position:relative; width:146px; height:146px; border:1px solid var(--ghost); border-radius:10px; background:#000; overflow:hidden; }
   .stage::before, .stage::after { content:""; position:absolute; background:var(--ghost); pointer-events:none; }
   .stage::before { left:50%; top:0; bottom:0; width:1px; } .stage::after { top:50%; left:0; right:0; height:1px; }
-  .stage svg, .stage .hw { position:absolute; left:0; top:0; width:146px; height:146px; }
-  .stage video { width:146px; height:146px; object-fit:cover; }
+  .stage .hw { position:absolute; left:0; top:0; width:146px; height:146px; }
+  .stage svg { display:block; }
   .tmeta { display:flex; justify-content:space-between; align-items:center; margin-top:8px; gap:6px; }
   .ch { font-size:22px; }
   .badge { font-size:11px; font-weight:600; letter-spacing:.5px; padding:3px 8px; border-radius:999px; white-space:nowrap; }
@@ -106,7 +106,7 @@
       <div class="logo">写</div>
       <div>
         <h1>Phrase Map</h1>
-        <div class="sub">5 phrases × 5 scripts + ASL · stroke order, audio and QA in one place</div>
+        <div class="sub">5 phrases × 5 scripts · stroke order, audio and QA in one place</div>
       </div>
     </div>
     <div class="actions">
@@ -140,11 +140,12 @@
 <div class="toast" id="toast"></div>
 
 <script src="vendor/hanzi-writer.min.js"></script>
+<script src="worn-strokes.js"></script>
 <script>
 (function () {
   "use strict";
-  var LANGS = ["mandarin", "hindi", "arabic", "russian", "japanese", "asl"];
-  var SHORT = { mandarin:"Mandarin", hindi:"Hindi", arabic:"Arabic", russian:"Russian", japanese:"Japanese", asl:"ASL" };
+  var LANGS = ["mandarin", "hindi", "arabic", "russian", "japanese"];
+  var SHORT = { mandarin:"Mandarin", hindi:"Hindi", arabic:"Arabic", russian:"Russian", japanese:"Japanese" };
   var PHRASES = ["hello", "thank_you", "yes", "no", "bathroom"];
   var qs = new URLSearchParams(location.search);
   var API = (qs.get("api") || "").replace(/\/$/, "");
@@ -217,16 +218,6 @@
       card.appendChild(el("div", "n", esc(SHORT[lang])));
       card.appendChild(meta); card.appendChild(bar);
       cov.appendChild(card);
-      if (lang === "asl") {
-        Promise.all(d.phrases.map(function (p) {
-          return fetch(asset(p.asl), { method:"HEAD" }).then(function (r) { return r.ok; }).catch(function () { return false; });
-        })).then(function (ok) {
-          var n = ok.filter(Boolean).length;
-          meta.textContent = n + "/5 sign videos";
-          bar.innerHTML = '<i class="s" style="width:' + (n * 20) + '%"></i>';
-        });
-        return;
-      }
       var list = charsOf(lang), uniq = [];
       list.forEach(function (x) { if (uniq.indexOf(x.c) < 0) uniq.push(x.c); });
       Promise.all(uniq.map(function (c) { return findStroke(lang, c); })).then(function (res) {
@@ -251,7 +242,7 @@
         if (!p) { h += "<td>–</td>"; return; }
         var rtl = data[l].rtl ? " rtl" : "";
         h += '<td><div class="cell' + rtl + '" data-l="' + l + '" data-p="' + id + '"><div class="tx">' + esc(p.text) +
-             '</div><div class="rm">' + esc(p.romanization || (l === "asl" ? "sign" : "")) + "</div></div></td>";
+             '</div><div class="rm">' + esc(p.romanization || "") + "</div></div></td>";
       });
       h += "</tr>";
     });
@@ -263,7 +254,7 @@
   function find(l, id) { return data[l] ? data[l].phrases.filter(function (p) { return p.id === id; })[0] : null; }
 
   // ---------------------------------------------------------------- detail
-  var animToken = 0;
+  var animToken = 0, animators = [];
   function select(lang, phraseId) {
     current = lang;
     var u = new URL(location.href); u.searchParams.set("lang", lang); history.replaceState(null, "", u);
@@ -285,6 +276,7 @@
   }
 
   function renderDetail() {
+    animators.forEach(function (a) { a.stop(); }); animators = [];
     var tok = ++animToken, d = data[current], box = $("detail");
     box.innerHTML = "";
     if (!d) { box.textContent = "No content for " + current; return; }
@@ -297,12 +289,12 @@
       left.appendChild(el("div", "pm", esc(p.meaning)));
       top.appendChild(left);
       var acts = el("div", "actions");
-      if (p.audio && current !== "asl") {
+      if (p.audio) {
         var play = el("button", "btn", "▶ Hear it");
         play.onclick = function () { var a = new Audio(asset(p.audio)); a.play().catch(function () { toast("No audio file"); }); };
         acts.appendChild(play);
       }
-      var send = el("button", "btn primary", current === "asl" ? "Show sign on glasses" : "Start on glasses");
+      var send = el("button", "btn primary", "Start on glasses");
       send.disabled = !live; if (!live) send.title = "Open this page through the backend to drive the glasses";
       send.onclick = function () { sendToGlasses(current, p.id, 0); };
       acts.appendChild(send);
@@ -310,11 +302,7 @@
       card.appendChild(top);
 
       var tiles = el("div", "tiles" + (d.rtl ? " rtl" : ""));
-      if (current === "asl" || !p.chars.length) {
-        tiles.appendChild(aslTile(p));
-      } else {
-        p.chars.forEach(function (c, i) { tiles.appendChild(charTile(current, p, c, i, tok)); });
-      }
+      p.chars.forEach(function (c, i) { tiles.appendChild(charTile(current, p, c, i, tok)); });
       card.appendChild(tiles);
 
       var nk = current + "/" + p.id, ta = el("textarea");
@@ -324,16 +312,6 @@
       card.appendChild(ta);
       box.appendChild(card);
     });
-  }
-
-  function aslTile(p) {
-    var t = el("div", "tile"), st = el("div", "stage");
-    var v = document.createElement("video");
-    v.src = asset(p.asl); v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true;
-    v.onerror = function () { st.innerHTML = '<div style="padding:14px;color:var(--warn);font-size:13px">Sign video not recorded yet<br><span style="color:var(--dim)">content/' + esc(p.asl) + "</span></div>"; };
-    st.appendChild(v); t.appendChild(st);
-    t.appendChild(el("div", "tmeta", '<span class="ch">' + esc(p.text) + "</span>"));
-    return t;
   }
 
   function charTile(lang, p, c, i, tok) {
@@ -352,104 +330,23 @@
 
     findStroke(lang, c).then(function (s) {
       if (tok !== animToken) return;
-      if (s.kind === "svg") { badge.className = "badge b-s"; badge.textContent = "stroke order"; animSvg(st, s.body, strokes, tok); }
-      else if (s.kind === "json") { badge.className = "badge b-s"; badge.textContent = "stroke order"; animHanzi(st, c, s.body, strokes, tok); }
-      else if (s.kind === "gif") { badge.className = "badge b-s"; badge.textContent = "stroke gif"; st.innerHTML = '<img src="' + s.url + '" style="width:146px;height:146px">'; }
-      else { badge.className = "badge b-t"; badge.textContent = "trace only"; animGlyph(st, c, data[lang].rtl, strokes, tok); }
+      if (s.kind === "gif") { badge.className = "badge b-s"; badge.textContent = "stroke gif"; st.innerHTML = '<img src="' + s.url + '" style="width:146px;height:146px">'; return; }
+      var real = s.kind === "svg" || s.kind === "json";
+      badge.className = "badge " + (real ? "b-s" : "b-t"); badge.textContent = real ? "stroke order" : "trace only";
+      var box = el("div", "hw"); st.appendChild(box);
+      // Same renderer as glasses.html and mirror.html, so what you check here is what the glasses show.
+      var a = WornStrokes.create(box, strokes, "");
+      animators.push(a);
+      a.animate({ char:c, stroke_url:real ? s.url : "", rtl:!!data[lang].rtl });
     });
     return t;
-  }
-
-  // KanjiVG-format SVG (Japanese + our hand-made Russian/Arabic/Hindi): same look as web/glasses.html
-  function animSvg(stage, txt, label, tok) {
-    var src = new DOMParser().parseFromString(txt, "image/svg+xml");
-    var ds = Array.prototype.map.call(src.getElementsByTagName("path"), function (p) { return p.getAttribute("d"); });
-    var NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("viewBox", "0 0 109 109");
-    var ghost = document.createElementNS(NS, "g"), ink = document.createElementNS(NS, "g"), nums = document.createElementNS(NS, "g");
-    [[ghost, "#2f3540"], [ink, "#ffffff"]].forEach(function (g) {
-      g[0].setAttribute("fill", "none"); g[0].setAttribute("stroke", g[1]); g[0].setAttribute("stroke-width", "5");
-      g[0].setAttribute("stroke-linecap", "round"); g[0].setAttribute("stroke-linejoin", "round");
-    });
-    svg.appendChild(ghost); svg.appendChild(ink); svg.appendChild(nums); stage.appendChild(svg);
-    var strokes = ds.map(function (d, i) {
-      var g = document.createElementNS(NS, "path"); g.setAttribute("d", d); ghost.appendChild(g);
-      var p = document.createElementNS(NS, "path"); p.setAttribute("d", d); ink.appendChild(p);
-      var len = p.getTotalLength(); p.style.strokeDasharray = len; p.style.strokeDashoffset = len;
-      var s0 = p.getPointAtLength(0), n = document.createElementNS(NS, "text");
-      n.setAttribute("x", s0.x - 6); n.setAttribute("y", s0.y - 3); n.setAttribute("font-size", "9"); n.setAttribute("fill", "#5cd6ff");
-      n.textContent = String(i + 1); n.style.opacity = 0; nums.appendChild(n);
-      return { p:p, len:len, n:n };
-    });
-    (async function loop() {
-      while (tok === animToken) {
-        strokes.forEach(function (s) { s.p.style.strokeDashoffset = s.len; s.n.style.opacity = 0; });
-        for (var i = 0; i < strokes.length && tok === animToken; i++) {
-          label.textContent = "stroke " + (i + 1) + " of " + strokes.length;
-          await draw(strokes[i], 300 + strokes[i].len * 8, tok);
-          await sleep(150);
-        }
-        label.textContent = strokes.length + (strokes.length === 1 ? " stroke" : " strokes");
-        await sleep(1600);
-      }
-    })();
-  }
-  function draw(st, ms, tok) {
-    return new Promise(function (res) {
-      var t0 = null; st.n.style.opacity = 1;
-      (function step(ts) {
-        if (tok !== animToken) return res();
-        if (t0 === null) t0 = ts;
-        var k = Math.min(1, (ts - t0) / ms);
-        st.p.style.strokeDashoffset = st.len * (1 - k);
-        if (k < 1) requestAnimationFrame(step); else res();
-      })(performance.now());
-    });
-  }
-
-  function animHanzi(stage, ch, json, label, tok) {
-    if (!window.HanziWriter) { animGlyph(stage, ch, false, label, tok); return; }
-    var div = el("div", "hw"); div.id = "hw-" + Math.random().toString(36).slice(2); stage.appendChild(div);
-    var w = HanziWriter.create(div.id, ch, {
-      width:146, height:146, padding:8, showOutline:true, showCharacter:false,
-      strokeColor:"#ffffff", outlineColor:"#2f3540", radicalColor:null,
-      strokeAnimationSpeed:1.1, delayBetweenStrokes:180, delayBetweenLoops:1600,
-      charDataLoader:function (c, done) { done(json); }
-    });
-    label.textContent = json.strokes.length + " strokes";
-    w.loopCharacterAnimation();
-  }
-
-  function animGlyph(stage, ch, rtl, label, tok) {
-    var NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("viewBox", "0 0 300 300");
-    var t = document.createElementNS(NS, "text");
-    t.setAttribute("x", "150"); t.setAttribute("y", "150"); t.setAttribute("text-anchor", "middle"); t.setAttribute("dominant-baseline", "central");
-    t.setAttribute("font-size", Array.from(ch).length > 2 ? "140" : "190");
-    t.setAttribute("stroke", "#ffffff"); t.setAttribute("stroke-width", "2.5"); t.setAttribute("fill", "#ffffff");
-    if (rtl) t.setAttribute("direction", "rtl");
-    t.textContent = ch; svg.appendChild(t); stage.appendChild(svg);
-    label.textContent = "trace the shape";
-    var L = 2400; t.style.strokeDasharray = L;
-    (async function loop() {
-      while (tok === animToken) {
-        var t0 = performance.now(), dur = 2400;
-        while (tok === animToken) {
-          var k = Math.min(1, (performance.now() - t0) / dur);
-          t.style.strokeDashoffset = L * (1 - k); t.style.fillOpacity = Math.max(0, (k - 0.7) / 0.3);
-          if (k >= 1) break;
-          await new Promise(requestAnimationFrame);
-        }
-        await sleep(1600);
-      }
-    })();
   }
 
   // ---------------------------------------------------------------- glasses
   function sendToGlasses(lang, phraseId, idx) {
     if (!live) { toast("Open through the backend to drive the glasses"); return; }
     fetch(API + "/session", { method:"POST", headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({ lang:lang, phrase_id:phraseId, char_index:idx, mode:lang === "asl" ? "asl" : "write" }) })
+      body:JSON.stringify({ lang:lang, phrase_id:phraseId, char_index:idx, mode:"write" }) })
       .then(function (r) { if (!r.ok) throw new Error(r.status); toast("Sent to glasses"); })
       .catch(function (e) { toast("Backend error " + e.message); });
   }
