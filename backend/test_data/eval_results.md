@@ -1,12 +1,12 @@
 # Real-world perception eval (teammate notebook photos)
 
-Run 2026-11-21 02:17. Inputs: `test_data/handwriting/writer{1,2,3}.jpg` + `labels.json`.
+Run 2026-11-21 02:21. Inputs: `test_data/handwriting/writer{1,2,3}.jpg` + `labels.json`.
 
 ## Ink extraction on full notebook pages
 Share of detected ink inside the hand-written band (rest = lines, holes, spiral, shadow false positives): writer1 100%, writer2 100%, writer3 88%
 
 ## Tier 1: ink diff (new stroke?)
-Accuracy **100%** on 18 cases; false new-stroke 0, missed strokes 0; latency avg 42.2 ms, max 70 ms.
+Accuracy **100%** on 18 cases; false new-stroke 0, missed strokes 0; latency avg 43.1 ms, max 69 ms.
 
 | case | writer 1 | writer 2 | writer 3 |
 |---|---|---|---|
@@ -18,7 +18,7 @@ Accuracy **100%** on 18 cases; false new-stroke 0, missed strokes 0; latency avg
 | real new stroke (moved camera) | ✅ 0.00080 | ✅ 0.00081 | ✅ 0.00081 |
 
 ## Tier 2: stroke match across handwriting styles
-84 renders (7 chars x 4 styles x 3 real papers). Final stroke accepted **96%**, right char scores above confusable char **86%**; latency avg 13.2 ms, max 24.3 ms (budget 300).
+84 renders (7 chars x 4 styles x 3 real papers). Final stroke accepted **96%**, right char scores above confusable char **86%**; latency avg 13.9 ms, max 23.3 ms (budget 300).
 
 | style | final stroke done | right > wrong |
 |---|---|---|

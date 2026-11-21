@@ -125,7 +125,8 @@ def build_session(lang: str, item: dict, lesson: dict, char_index: int, mode: st
         "rtl": bool(lesson.get("rtl", config.LANGS.get(lang, {}).get("rtl", False))),
         "item_id": item["id"],
         "phrase_id": item["id"],
-        "item": {k: item.get(k) for k in ("id", "text", "chars", "romanization", "meaning")},
+        "item": {k: item.get(k) for k in ("id", "text", "chars", "romanization", "meaning", "how", "why", "dictation")
+                 if item.get(k) is not None},
         "text": item.get("text"),
         "char": char,
         "char_index": char_index,
@@ -141,7 +142,7 @@ def build_session(lang: str, item: dict, lesson: dict, char_index: int, mode: st
         "stroke_order": "trace" if tm.get("trace") else ("true" if tm.get("ordered") else "suggested"),
         "mode": mode,
         "show_char": not dictation,
-        "prompt": "Listen, then write what you hear." if dictation else
+        "prompt": (item.get("dictation") or "Listen, then write what you hear.") if dictation else
                   ("Write your message, one character at a time." if mode == "compose" else "Watch, then write it on paper."),
         "back_translation": item.get("back_translation"),
         "note": item.get("note"),

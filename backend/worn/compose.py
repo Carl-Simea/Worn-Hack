@@ -126,11 +126,24 @@ def _name_validator(d: dict) -> dict:
     return out
 
 
+def checked_names() -> dict:
+    """content/names/examples.json (agent C): names checked by hand in all five scripts."""
+    import json
+    try:
+        return json.loads((config.CONTENT_DIR / "names" / "examples.json").read_text(encoding="utf-8")).get("names", {})
+    except Exception:
+        return {}
+
+
 async def name(text: str) -> tuple[dict, dict]:
     text = (text or "").strip()
     if not text or len(text) > 40 or not regex.fullmatch(r"[\p{L}][\p{L} '\-]*", text):
         raise ComposeError("Type just a name, like 'Maya'.")
+    known = checked_names().get(text.lower())
+    if known and all(known.get(k) for k in _NAME_SCRIPTS):
+        return {**{k: known[k] for k in _NAME_SCRIPTS}, "text": text, "checked": True,
+                "note": "Names are written by sound, so these spellings are approximate."}, {"model": "checked list", "ms": 0}
     data, meta = await llm.tutor_json(NAME_PROMPT.format(name=text), system=SYSTEM,
                                       validate=_name_validator, num_predict=120)
-    return {**data, "text": text,
+    return {**data, "text": text, "checked": False,
             "note": "Names are written by sound, so these spellings are approximate."}, meta

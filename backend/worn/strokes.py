@@ -157,10 +157,17 @@ def _glyph_skeleton_points(char: str) -> np.ndarray:
     return np.stack([xs, ys], axis=1).astype(np.float32) / 300.0
 
 
-@functools.lru_cache(maxsize=512)
 def template(lang: str, char: str) -> dict:
-    """{"strokes": [Nx2 arrays in a y-down frame], "source": ...}"""
+    """{"strokes": [Nx2 arrays in a y-down frame], "source": ...}. Cached per file version, so
+    edits under content/strokes take effect without a restart."""
     f = stroke_file(lang, char)
+    return _template(lang, char, str(f) if f else "", f.stat().st_mtime if f else 0.0)
+
+
+@functools.lru_cache(maxsize=1024)
+def _template(lang: str, char: str, path: str, mtime: float) -> dict:
+    from pathlib import Path
+    f = Path(path) if path else None
     if f is not None and f.suffix == ".json":
         data = json.loads(f.read_text(encoding="utf-8"))
         strokes = []
@@ -337,16 +344,19 @@ def _raster(pts: np.ndarray) -> np.ndarray:
     return img
 
 
-def _chamfer_once(ink: np.ndarray, tmpl: np.ndarray) -> float:
+def _chamfer_once(ink: np.ndarray, tmpl: np.ndarray) -> tuple[float, float]:
+    """(score 0-100, coverage 0-1). coverage = share of template points with ink nearby."""
     a, b = _normalize(ink), _normalize(tmpl)
     da = cv2.distanceTransform(_raster(b), cv2.DIST_L2, 3)  # distance to template
     db = cv2.distanceTransform(_raster(a), cv2.DIST_L2, 3)  # distance to ink
     pa = np.clip((a * (GRID - 1)).round().astype(int), 0, GRID - 1)
     pb = np.clip((b * (GRID - 1)).round().astype(int), 0, GRID - 1)
     d_ink = float(np.mean(da[pa[:, 1], pa[:, 0]]))  # ink far from template = extra marks
-    d_tmp = float(np.mean(db[pb[:, 1], pb[:, 0]]))  # template far from ink = missing parts
+    tmpl_d = db[pb[:, 1], pb[:, 0]]
+    d_tmp = float(np.mean(tmpl_d))  # template far from ink = missing parts
     d = (d_ink + d_tmp) / 2 / GRID
-    return float(max(0.0, min(100.0, 100.0 * (1 - d / 0.11))))
+    coverage = float(np.mean(tmpl_d < 0.07 * GRID))
+    return float(max(0.0, min(100.0, 100.0 * (1 - d / 0.11)))), coverage
 
 
 # Camera tilt and handwriting slant: the ink is un-tilted / un-slanted before comparing.
@@ -354,12 +364,19 @@ def _chamfer_once(ink: np.ndarray, tmpl: np.ndarray) -> float:
 POSES = [(a, s) for a in (-10, -5, 0, 5, 10) for s in (-0.3, 0.0, 0.3)]
 
 
-def chamfer_score(ink: np.ndarray, tmpl: np.ndarray) -> float:
-    """0-100. Symmetric mean distance between two point sets after normalization,
-    best over a few small rotations and slants of the ink."""
+def chamfer_detail(ink: np.ndarray, tmpl: np.ndarray) -> tuple[float, float]:
+    """Best (score, coverage) over a few small rotations and slants of the ink."""
     if len(ink) < 3 or len(tmpl) < 2:
-        return 0.0
-    return max(_chamfer_once(_transform(ink, a, s), tmpl) for a, s in POSES)
+        return 0.0, 0.0
+    return max((_chamfer_once(_transform(ink, a, s), tmpl) for a, s in POSES), key=lambda r: r[0])
+
+
+def chamfer_score(ink: np.ndarray, tmpl: np.ndarray) -> float:
+    """0-100. Symmetric mean distance between two point sets after normalization."""
+    return chamfer_detail(ink, tmpl)[0]
+
+
+MIN_COVERAGE = 0.7  # most of strokes 0..k must have ink near them
 
 
 def match_stroke(raw: bytes, lang: str, char: str, stroke_index: int, diff: bool = False) -> dict:
@@ -383,9 +400,13 @@ def match_stroke(raw: bytes, lang: str, char: str, stroke_index: int, diff: bool
         score = chamfer_score(pts, strokes[k])
         done = score >= DONE_SCORE
     else:
-        score = chamfer_score(pts, np.concatenate(strokes[: k + 1]))
+        score, coverage = chamfer_detail(pts, np.concatenate(strokes[: k + 1]))
         prev = chamfer_score(pts, np.concatenate(strokes[:k])) if k > 0 else 0.0
-        done = score >= DONE_SCORE and score > prev
+        # The last stroke is often small (a dot, a short tick), so at the end a tie with
+        # strokes 0..k-1 still counts when the whole-character match is solid.
+        last = k == total - 1
+        done = (score >= DONE_SCORE and coverage >= MIN_COVERAGE
+                and (score > prev or (last and score >= 55 and score >= prev - 3)))
     score = int(round(score))
     char_done = done and k == total - 1
     if done:

@@ -28,7 +28,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 53
+    "ms": 47
    },
    {
     "writer": 1,
@@ -37,7 +37,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 38
+    "ms": 39
    },
    {
     "writer": 1,
@@ -46,7 +46,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.000276,
-    "ms": 51
+    "ms": 52
    },
    {
     "writer": 1,
@@ -55,7 +55,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 38
+    "ms": 37
    },
    {
     "writer": 1,
@@ -64,7 +64,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 70
+    "ms": 69
    },
    {
     "writer": 1,
@@ -73,7 +73,7 @@
     "got": true,
     "ok": true,
     "new_ink_frac": 0.000802,
-    "ms": 43
+    "ms": 42
    },
    {
     "writer": 2,
@@ -82,7 +82,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 7.6e-05,
-    "ms": 40
+    "ms": 43
    },
    {
     "writer": 2,
@@ -91,7 +91,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 38
+    "ms": 37
    },
    {
     "writer": 2,
@@ -100,7 +100,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 39
+    "ms": 40
    },
    {
     "writer": 2,
@@ -118,7 +118,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 40
+    "ms": 39
    },
    {
     "writer": 2,
@@ -136,7 +136,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 40
+    "ms": 43
    },
    {
     "writer": 3,
@@ -145,7 +145,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 37
+    "ms": 40
    },
    {
     "writer": 3,
@@ -154,7 +154,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.000145,
-    "ms": 41
+    "ms": 44
    },
    {
     "writer": 3,
@@ -163,7 +163,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 0.0,
-    "ms": 37
+    "ms": 40
    },
    {
     "writer": 3,
@@ -172,7 +172,7 @@
     "got": false,
     "ok": true,
     "new_ink_frac": 5.8e-05,
-    "ms": 40
+    "ms": 45
    },
    {
     "writer": 3,
@@ -181,7 +181,7 @@
     "got": true,
     "ok": true,
     "new_ink_frac": 0.000815,
-    "ms": 39
+    "ms": 42
    }
   ],
   "accuracy": 1.0,
@@ -189,8 +189,8 @@
   "missed_strokes": 0,
   "n": 18,
   "latency": {
-   "avg_ms": 42.2,
-   "max_ms": 70
+   "avg_ms": 43.1,
+   "max_ms": 69
   }
  },
  "tier2": {
@@ -216,8 +216,8 @@
   "separation": 0.857,
   "n": 84,
   "latency": {
-   "avg_ms": 13.2,
-   "max_ms": 24.3
+   "avg_ms": 13.9,
+   "max_ms": 23.3
   },
   "rows": [
    {
@@ -586,7 +586,7 @@
     "style": "print",
     "writer": 1,
     "final_stroke_done": true,
-    "score_right": 50,
+    "score_right": 53,
     "score_wrong": 0,
     "separates": true
    },
@@ -596,7 +596,7 @@
     "style": "print",
     "writer": 2,
     "final_stroke_done": true,
-    "score_right": 51,
+    "score_right": 54,
     "score_wrong": 0,
     "separates": true
    },
@@ -606,7 +606,7 @@
     "style": "print",
     "writer": 3,
     "final_stroke_done": true,
-    "score_right": 51,
+    "score_right": 54,
     "score_wrong": 0,
     "separates": true
    },
@@ -616,7 +616,7 @@
     "style": "cursive-ish",
     "writer": 1,
     "final_stroke_done": false,
-    "score_right": 31,
+    "score_right": 47,
     "score_wrong": 0,
     "separates": true
    },
@@ -626,7 +626,7 @@
     "style": "cursive-ish",
     "writer": 2,
     "final_stroke_done": false,
-    "score_right": 31,
+    "score_right": 47,
     "score_wrong": 0,
     "separates": true
    },
@@ -636,7 +636,7 @@
     "style": "cursive-ish",
     "writer": 3,
     "final_stroke_done": false,
-    "score_right": 32,
+    "score_right": 48,
     "score_wrong": 0,
     "separates": true
    },
@@ -646,7 +646,7 @@
     "style": "marker",
     "writer": 1,
     "final_stroke_done": true,
-    "score_right": 50,
+    "score_right": 53,
     "score_wrong": 0,
     "separates": true
    },
@@ -656,7 +656,7 @@
     "style": "marker",
     "writer": 2,
     "final_stroke_done": true,
-    "score_right": 49,
+    "score_right": 53,
     "score_wrong": 0,
     "separates": true
    },
@@ -666,7 +666,7 @@
     "style": "marker",
     "writer": 3,
     "final_stroke_done": true,
-    "score_right": 51,
+    "score_right": 53,
     "score_wrong": 0,
     "separates": true
    },
@@ -676,7 +676,7 @@
     "style": "mixed",
     "writer": 1,
     "final_stroke_done": true,
-    "score_right": 51,
+    "score_right": 60,
     "score_wrong": 0,
     "separates": true
    },
@@ -686,7 +686,7 @@
     "style": "mixed",
     "writer": 2,
     "final_stroke_done": true,
-    "score_right": 52,
+    "score_right": 59,
     "score_wrong": 0,
     "separates": true
    },
@@ -696,7 +696,7 @@
     "style": "mixed",
     "writer": 3,
     "final_stroke_done": true,
-    "score_right": 52,
+    "score_right": 61,
     "score_wrong": 0,
     "separates": true
    },

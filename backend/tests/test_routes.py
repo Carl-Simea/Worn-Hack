@@ -370,3 +370,37 @@ def test_ios_event_names_drive_live_state(client):
     assert s["demo_mode"] is True
     client.post("/event", json={"type": "grade.start", "data": {}})
     assert client.get("/live/state").json()["glasses"]["phase"] == "checking"
+
+
+def test_name_checked_list_is_instant(client, monkeypatch):
+    """content/names/examples.json answers known names without touching a model."""
+    import shutil
+    from worn import config
+    from conftest import ROOT, CONTENT
+    (CONTENT / "names").mkdir(exist_ok=True)
+    shutil.copy(ROOT / "content" / "names" / "examples.json", CONTENT / "names" / "examples.json")
+
+    async def boom(*a, **k):
+        raise AssertionError("model must not be called for a checked name")
+    monkeypatch.setattr(llm, "tutor_json", boom)
+    d = client.get("/name", params={"text": "Maria"}).json()
+    assert d["checked"] is True and d["cyrillic"] == "Мария" and d["model"] == "checked list"
+
+
+def test_stroke_template_reloads_when_file_changes(tmp_path):
+    import os, time
+    from worn import strokes
+    from conftest import CONTENT
+    f = CONTENT / "strokes" / "mandarin" / "4e00.json"
+    before = strokes.template("mandarin", "一")["strokes"][0].copy()
+    original = f.read_text()
+    data = json.loads(original)
+    data["medians"][0] = [[100, 500], [900, 520]]
+    try:
+        f.write_text(json.dumps(data))
+        os.utime(f, (time.time() + 5, time.time() + 5))
+        after = strokes.template("mandarin", "一")["strokes"][0]
+        assert not (len(before) == len(after) and (before == after).all())
+    finally:
+        f.write_text(original)
+        os.utime(f, (time.time() + 10, time.time() + 10))

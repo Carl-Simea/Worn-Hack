@@ -175,8 +175,6 @@ class Live:
     def snapshot(self, progress: dict | None = None, steps: int = 40, events: int = 30) -> dict:
         with _lock:
             g = dict(self.glasses)
-            if g.get("last_seen") and time.time() - g["last_seen"] > 30 and g.get("connected"):
-                g["stale"] = True
             return {
                 "version": self.version,
                 "ts": time.time(),
