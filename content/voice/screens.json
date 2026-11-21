@@ -243,10 +243,10 @@
     {
      "title": "Button",
      "lines": [
-      "Press: same as “next”.",
-      "Hold: same as “I'm done”."
+      "Press: next, or open the item.",
+      "Hold: check.  Double tap: back."
      ],
-     "say": "The button is a backup. Press for next, hold to check."
+     "say": "The button is a backup. Press for next, hold to check, double tap to go back."
     },
     {
      "title": "Your name",

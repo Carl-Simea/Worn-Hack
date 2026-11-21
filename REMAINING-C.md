@@ -45,8 +45,7 @@
   the glasses. Whoever tests: note each misheard phrase (what was said → what `heard` came back) and add it to
   `content/tools/make_voice.py`. DEMO.md and SUBMISSION.md now describe the voice-first flow. If /voice isn't
   working by 1:30pm, switch the demo back to phone-driven (the old script is in git: `git show 77a0abb:DEMO.md`).
-- The How-to-use page says "press = next, hold = check" for the button. D: change it in `make_voice.py` if the app
-  maps the button differently.
+- Button mapping confirmed with D: press = next / open the highlighted item, hold = check (outside a lesson: How to use), double tap = back. How-to-use and DEMO.md match.
 - Stroke animations and RTL text on the actual glasses display (black = see-through, small font sizes).
 - Whether the audio's lead-in silence is enough to avoid clipping on the glasses or Bluetooth speaker.
 - Tier-2 matching of real handwriting against the suggested templates. A re-ran it after the Arabic م fix; other

@@ -4,7 +4,7 @@ Track 02 · Seamless Handoff. Demo Sat 2:15pm at our table. Submissions close 2:
 
 **Roles:** one person wears the glasses, writes and **talks** ("the learner"). A second person drives the laptop and watches `/live` on the iPad (it mirrors the real glasses display).
 
-The wearer controls everything by speaking. Every glasses screen shows what to say next, and "what can I say" reads the options aloud. The button is a backup only (press = next, hold = check). Every phrase and hint: `content/voice/commands.json` and `screens.json`.
+The wearer controls everything by speaking. Every glasses screen shows what to say next, and "what can I say" reads the options aloud. The button is a backup only (press = next or open the highlighted item, hold = check, double tap = back). Every phrase and hint: `content/voice/commands.json` and `screens.json`.
 
 ## The 60 seconds (voice-first)
 
@@ -19,7 +19,7 @@ The wearer controls everything by speaking. Every glasses screen shows what to s
 | 0:50 | **"How do I write good morning in Greek?"** | **Καλημέρα** with its romanization | "Or anything you want to say." |
 | 0:56 | Point at the laptop. | | "No cloud: the photos never leave this laptop. Worn: wear it, write it." |
 
-If a command isn't heard, say it again in fewer words ("next", "check", "home"). If the room is too loud, use the button (press = next, hold = check) and keep narrating.
+If a command isn't heard, say it again in fewer words ("next", "check", "home"). If the room is too loud, use the button (press = next, hold = check, double tap = back) and keep narrating.
 
 If there's time, the strongest extra beat is **"Learn Arabic." → "Hello."**: isolated letters first, then the joined word, all right to left.
 
@@ -43,7 +43,7 @@ If there's time, the strongest extra beat is **"Learn Arabic." → "Hello."**: i
 
 | If this breaks | Do this |
 |---|---|
-| Voice isn't heard (noisy room) | Use the button: press = next, hold = check. Speak close and short: "next", "check", "home". |
+| Voice isn't heard (noisy room) | Use the button: press = next / open, hold = check, double tap = back. Speak close and short: "next", "check", "home". |
 | Glasses won't connect or the camera fails | In the iOS app, turn on **Demo Mode (phone camera)**: same lesson, the phone grades with its own camera. Keep `/live` on the iPad as the "glasses view". |
 | Nothing can drive the glasses, but you need `/live` to move | From the laptop: `uv run --with pillow python web/dev/sim_glasses.py http://127.0.0.1:8000 --lang mandarin --item hello`. It posts what the iPhone + glasses would (strokes, photos, grade, confetti) and `/live` shows it all. Say it's a replay. |
 | Grading feels slow (>5 s) | Quit Xcode, the Simulator and anything else using the GPU. The tutor falls back to rules after 4.5 s, so it always answers. |
