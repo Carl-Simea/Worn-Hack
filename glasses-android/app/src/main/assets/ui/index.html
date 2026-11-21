@@ -151,9 +151,20 @@
   .brand .mark { width:62px; height:23px; shape-rendering:geometricPrecision; }
   .idlemark { text-align:center; margin-top:130px; color:#4b505a; }
   .idlemark .mark { width:150px; height:55px; }
+  /* start animation: the mark draws in left to right like a pen stroke, the name rises in, then it all fades to home */
+  #splash { position:absolute; left:0; top:0; right:0; bottom:0; background:#000; z-index:100; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; transition:opacity .7s ease; }
+  #splash.out { opacity:0; }
+  #splash .mark { width:240px; height:87px; color:var(--fg); -webkit-clip-path:inset(0 100% 0 0); clip-path:inset(0 100% 0 0);
+    animation:drawIn 1.3s cubic-bezier(.65,0,.35,1) .25s forwards; }
+  #splash span { font-family:"Newsreader", Georgia, serif; font-size:46px; margin-top:22px; opacity:0; transform:translateY(10px);
+    animation:riseIn .8s cubic-bezier(.2,.8,.2,1) 1.25s forwards; }
+  @keyframes drawIn { to { -webkit-clip-path:inset(0 0 0 0); clip-path:inset(0 0 0 0); } }
+  @keyframes riseIn { to { opacity:1; transform:none; } }
 </style>
 </head>
 <body>
+<div id="splash"></div>
 <div id="top"><div id="crumb"></div><div id="mic"><i></i><span id="micText">…</span></div></div>
 <div id="main"></div>
 <div id="bottom"><div id="hint"></div><div id="hint2"></div><div id="heard"></div></div>
@@ -1126,6 +1137,12 @@
   };
 
   // ------------------------------------------------------------------ boot
+  (function splash() {
+    var el = $("splash"); if (!el) return;
+    el.innerHTML = MARK + "<span>Scribi</span>";
+    setTimeout(function () { el.className = "out"; }, 2700);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 3500);
+  })();
   if (window.WornSfx) WornSfx.init("");
   getJSON("/content").then(function (c) {
     (c.langs || []).forEach(function (l) { content[l.lang] = l; });
