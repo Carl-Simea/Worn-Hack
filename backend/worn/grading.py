@@ -17,6 +17,7 @@ log = logging.getLogger("worn.grading")
 
 SHAPE_W, RUBRIC_W = 0.6, 0.4
 PASS = 70
+RUBRIC_LO, RUBRIC_HI = 15.0, 50.0  # calibrated in eval_grading.py (REMAINING-A.md)
 RUBRIC_TIMEOUT = float(__import__('os').environ.get('WORN_RUBRIC_TIMEOUT', '4.0'))
 # rubric sub-score weights (0-10 each → 0-100)
 RW = {"recognizable": 0.35, "proportions": 0.15, "stroke_placement": 0.2, "completeness": 0.2, "neatness": 0.1}
@@ -75,7 +76,9 @@ async def grade(jpeg: bytes, char: str, lang: str, progress=None) -> dict:
             rub = {**rub, "recognizable": min(rub["recognizable"], 2)}  # reads as a different letter, shape agrees
         elif other_letter and shp.get("margin", 0) >= 0.1 and shape_score >= 70:
             rub = {**rub, "recognizable": max(rub["recognizable"], 6)}  # look-alike misread; the strokes say target
-        rubric_score = 10 * sum(RW[k] * rub[k] for k in RW)
+        rubric_raw = 10 * sum(RW[k] * rub[k] for k in RW)
+        # qwen2.5vl's rubric is harsh and compressed (good ≈ 46, wrong ≈ 31 raw); rescaled on the calibration set
+        rubric_score = max(0.0, min(100.0, (rubric_raw - RUBRIC_LO) / (RUBRIC_HI - RUBRIC_LO) * 100))
         r10 = {k: rub[k] * 10 for k in RW}
     else:
         rubric_score, r10, seen = None, {}, ""
@@ -106,7 +109,7 @@ async def grade(jpeg: bytes, char: str, lang: str, progress=None) -> dict:
             "deskew_deg": fw["angle"], "seen": seen,
             "shape": {k: shp.get(k) for k in ("score", "raw", "metrics", "coverage", "precision", "ref", "margin",
                                               "other_char", "ms")},
-            "rubric": ({**{k: rub[k] for k in RW}, "score": round(rubric_score), "fix": rub.get("fix"),
+            "rubric": ({**{k: rub[k] for k in RW}, "score": round(rubric_score), "raw": round(rubric_raw), "fix": rub.get("fix"),
                         "seen": seen, "ms": rmeta.get("ms")} if rub else {"error": rmeta.get("error")}),
             "ms": {"find": round(t_find), "shape": round(t_shape), "rubric": round(t_rub),
                    "total": round((time.perf_counter() - t0) * 1000)},

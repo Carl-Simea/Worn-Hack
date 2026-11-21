@@ -251,6 +251,8 @@ async def _grade_bytes(raw: bytes, char: str | None, lang: str | None, source: s
         AUTO.publish("result", error="checker unavailable")
         raise HTTPException(503, "The checker is warming up. Try again in a moment.")
     res["source"] = source
+    if AUTO.key and LIVE.session and AUTO.key[:2] == (lang, char):
+        res["stroke_scores"] = list(AUTO.scores)  # live tier-2 accuracy per stroke while writing
     LIVE.set_result(res, res.get("next"))
     AUTO.result(res)
     return res

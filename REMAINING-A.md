@@ -13,6 +13,30 @@ _Last updated 2026-11-21, overnight. Everything below is pushed to origin/main._
 - **6 languages** (Mandarin, Hindi, Arabic, Russian, Hebrew, Greek). Japanese and ASL are filtered out even if a file returns.
 - **Tests:** `uv run pytest` (65 fast, models mocked) and `uv run pytest -m live` (real qwen2.5vl on teammates' handwriting).
 
+## Measured grading (rebuilt /grade): calibration
+`backend/eval_grading.py --live`. The synthetic set is drawn on real teammate notebook paper with a shadow, noise and ±6° rotation: 18 targets in 6 scripts.
+- **good:** 3 handwriting-like fonts per script, small warp.
+- **messy:** strong warp, gaps, wobbly thickness, one part shifted.
+- **wrong:** another character of the same lesson set.
+- **blank:** paper only.
+
+Score = 60% shape (IoU, chamfer, Hausdorff-95, 3×3 grid, aspect, components vs. the font glyph and the stroke template, best over small rotations/slants, penalized when another character of the script fits better) + 40% qwen2.5vl rubric on crop|reference, rescaled 15→0 and 50→100. Correct ≥ 70.
+
+| set | target | shape only | final (shape + rubric) | passes (≥ 70) |
+|---|---|---|---|---|
+| good (57) | 80–95 | 84 mean | **80** mean (p10 55) | 33/43 |
+| messy (19) | 50–75 | 63 | **57** | 2/14 |
+| wrong char (19) | < 40 | 8 (p90 29) | **19** (max 40) | **0/13** |
+| blank (3) | no_writing | 3/3 no_writing | **3/3 status no_writing** | – |
+| real teammate capitals (16, Latin) | – | 48 | 36 | 0/16 |
+
+Per grade: find + shape ~40 ms (rival characters included); the rubric is ~2.4 s on a quiet GPU and ~3 s with the glasses, the agents and Xcode sharing it. The total is ~3 s.
+
+Honest limits:
+- 28 of 114 rubric calls hit the timeout (the GPU was shared with the test suite and with teammates). Those fall back to shape only, and the averages above count only grades where the rubric answered.
+- The "real" Latin crops are cut out of letter pairs by a fixed box, so they include part of the neighbouring letter. They aren't a fair test; real target-script handwriting is still untested.
+- ~10 good samples score below 70, mostly Arabic ب/ر and Mandarin 你 drawn in very stylised fonts.
+
 ## Voice (glasses are voice-first; tutor = Scribi, app = Worn)
 - `POST /voice` (faster-whisper base on this Mac, ~250–350 ms; C's shared matcher, then the backend matcher), `GET /say`
   (16 kHz WAV, since the glasses have no TTS), `GET/POST /app-state`. Contract: `backend/README.md` → Voice. 20 tests.
