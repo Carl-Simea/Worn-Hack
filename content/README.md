@@ -11,7 +11,13 @@ Lesson JSON, audio, and stroke data. The backend re-reads these on every request
 - `strokes/{lang}/{codepoint hex}.{json|svg}`: this follows agent A's `stroke_url()` convention.
   - mandarin `*.json`: hanzi-writer-data 2.0.1 (from Make Me a Hanzi, Arphic license). True stroke order.
   - japanese `*.svg`: KanjiVG stroke centerlines (CC BY-SA 3.0, Ulrich Apel). True stroke order, numbered. **Attribution must appear in the demo credits.**
-  - hindi, arabic, russian: no stroke-order data. The glasses page traces the font outline and labels it "trace the shape". It does not claim stroke order.
+  - russian, arabic, hindi `*.svg`: hand-made by the team in the same KanjiVG format, built by `python3 content/tools/make_strokes.py` (edit the table there, not the SVGs). Traced over Noto fonts and ordered by standard handwriting rules (Russian: printed letters; Arabic: isolated forms, body right to left, dots and hamza last; Hindi: body, then stem, then headline last). **Needs a native writer's check.**
+  - Hindi conjuncts and syllables with top marks (स्ते न्य हाँ हीं शौ है) are left out on purpose, so they still fall back to "trace the shape" and never show a guessed stroke order.
+
+## web/map.html: phrase map + QA board
+Every language × phrase × character in one page, with live stroke-order animation, audio, coverage per language, QA checkboxes and notes (saved in the browser), and Export QA (Markdown).
+- Through the backend: `http://<laptop-ip>:8000/static/web/map.html`. "Glasses" / "Start on glasses" POST `/session`, so it doubles as a test controller.
+- Without the backend: `python3 -m http.server 8080` from the repo root, then open `http://localhost:8080/web/map.html`.
 - `asl/{id}.mp4`: **TODO(team): not recorded yet.** Five short clips (hello, thank_you, yes, no, bathroom) filmed on a phone against a plain background, landscape, 2–3 s, H.264 mp4, ideally signed by someone who knows ASL. Drop them in here and they go live; until then the glasses show "ASL video not recorded yet".
 
 ## web/glasses.html (served at GET /glasses)
