@@ -154,6 +154,8 @@ public class MainActivity extends Activity {
         }
         if (intent != null && intent.hasExtra("loud")) p.edit().putInt("loud", intent.getIntExtra("loud", 1800)).apply();
         mic.minLoud = p.getInt("loud", 1800);
+        if (intent != null && intent.hasExtra("barge")) p.edit().putInt("barge", intent.getIntExtra("barge", 3000)).apply();
+        mic.bargeMin = p.getInt("barge", 3000);
         String say = intent == null ? null : intent.getStringExtra("say");
         if (say != null && !say.isEmpty()) {
             if (pageReady) js("worn.heard(" + JSONObject.quote(say) + ")"); else pendingSay = say;
@@ -287,6 +289,7 @@ public class MainActivity extends Activity {
 
     private void sendVoice(byte[] wav, int ms) {
         final String a = api, s = screen;
+        final int seq = ++voiceSeq;
         if (a == null) return;
         js("worn.mic('thinking')");
         talk.execute(() -> {
@@ -294,6 +297,7 @@ public class MainActivity extends Activity {
             try {
                 String json = new Backend(a).voice(wav, s);
                 Log.i(TAG, "voice " + ms + "ms audio -> " + (System.currentTimeMillis() - t0) + "ms: " + json);
+                if (seq <= staleUpTo) { Log.i(TAG, "dropped stale reply #" + seq + " (interrupted)"); return; }
                 js("worn.voice(" + JSONObject.quote(json) + ")");
             } catch (Backend.HttpError e) {
                 Log.w(TAG, "voice http " + e.code);
@@ -408,7 +412,11 @@ public class MainActivity extends Activity {
     }
 
     /** Barge-in: the wearer talked over Scribi. Stop at once; the mic is already capturing the new utterance. */
+    private int voiceSeq;              // utterances sent to /voice
+    private volatile int staleUpTo;    // replies to utterances up to this one are dropped (said before a barge-in)
+
     private void bargeIn() {
+        staleUpTo = voiceSeq;          // anything still in flight belongs to the interrupted exchange
         audioQueue.clear();
         current = null;
         MediaPlayer m = player;
@@ -416,6 +424,7 @@ public class MainActivity extends Activity {
         if (m != null) { try { m.stop(); } catch (Exception ignored) { } releaseQuietly(m); }
         if (ttsSpeaking && tts != null) { tts.stop(); ttsSpeaking = false; }
         js("worn.talk('barge')");
+        Log.i(TAG, "barge-in: Scribi stopped " + (System.currentTimeMillis() - mic.bargeStart) + " ms after the wearer started talking");
     }
 
     private void initTts() {

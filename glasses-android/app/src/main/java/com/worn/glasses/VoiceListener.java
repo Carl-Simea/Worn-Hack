@@ -71,8 +71,9 @@ final class VoiceListener {
     volatile boolean bargeEnabled = true;
     volatile int bargeMin = 3000;
     private static final float BARGE_RATIO = 2.5f;
-    private static final int BARGE_FRAMES = 10;
+    private static final int BARGE_FRAMES = 6;        // 120 ms of the wearer's voice → stop Scribi
     private float echoEnv; private int bargeRun; private long lastEchoLog;
+    volatile long bargeStart;   // when the voice that triggered the last barge-in began (for latency logs)
     private volatile long pausedAt;
     /** Unmute, after a short tail so the end of our audio isn't heard. */
     void resume(long tailMs) { mutedUntil = System.currentTimeMillis() + tailMs; paused = false; }
@@ -141,7 +142,7 @@ final class VoiceListener {
                         boolean learning = nowM - pausedAt < 300;
                         echoEnv = echoEnv == 0 ? rms : echoEnv * 0.97f + Math.min(rms, Math.max(echoEnv, 300f) * 3f) * 0.03f;
                         float bargeT = Math.max(bargeMin, echoEnv * BARGE_RATIO);
-                        bargeRun = (!learning && rms > bargeT) ? bargeRun + 1 : 0;
+                        if (!learning && rms > bargeT) { if (bargeRun == 0) bargeStart = nowM; bargeRun++; } else bargeRun = 0;
                         if (nowM - lastEchoLog > 500) { lastEchoLog = nowM; Log.v(TAG, "speaking: rms " + (int) rms + " echo " + (int) echoEnv + " barge>" + (int) bargeT); }
                         if (bargeRun >= BARGE_FRAMES) {
                             Log.i(TAG, "barge-in: rms " + (int) rms + " over echo " + (int) echoEnv);

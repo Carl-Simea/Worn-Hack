@@ -1329,7 +1329,7 @@
     },
     talk: function (kind, text) {
       if (kind === "start") { face.talking = true; if (text && st.phase !== "result" && st.phase !== "check") caption(text); if (funny(text)) laugh(1500); }
-      else if (kind === "barge") { face.talking = false; captionOff(400); event("barge_in", { screen: st.screen, source: "glasses" }); }
+      else if (kind === "barge") { face.talking = false; captionOff(400); replyGen++; holdSay = 0; heldLines = []; event("barge_in", { screen: st.screen, source: "glasses" }); }
       else { face.talking = false; captionOff(2400); }
       faceState();
     },
