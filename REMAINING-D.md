@@ -2,7 +2,41 @@
 
 Updated 2026-11-21 ~03:05. Contract re-checked against backend/README.md (A, 9337d3d): no mismatches. Everything below is pushed to `origin/main`.
 
-## Done and verified
+## Glasses: voice-first Worn (updated 11/21 ~10:05, tested on the real M6)
+
+Done, verified on the glasses with screenshots in `screenshots/glasses-*.png`:
+- Every screen runs inside our APK: Home, Learn › language › words › lesson, Write my name, Help me write,
+  Daily 5, Journal and How to use. Each shows a breadcrumb and a green "Say …" hint.
+- The tutor is **Scribi** ("Hi, I'm Scribi"). The app is still Worn.
+- **Lesson:**
+  - Watch: stroke animation, meaning, romanization and audio.
+  - Your turn: stroke N of M, advancing on ink, on "next", or by timer.
+  - Check: glasses camera photo → `/grade`, about 9 s.
+  - Result: score plus a fix, or confetti.
+  - Then the next character or word.
+- **Mic:**
+  - It's always on, through A's `/voice`, with about a 0.5 s round trip.
+  - Tested with the Mac speaking at the glasses and with people nearby.
+  - Utterances are cut using thresholds that adapt to the room, quiet speech is dropped, and nothing is spoken back for chatter.
+- **Speaker:** Scribi's lines from `/say`, plus the pronunciation clips.
+- **Ink:** on-device detection from the camera preview at 64×64, about 1–2 ms per frame.
+- **State:** `/app-state` is sent on every change (id breadcrumb plus display names), and `/live` shows it.
+- **Resilience:**
+  - Backend restarts are retried, and there's a "Looking for the lesson server…" screen.
+  - The backend is tried over Wi-Fi first, with USB as the fallback.
+- **Button (backup):** press = next, hold = check, double tap = back.
+
+Run: `glasses-android/scripts/run.sh usb`. Test without speaking: see `glasses-android/README.md`.
+
+Not verified:
+- **A real wearer's voice in the demo room.** Tune the loudness gate live with `--ei loud N` if needed (default
+  1800; the wearer is usually 3000+, room chatter about 900).
+- **Ink detection on real writing under the venue light.** Voice and the timer cover it.
+- **Wi-Fi only:** CityTech-WiFi isolates clients, so the glasses stay on USB to the Mac.
+- **Pushing:** CityTech-WiFi's sign-in page blocks HTTPS to GitHub from the Mac (seen 10:03). Commits stay local
+  until someone signs in again in a browser on the Mac.
+
+## Done and verified (iPhone app)
 
 - **App** (`ios/Worn/`, SwiftUI, iOS 17+): Home (6 script cards, rings, streak), Connect (searching / connecting /
   connected / lost / Bluetooth off), Practice with auto-pacing, Dictation, Help me write (compose), Write your name,
