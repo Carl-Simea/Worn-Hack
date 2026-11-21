@@ -589,6 +589,7 @@
       case "glasses.status": return d.connected === false ? "Glasses disconnected" : "Glasses connected" + (d.battery !== undefined ? " · battery " + d.battery + "%" : "");
       case "glasses.show": return "Glasses show " + String(d.what || d.showing || d.char || "the lesson").replace(/_/g, " ");
       case "mode.demo": return d.on === false ? "Demo mode off" : "Demo mode on";
+      case "app_state": case "app.state": return "Glasses opened " + (TITLES[d.screen] || (d.screen === "words" ? "a word list" : d.screen === "lesson" ? "a lesson" : d.screen));
       case "voice": return "Heard “" + (d.heard || d.text || d.command || "") + "”" + (d.intent && d.intent !== "unknown" && d.intent !== "none" ? " → " + String(d.intent).replace(/_/g, " ") : "");
       case "practice.start": return "Practice started" + (d.mode ? " · " + d.mode : "");
       case "practice.stop": case "practice.finished": return "Practice finished" + (d.done || d.count ? " · " + (d.done || d.count) + " characters" : "");
@@ -603,7 +604,7 @@
       case "slower": return "Slowed the animation down";
       case "speak": return "Said: “" + (d.text || "") + "”";
       case "stroke_match": return "Stroke " + (d.stroke || "") + " matched" + (d.score !== undefined ? " · " + d.score : "");
-      case "grade.start": case "glasses.photo": return "Photo sent to the tutor";
+      case "grade.start": case "glasses.photo": return d.source === "glasses" ? "Glasses camera took a photo to check" : "Photo sent to the tutor";
       case "grade.failed": return "Couldn't grade that photo, trying again";
       case "app.open": return "iPhone app opened";
       case "app.connected": return "iPhone connected to the laptop";
@@ -618,7 +619,14 @@
       list.innerHTML = '<li class="empty-note"><span></span><span class="t">Lessons, photos and grades appear here.</span></li>';
       return;
     }
-    var QUIET = { tier1: 1, photo: 1, ink: 1, "glasses.frame": 1, "ink.tier1_ms": 1, "glasses.show": 1 };
+    var QUIET = { tier1: 1, photo: 1, ink: 1, "glasses.frame": 1, "ink.tier1_ms": 1, "glasses.show": 1, glasses: 1, heartbeat: 1, "glasses.heartbeat": 1 };
+    var prevScreen = null;
+    ev = ev.filter(function (e) { // app_state fires on every phase tick: keep only real screen changes
+      if (e.type !== "app_state" && e.type !== "app.state") return true;
+      var scr = e.data && e.data.screen;
+      if (!scr || scr === prevScreen) return false;
+      prevScreen = scr; return true;
+    });
     ev.forEach(function (e) { if (e.type === "milestone" && !seenEvents["m" + e.id] && !firstPoll) { seenEvents["m" + e.id] = 1; milestone(e.data || {}); } else if (e.type === "milestone") seenEvents["m" + e.id] = 1; });
     renderStream(list, ev.filter(function (e) { return !QUIET[e.type]; }), seenEvents, 8, function (x) {
       var li = document.createElement("li");
