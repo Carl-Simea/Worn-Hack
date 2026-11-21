@@ -47,6 +47,7 @@ done
 # 5. Bundle id, deployment target (Worn uses iOS 17 APIs), optional signing team.
 pbx="$out/MLDemo.xcodeproj/project.pbxproj"
 sed -i '' -e "s/com\.CHANGEME\.mldemo/$bundle/g" \
+          -e "s/com\.[A-Za-z0-9_]*\.mldemo/$bundle/g" \
           -e "s/IPHONEOS_DEPLOYMENT_TARGET = 15;/IPHONEOS_DEPLOYMENT_TARGET = 17.0;/g" \
           -e 's/INFOPLIST_KEY_NSCameraUsageDescription = "[^"]*";/INFOPLIST_KEY_NSCameraUsageDescription = "In Demo Mode the camera watches your page so the next stroke follows your pen.";/g' \
           -e 's/INFOPLIST_KEY_NSMicrophoneUsageDescription = "[^"]*";/INFOPLIST_KEY_NSMicrophoneUsageDescription = "Say next, again, slower or check to practice hands-free.";/g' "$pbx" || exit 1
