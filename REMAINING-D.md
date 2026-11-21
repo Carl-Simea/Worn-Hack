@@ -1,6 +1,6 @@
 # REMAINING — agent D (iOS)
 
-Updated 2026-11-21 ~03:00. Everything below is pushed to `origin/main`.
+Updated 2026-11-21 ~03:05. Contract re-checked against backend/README.md (A, 9337d3d): no mismatches. Everything below is pushed to `origin/main`.
 
 ## Done and verified
 
