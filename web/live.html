@@ -131,6 +131,12 @@
   #timeline li .ts { text-align: left; }
   .empty-note { color: var(--ink-3); font-size: .8em; }
 
+  #milestone { position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%) scale(.9); opacity: 0; pointer-events: none; z-index: 50;
+    background: var(--ink); color: var(--paper); border-radius: 28px; padding: 1.1em 2em 1.3em; text-align: center; box-shadow: var(--shadow-lift);
+    transition: opacity .35s var(--ease), transform .5s cubic-bezier(.3, 1.6, .5, 1); }
+  #milestone.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #milestone .eyebrow { color: color-mix(in srgb, var(--paper) 65%, transparent); font-size: .62em; }
+  #msText { font-size: 2.4em; margin-top: .2em; font-family: var(--display), var(--script-serif); white-space: nowrap; }
   /* idle */
   #idle { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6em;
     background: var(--paper); transition: opacity .5s var(--ease); z-index: 5; }
@@ -229,6 +235,7 @@
   </section>
 </div>
 
+<div id="milestone"><span class="eyebrow">Milestone</span><div id="msText" class="display"></div></div>
 <div id="idle" class="hide">
   <span class="wordmark">Worn</span>
   <p id="idleText">Waiting for the first lesson</p>
@@ -515,8 +522,27 @@
       case "glasses.status": return d.connected === false ? "Glasses disconnected" : "Glasses connected" + (d.battery !== undefined ? " · battery " + d.battery + "%" : "");
       case "glasses.show": return "Glasses show " + String(d.what || d.showing || d.char || "the lesson").replace(/_/g, " ");
       case "mode.demo": return d.on === false ? "Demo mode off" : "Demo mode on";
-      case "voice": return "Heard: “" + (d.text || d.command || "") + "”";
-      default: return String(e.type || "event").replace(/_/g, " ") + (d.text ? ": " + d.text : "");
+      case "voice": return "Heard: “" + (d.heard || d.text || d.command || "") + "”";
+      case "practice.start": return "Practice started" + (d.mode ? " · " + d.mode : "");
+      case "practice.stop": case "practice.finished": return "Practice finished" + (d.done || d.count ? " · " + (d.done || d.count) + " characters" : "");
+      case "confetti": return "Confetti on the glasses";
+      case "reaction": return "Reaction: " + (d.line || d.text || d.key || "");
+      case "milestone": return "Milestone: " + (d.shown || d.spoken || d.id || "");
+      case "handoff": return "Handoff: lesson picked up on another device";
+      case "audio.play": return "Played the pronunciation";
+      case "compose": case "compose.start": return "Help me write: “" + (d.text || "") + "”";
+      case "name": return "Write your name: " + (d.name || "");
+      case "again": return "Trying " + (d.char || "it") + " again";
+      case "slower": return "Slowed the animation down";
+      case "speak": return "Said: “" + (d.text || "") + "”";
+      case "stroke_match": return "Stroke " + (d.stroke || "") + " matched" + (d.score !== undefined ? " · " + d.score : "");
+      case "grade.start": case "glasses.photo": return "Photo sent to the tutor";
+      case "grade.failed": return "Couldn't grade that photo, trying again";
+      case "app.open": return "iPhone app opened";
+      case "app.connected": return "iPhone connected to the laptop";
+      case "app.offline": return "iPhone lost the laptop";
+      case "daily.loaded": return "Daily 5 ready";
+      default: return String(e.type || "event").replace(/[_.]/g, " ") + (d.text ? ": " + d.text : "");
     }
   }
   function renderEvents(ev) {
@@ -525,12 +551,22 @@
       list.innerHTML = '<li class="empty-note"><span></span><span class="t">Lessons, photos and grades appear here.</span></li>';
       return;
     }
-    renderStream(list, ev.filter(function (e) { return e.type !== "tier1" && e.type !== "photo"; }), seenEvents, 8, function (x) {
+    var QUIET = { tier1: 1, photo: 1, ink: 1, "glasses.frame": 1, "ink.tier1_ms": 1, "glasses.show": 1 };
+    ev.forEach(function (e) { if (e.type === "milestone" && !seenEvents["m" + e.id] && !firstPoll) { seenEvents["m" + e.id] = 1; milestone(e.data || {}); } else if (e.type === "milestone") seenEvents["m" + e.id] = 1; });
+    renderStream(list, ev.filter(function (e) { return !QUIET[e.type]; }), seenEvents, 8, function (x) {
       var li = document.createElement("li");
       li.className = "e-" + (x.type || "");
       li.innerHTML = '<span class="ts">' + clock(x && x.ts) + '</span><span class="t">' + esc(eventText(x)) + "</span>";
       return li;
     });
+  }
+  var msT = null;
+  function milestone(d) {
+    var el = $("milestone");
+    $("msText").textContent = d.shown || d.spoken || "Milestone!";
+    el.classList.add("on");
+    WornConfetti.burst({ x: .5, y: .3, count: 220, power: 1.1 });
+    clearTimeout(msT); msT = setTimeout(function () { el.classList.remove("on"); }, 4200);
   }
   function renderProgress(p, s) {
     var bits = [];

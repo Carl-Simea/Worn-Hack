@@ -60,6 +60,12 @@ Each entry names its owner. Fix it in your area, then strike it through here.
    Repro: `curl -s 'localhost:8000/name?text=Maya'`. The web page retries once on 503 and offers the hand-checked
    names as one-tap examples, so the demo can avoid it.
 
+11. **A big "X" on paper is graded correct as 你 (65/100).** The vision step "reads 你" even though the template
+   match is 23/100 on every stroke. Repro: `uv run --with pillow python web/dev/sim_glasses.py http://127.0.0.1:8000
+   --lang mandarin --item hello --wrong` (its first photo is an "X"); the agent brain shows
+   `Template match 23/100` then `Vision read "你": 65/100, correct`. Suggest: when template_score is very low
+   (< 30), require a high vision score (or a second read) before `correct`, so a wrong character can't pass.
+
 ## Machine / setup (whoever is at the laptop)
 
 8. ~~**The Xcode license isn't accepted on this Mac,**~~ **Fixed:** the license was accepted on 11/21, and normal git and the Simulator work. so `/usr/bin/git` fails ("You have not agreed to the Xcode
