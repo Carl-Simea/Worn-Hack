@@ -49,3 +49,8 @@ It works now at `/static/web/mirror.html`.
 Until then the photo box says "Graded (no photo from the server)" and everything else works.
 
 ASL was cut on 2026-11-20. The backend still lists `"asl"` in LANG_ORDER and the mode literal, which is harmless.
+
+## web/stroke-test.html: pre-demo stroke check
+Open `http://<laptop-ip>:8000/static/web/stroke-test.html` on any device, ideally the glasses' WebView. It animates every
+Mandarin character with `worn-strokes.js` (the code glasses.html and mirror.html use), confirms each one steps through
+all its strokes, and checks that /glasses and /mirror respond. It never touches /session, so it's safe to run while live.

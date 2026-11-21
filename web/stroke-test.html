@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stroke Check</title>
+<!-- Pre-demo self-check (owner: agent C). Open http://<laptop-ip>:8000/static/web/stroke-test.html on any device,
+     including the glasses' WebView. It animates every Mandarin character with worn-strokes.js (the same code
+     glasses.html and mirror.html use) and confirms each one steps through all its strokes.
+     It does NOT touch /session, so it is safe to run while the glasses are live. -->
+<style>
+  :root { --bg:#000; --fg:#fff; --dim:#8a93a0; --ok:#3ef08a; --bad:#ff4d4d; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--fg); font:15px/1.4 system-ui,sans-serif; }
+  h1 { font-size:20px; margin:0 0 4px; } p { color:var(--dim); margin:0 0 12px; }
+  #grid { display:flex; flex-wrap:wrap; }
+  .cell { width:120px; margin:0 10px 12px 0; text-align:center; }
+  .box { width:110px; height:110px; margin:0 auto; border:1px solid #2a2f36; border-radius:8px; }
+  .lbl { font-size:12px; color:var(--dim); height:18px; }
+  .st { font-weight:700; } .ok { color:var(--ok); } .bad { color:var(--bad); }
+  #sum { font-size:18px; font-weight:700; margin:8px 0 14px; }
+  #routes span { margin-right:14px; }
+</style>
+</head>
+<body>
+<h1>Mandarin stroke check</h1>
+<p>Each character should step through all of its strokes. Doesn't change what the glasses show.</p>
+<div id="routes"></div>
+<div id="sum">running…</div>
+<div id="grid"></div>
+<script src="/static/web/vendor/hanzi-writer.min.js"></script>
+<script src="/static/web/worn-strokes.js"></script>
+<script>
+(function () {
+  "use strict";
+  var API = (new URLSearchParams(location.search).get("api") || "").replace(/\/$/, "");
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt) e.textContent = txt; return e; }
+
+  async function checkRoutes() {
+    var out = document.getElementById("routes");
+    for (var r of ["/glasses", "/mirror"]) {
+      var ok = false;
+      try { ok = (await fetch(API + r, { cache: "no-store" })).ok; } catch (e) {}
+      out.appendChild(el("span", ok ? "ok" : "bad", r + (ok ? " ✓" : " missing")));
+    }
+  }
+
+  async function checkChar(c) {
+    var cell = el("div", "cell"), box = el("div", "box"), lbl = el("div", "lbl"), st = el("div", "st", "…");
+    cell.appendChild(box); cell.appendChild(lbl); cell.appendChild(st);
+    document.getElementById("grid").appendChild(cell);
+    var url = "/static/content/strokes/mandarin/" + c.codePointAt(0).toString(16) + ".json";
+    var n = 0;
+    try { n = (await (await fetch(API + url)).json()).strokes.length; } catch (e) {}
+    if (!n) { st.textContent = "no stroke file"; st.className = "st bad"; return false; }
+    var a = WornStrokes.create(box, lbl, API);
+    a.animate({ char: c, stroke_url: url, rtl: false });
+    var seen = {}, t0 = Date.now();
+    while (Date.now() - t0 < 20000 && Object.keys(seen).length < n) {   // wait for every "stroke k of n"
+      var m = /^stroke (\d+) of (\d+)$/.exec(lbl.textContent);
+      if (m && +m[2] === n) seen[m[1]] = 1;
+      if (/trace/.test(lbl.textContent)) break;
+      await sleep(60);
+    }
+    var ok = Object.keys(seen).length === n;
+    st.textContent = ok ? "✓ " + n + " strokes" : "✗ " + Object.keys(seen).length + "/" + n;
+    st.className = "st " + (ok ? "ok" : "bad");
+    return ok;
+  }
+
+  (async function main() {
+    checkRoutes();
+    var c = await (await fetch(API + "/content", { cache: "no-store" })).json();
+    var zh = c.langs.filter(function (l) { return l.lang === "mandarin"; })[0];
+    var chars = [];
+    zh.phrases.forEach(function (p) { p.chars.forEach(function (ch) { if (chars.indexOf(ch) < 0) chars.push(ch); }); });
+    var results = await Promise.all(chars.map(checkChar));
+    var pass = results.filter(Boolean).length;
+    var sum = document.getElementById("sum");
+    sum.textContent = pass + " / " + chars.length + " characters animate" + (pass === chars.length ? " ✓" : "");
+    sum.className = pass === chars.length ? "ok" : "bad";
+  })().catch(function (e) { document.getElementById("sum").textContent = "error: " + e.message; });
+})();
+</script>
+</body>
+</html>
