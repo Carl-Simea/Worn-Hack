@@ -13,6 +13,12 @@ _Last updated 2026-11-21, overnight. Everything below is pushed to origin/main._
 - **6 languages** (Mandarin, Hindi, Arabic, Russian, Hebrew, Greek). Japanese and ASL are filtered out even if a file returns.
 - **Tests:** `uv run pytest` (65 fast, models mocked) and `uv run pytest -m live` (real qwen2.5vl on teammates' handwriting).
 
+## Status at 12:00 (final)
+- **All 6 languages pass end to end, live** (voice "learn X", then the word, then "how do I write X in Y"; grading a correct glyph ≥ 70 and a wrong one < 40): Mandarin 84/35, Hindi 83/12, Arabic 71/7 (marginal), Russian 84/23, Hebrew 100/35, Greek 100/12. Tests: `tests/test_all_scripts.py`.
+- Voice: live eval 49/49. Room speech ("Are you ready?") never fires lesson commands. If the backend restarts, the glasses' open lesson restores the session.
+- **Not done:** the Scribi conversational companion (`worn/companion.py`, `worn/tts.py`) is committed but NOT wired into /voice. A natural local TTS is blocked: the venue network intercepts pypi, and running the downloaded piper binary needs its macOS quarantine cleared, which was denied. Speech uses macOS `say`.
+- The vision rubric times out sometimes when the GPU is busy; those grades fall back to the shape score.
+
 ## Measured grading (rebuilt /grade): calibration
 `backend/eval_grading.py --live`. The synthetic set is drawn on real teammate notebook paper with a shadow, noise and ±6° rotation: 18 targets in 6 scripts.
 - **good:** 3 handwriting-like fonts per script, small warp.
