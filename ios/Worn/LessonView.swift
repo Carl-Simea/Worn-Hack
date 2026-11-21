@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Mirrors what's on the glasses: the current character (or ASL word), the grade, and controls.
+/// Mirrors what's on the glasses: the current character, the grade, and controls.
 struct LessonView: View {
     @Environment(AppModel.self) private var model
     @State private var showCamera = false
@@ -38,11 +38,11 @@ struct LessonView: View {
                     if model.status == .lessonDone {
                         LessonSummary()
                     } else {
-                        if s.mode == .write, let phrase = model.currentPhrase {
+                        if let phrase = model.currentPhrase {
                             CharStrip(lang: s.lang, phrase: phrase, current: s.charIndex, rtl: s.isRTL)
                         }
                         Hero(session: s)
-                        StatusCard(status: model.status, mode: s.mode)
+                        StatusCard(status: model.status)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -88,34 +88,19 @@ private struct Hero: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            if session.mode == .asl {
-                Text(session.text ?? session.meaning ?? "")
-                    .font(.system(size: 52, weight: .bold))
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.4)
-                    .lineLimit(2)
-                if session.lang != "asl", let t = session.text {
-                    Text(t).font(.title2).foregroundStyle(.secondary)
+            Text(session.char ?? "")
+                .font(.system(size: 150))
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+            HStack(spacing: 10) {
+                if let r = session.romanization {
+                    Text(r).font(.title3.weight(.semibold)).foregroundStyle(Theme.accent)
                 }
-                if session.aslUrl == nil {
-                    Label("ASL video not recorded yet", systemImage: "video.slash")
-                        .font(.footnote).foregroundStyle(Theme.fix)
-                }
-            } else {
-                Text(session.char ?? "")
-                    .font(.system(size: 150))
-                    .minimumScaleFactor(0.5)
-                    .lineLimit(1)
-                HStack(spacing: 10) {
-                    if let r = session.romanization {
-                        Text(r).font(.title3.weight(.semibold)).foregroundStyle(Theme.accent)
+                if session.audioUrl != nil {
+                    Button { model.playAudioOnPhone() } label: {
+                        Image(systemName: "speaker.wave.2.fill")
                     }
-                    if session.audioUrl != nil {
-                        Button { model.playAudioOnPhone() } label: {
-                            Image(systemName: "speaker.wave.2.fill")
-                        }
-                        .accessibilityLabel("Play pronunciation on phone")
-                    }
+                    .accessibilityLabel("Play pronunciation on phone")
                 }
             }
             if let m = session.meaning {
@@ -128,7 +113,6 @@ private struct Hero: View {
 
 private struct StatusCard: View {
     let status: AppModel.Status
-    let mode: Mode
 
     var body: some View {
         VStack(spacing: 8) {
@@ -136,8 +120,7 @@ private struct StatusCard: View {
             case .waiting:
                 Image(systemName: "eyeglasses").font(.system(size: 34)).foregroundStyle(Theme.accent)
                     .symbolEffect(.pulse)
-                Text(mode == .asl ? "Watch the sign on your glasses, copy it, then tap Next."
-                                  : "Write it on paper, then press the glasses button.")
+                Text("Write it on paper, then press the glasses button.")
                     .multilineTextAlignment(.center)
             case .grading:
                 ProgressView()
@@ -205,17 +188,10 @@ private struct Controls: View {
                     .buttonStyle(.borderedProminent)
             }
             .controlSize(.large)
-            HStack(spacing: 16) {
-                if session.lang != "asl", model.currentPhrase?.canWrite == true {
-                    Button(session.mode == .asl ? "Back to writing" : "Show ASL sign") { model.toggleMode() }
-                }
-                #if os(iOS)
-                if session.mode == .write {
-                    Button { showCamera = true } label: { Label("Grade with phone", systemImage: "camera") }
-                }
-                #endif
-            }
-            .font(.footnote)
+            #if os(iOS)
+            Button { showCamera = true } label: { Label("Grade with phone", systemImage: "camera") }
+                .font(.footnote)
+            #endif
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

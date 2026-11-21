@@ -93,14 +93,17 @@ final class AppModel {
         guard let api else { return }
         do {
             if lessons.isEmpty {
-                lessons = try await api.content()
+                // ASL is cut: drop the asl lesson and anything without characters to write.
+                lessons = try await api.content().filter { $0.lang != "asl" }.map { l in
+                    Lesson(lang: l.lang, name: l.name, rtl: l.rtl, phrases: l.phrases.filter(\.canWrite))
+                }.filter { !$0.phrases.isEmpty }
                 modelReady = try? await api.health()?.modelReady
                 seenTs = (try? await api.result())?.ts ?? 0  // don't replay a result from before we connected
             }
-            if let remote = try await api.currentSession(), let v = remote.version, v > knownVersion {
+            if let remote = try await api.currentSession(), let v = remote.version, v > knownVersion, remote.mode == .write {
                 adopt(remote, fromServer: true)
             }
-            if let s = session, s.mode == .write, let r = try await api.result() {
+            if let s = session, let r = try await api.result() {
                 consume(r, for: s)
             }
             link = .ok
@@ -113,14 +116,12 @@ final class AppModel {
 
     // MARK: session control
 
-    func start(lang: String, phraseId: String, charIndex: Int = 0, mode: Mode? = nil) {
+    func start(lang: String, phraseId: String, charIndex: Int = 0) {
         guard let api else { return }
-        let phrase = lesson(for: lang)?.phrases.first { $0.id == phraseId }
-        let m: Mode = (lang == "asl" || phrase?.canWrite == false) ? .asl : (mode ?? .write)
         advanceTask?.cancel()
         Task {
             do {
-                let s = try await api.startSession(SessionRequest(lang: lang, phraseId: phraseId, charIndex: charIndex, mode: m))
+                let s = try await api.startSession(SessionRequest(lang: lang, phraseId: phraseId, charIndex: charIndex, mode: .write))
                 adopt(s, fromServer: false)
                 lastError = nil
                 link = .ok
@@ -168,13 +169,13 @@ final class AppModel {
     /// Next char, then next phrase. After the last phrase, show the lesson summary.
     func next() {
         guard let s = session, let lesson = currentLesson else { return }
-        if s.mode == .write, s.charIndex + 1 < s.totalChars {
-            start(lang: s.lang, phraseId: s.phraseId, charIndex: s.charIndex + 1, mode: .write)
+        if s.charIndex + 1 < s.totalChars {
+            start(lang: s.lang, phraseId: s.phraseId, charIndex: s.charIndex + 1)
             return
         }
         guard let i = lesson.phrases.firstIndex(where: { $0.id == s.phraseId }) else { return }
         if i + 1 < lesson.phrases.count {
-            start(lang: s.lang, phraseId: lesson.phrases[i + 1].id, mode: s.mode)
+            start(lang: s.lang, phraseId: lesson.phrases[i + 1].id)
         } else {
             advanceTask?.cancel()
             status = .lessonDone
@@ -183,27 +184,22 @@ final class AppModel {
 
     func previous() {
         guard let s = session, let lesson = currentLesson else { return }
-        if s.mode == .write, s.charIndex > 0 {
-            start(lang: s.lang, phraseId: s.phraseId, charIndex: s.charIndex - 1, mode: .write)
+        if s.charIndex > 0 {
+            start(lang: s.lang, phraseId: s.phraseId, charIndex: s.charIndex - 1)
         } else if let i = lesson.phrases.firstIndex(where: { $0.id == s.phraseId }), i > 0 {
-            start(lang: s.lang, phraseId: lesson.phrases[i - 1].id, mode: s.mode)
+            start(lang: s.lang, phraseId: lesson.phrases[i - 1].id)
         }
     }
 
     /// Re-POST the same session: the glasses replay the animation + audio, and the old result is cleared.
     func replayOnGlasses() {
         guard let s = session else { return }
-        start(lang: s.lang, phraseId: s.phraseId, charIndex: s.charIndex, mode: s.mode)
-    }
-
-    func toggleMode() {
-        guard let s = session else { return }
-        start(lang: s.lang, phraseId: s.phraseId, mode: s.mode == .write ? .asl : .write)
+        start(lang: s.lang, phraseId: s.phraseId, charIndex: s.charIndex)
     }
 
     func restartLesson() {
         guard let s = session, let first = currentLesson?.phrases.first else { return }
-        start(lang: s.lang, phraseId: first.id, mode: s.mode)
+        start(lang: s.lang, phraseId: first.id)
     }
 
     func leaveLesson() {

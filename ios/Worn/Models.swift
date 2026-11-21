@@ -14,7 +14,6 @@ struct Lesson: Decodable, Identifiable, Hashable {
 
     var id: String { lang }
     var isRTL: Bool { rtl ?? false }
-    var isASL: Bool { lang == "asl" }
 }
 
 struct Phrase: Decodable, Identifiable, Hashable {
@@ -24,11 +23,11 @@ struct Phrase: Decodable, Identifiable, Hashable {
     let romanization: String?
     let meaning: String?
     let audio: String?
-    let asl: String?
 
     var canWrite: Bool { !chars.isEmpty }
 }
 
+/// Writing only. ASL was cut; `asl` stays so a session someone else POSTs still decodes (and gets ignored).
 enum Mode: String, Codable {
     case write, asl
 }
@@ -53,7 +52,6 @@ struct SessionState: Decodable, Equatable {
     let meaning: String?
     let audioUrl: String?
     let strokeUrl: String?
-    let aslUrl: String?
     let mode: Mode
     let version: Int?
 
