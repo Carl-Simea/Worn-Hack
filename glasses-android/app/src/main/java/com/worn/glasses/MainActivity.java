@@ -66,6 +66,8 @@ public class MainActivity extends Activity {
     private MediaActionSound shutter;
     private VoiceListener mic;
     private InkWatcher inkWatch;
+    private final CameraStream camStream = new CameraStream();
+    private volatile String camWs;    // explicit stream URL (--es camws), else derived from the backend
     private volatile String api;      // the backend in use right now
     private volatile String primary;  // Wi-Fi backend (intent extra `api`, remembered)
     private volatile String fallback; // used only while the primary can't be reached (USB / adb reverse)
@@ -104,6 +106,7 @@ public class MainActivity extends Activity {
             js("worn.ink(" + frac + "," + ms + ")");
         });
         camera.setLumaListener(inkWatch::onFrame);
+        camera.setStream(camStream);
         mic = new VoiceListener(new VoiceListener.Callback() {
             @Override public void onState(String s) { js("worn.mic(" + JSONObject.quote(s) + ")"); }
             @Override public void onUtterance(byte[] wav, int ms) { sendVoice(wav, ms); }
@@ -130,6 +133,8 @@ public class MainActivity extends Activity {
         if (fromIntent != null && !fromIntent.trim().isEmpty()) p.edit().putString("api", fromIntent.trim()).apply();
         String fb = intent == null ? null : intent.getStringExtra("fallback");
         if (fb != null) p.edit().putString("fallback", fb.trim()).apply();
+        if (intent != null && intent.hasExtra("camws")) p.edit().putString("camws", intent.getStringExtra("camws").trim()).apply();
+        camWs = p.getString("camws", "");
         String nextPrimary = p.getString("api", BuildConfig.DEFAULT_API).replaceAll("/+$", "");
         String nextFallback = p.getString("fallback", USB_FALLBACK).replaceAll("/+$", "");
         boolean changed = !nextPrimary.equals(primary) || !nextFallback.equals(fallback);
@@ -219,12 +224,14 @@ public class MainActivity extends Activity {
         hideSystemUi();
         web.onResume();
         if (has(Manifest.permission.CAMERA)) camera.open();
+        if (api != null) startStream();
         if (wantMic) startMic();
     }
 
     @Override
     protected void onPause() {
         mic.stop();
+        camStream.stop();
         camera.close(); // let the built-in camera app have it when we're not in front
         web.onPause();
         super.onPause();
@@ -474,8 +481,21 @@ public class MainActivity extends Activity {
     }
 
     /** Our page, with the backend as its origin (same-origin fetches, B's /static/web scripts). */
+    /** Live camera: --es camws ws://host:port/path, or "off"; default = the relay (port 8790) next to the backend. */
+    private void startStream() {
+        String u = camWs;
+        if ("off".equals(u)) { camStream.stop(); return; }
+        if (u == null || u.isEmpty()) {
+            if (api == null) return;
+            Uri b = Uri.parse(api);
+            u = "ws://" + b.getHost() + ":8790/glasses/camera/ws";
+        }
+        camStream.start(u);
+    }
+
     private void loadPage() {
         ui.removeCallbacks(retryLoad);
+        startStream();
         pageReady = false;
         web.loadDataWithBaseURL(api + "/", asset("ui/index.html"), "text/html", "utf-8", null);
         Log.i(TAG, "loading app UI with base " + api);

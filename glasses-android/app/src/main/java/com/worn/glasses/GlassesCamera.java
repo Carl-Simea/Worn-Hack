@@ -54,6 +54,9 @@ final class GlassesCamera {
     private long readySince;
     private boolean opening;
     private Callback pending; // one capture at a time
+    private volatile CameraStream stream;
+    void setStream(CameraStream s) { stream = s; if (s != null) s.setRotation(sensorOrientation); }
+    private CaptureRequest.Builder previewReq;
 
     /** 64×64 grayscale thumbnails from the preview stream, for the on-device ink check. */
     interface LumaListener { void onLuma(byte[] gray64); }
@@ -137,13 +140,19 @@ final class GlassesCamera {
             sensorOrientation = so == null ? 0 : so;
             Size size = pickJpegSize(cc);
             Log.i(TAG, "opening camera " + cameraId + " jpeg " + size + " sensorOrientation " + sensorOrientation);
+            if (stream != null) stream.setRotation(sensorOrientation);
             reader = ImageReader.newInstance(size.getWidth(), size.getHeight(), ImageFormat.JPEG, 2);
             reader.setOnImageAvailableListener(this::onImage, handler);
             Size ps = pickPreviewSize(cc);
             previewReader = ImageReader.newInstance(ps.getWidth(), ps.getHeight(), ImageFormat.YUV_420_888, 2);
             previewReader.setOnImageAvailableListener(pr -> {
                 Image f = pr.acquireLatestImage();
-                if (f != null) { try { feedLuma(f); } catch (Exception e) { Log.w(TAG, "luma", e); } f.close(); }
+                if (f != null) {
+                    try { feedLuma(f); } catch (Exception e) { Log.w(TAG, "luma", e); }
+                    CameraStream st = stream;
+                    if (st != null) { try { st.offer(f); } catch (Exception e) { Log.w(TAG, "stream", e); } }
+                    f.close();
+                }
             }, handler);
             previewSurface = previewReader.getSurface();
             opening = true;
@@ -187,7 +196,11 @@ final class GlassesCamera {
                                 b.addTarget(previewSurface);
                                 b.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
                                 b.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+                                b.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, new android.util.Range<>(15, 30));
+                                previewReq = b;
                                 s.setRepeatingRequest(b.build(), null, handler);
+                                // Let AE/AWB/AF settle once, then lock them: no hunting per frame.
+                                handler.postDelayed(GlassesCamera.this::lock3A, 1500);
                             } catch (CameraAccessException | IllegalStateException e) {
                                 Log.w(TAG, "preview request failed", e);
                             }
@@ -204,6 +217,22 @@ final class GlassesCamera {
             Log.e(TAG, "createCaptureSession failed", e);
             closeInternal();
             fail("Camera setup failed, press again");
+        }
+    }
+
+    private void lock3A() {
+        if (session == null || previewReq == null) return;
+        try {
+            previewReq.set(CaptureRequest.CONTROL_AE_LOCK, true);
+            previewReq.set(CaptureRequest.CONTROL_AWB_LOCK, true);
+            previewReq.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO);
+            previewReq.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START);
+            session.capture(previewReq.build(), null, handler);        // one AF sweep, then hold
+            previewReq.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_IDLE);
+            session.setRepeatingRequest(previewReq.build(), null, handler);
+            Log.i(TAG, "AE/AWB/AF locked");
+        } catch (CameraAccessException | IllegalStateException e) {
+            Log.w(TAG, "3A lock failed", e);
         }
     }
 
@@ -256,6 +285,7 @@ final class GlassesCamera {
         if (device != null) { try { device.close(); } catch (Exception ignored) {} device = null; }
         if (reader != null) { reader.close(); reader = null; }
         previewSurface = null;
+        previewReq = null;
         if (previewReader != null) { previewReader.close(); previewReader = null; }
     }
 
@@ -272,6 +302,8 @@ final class GlassesCamera {
         StreamConfigurationMap map = cc.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
         Size[] sizes = map == null ? null : map.getOutputSizes(ImageFormat.YUV_420_888);
         if (sizes == null || sizes.length == 0) return new Size(640, 480);
+        for (Size s : sizes) if (s.getWidth() == 640 && s.getHeight() == 480) return s;   // stream size
+        for (Size s : sizes) if (s.getWidth() == 480 && s.getHeight() == 360) return s;
         Size best = null;
         for (Size s : sizes) {
             if (s.getWidth() < 320) continue;
