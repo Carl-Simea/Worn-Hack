@@ -20,6 +20,9 @@ Each entry names its owner. Fix it in your area, then strike it through here.
    "Worn · Waiting for the first lesson" watermark and the hero row (你好 नमस्ते مرحبا Привет שלום Γεια σου) are drawn
    across the On-paper panel, the Agent-brain panel and the gap between them. They should hide once `/live/state`
    has a session.
+   The same thing shows on `/glasses` (640×480): the "Worn · Pick a phrase on your phone" idle screen stays
+   half-visible over the lesson. Caveat: I captured both with headless Chrome (`--virtual-time-budget`), which can
+   freeze a CSS fade mid-way, so please confirm in a real browser.
 7. **Greek `γεια σου` shows as one word in the character strip** (`γ ε ι α σ ο υ`). `chars` leaves out the space on
    purpose (no empty writing step), so use `item.text` to place the gap: there's a word break wherever `text` has a space.
 
