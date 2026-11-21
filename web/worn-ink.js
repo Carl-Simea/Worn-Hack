@@ -115,8 +115,7 @@
         d.strokes.forEach(function (s, i) {
           el("path", { d: s.center }, gg);
           var p = el("path", { d: s.center, fill: "none", stroke: theme.done, "stroke-width": s.width,
-                               "stroke-linecap": "round", "stroke-linejoin": "round", pathLength: 1,
-                               "stroke-dasharray": "1 1", "stroke-dashoffset": 1 }, root);
+                               "stroke-linecap": "round", "stroke-linejoin": "round" }, root);
           nodes.push({ draw: p, paint: p, i: i });
         });
       } else {
@@ -126,7 +125,7 @@
         d.strokes.forEach(function (s, i) {
           var m = el("mask", { id: id + "m" + i, maskUnits: "userSpaceOnUse", x: -2000, y: -2000, width: 6000, height: 6000 }, defs);
           var mp = el("path", { d: s.center, fill: "none", stroke: "#fff", "stroke-width": s.width, "stroke-linecap": "round",
-                                "stroke-linejoin": "round", pathLength: 1, "stroke-dasharray": "1 1", "stroke-dashoffset": 1 }, m);
+                                "stroke-linejoin": "round" }, m);
           // mask content is in the user space of the referencing path, which already includes its transform
           var paint = el("path", { d: d.kind === "hanzi" ? s.fill : d.outline, fill: theme.done, mask: "url(#" + id + "m" + i + ")" }, svg);
           if (d.transform) paint.setAttribute("transform", d.transform);
@@ -134,6 +133,15 @@
           nodes.push({ draw: mp, paint: paint, i: i });
         });
       }
+      // Dash by each path's measured length (not pathLength="1": older WebViews such as the glasses' Chrome 74 can
+      // ignore it and draw dotted lines instead of a growing stroke).
+      nodes.forEach(function (n) {
+        var len = 0;
+        try { len = n.draw.getTotalLength(); } catch (e) { len = 0; }
+        n.len = len > 0 ? len : 1000;
+        n.draw.setAttribute("stroke-dasharray", n.len + " " + (n.len + 1));
+        n.draw.setAttribute("stroke-dashoffset", n.len);
+      });
       // start dot + number for the current stroke
       var hint = el("g", { "class": "wink-hint", opacity: 0 }, svg);
       var r = d.kind === "hanzi" ? 34 : d.kind === "pen" ? 3.2 : (d.strokes[0] ? d.strokes[0].width * 0.32 : 10);
@@ -146,7 +154,7 @@
     function setStroke(i, frac, color) {
       var n = nodes[i];
       if (!n) return;
-      n.draw.setAttribute("stroke-dashoffset", String(1 - frac));
+      n.draw.setAttribute("stroke-dashoffset", String((n.len || 1) * (1 - frac)));
       if (n.draw !== n.paint) n.draw.style.visibility = frac <= 0 ? "hidden" : "visible";
       else n.draw.style.visibility = frac <= 0 ? "hidden" : "visible";
       var col = color || theme.done;
