@@ -9,7 +9,7 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
-        android:label="Scribi"
+        android:label="Worn"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
@@ -17,7 +17,7 @@
         android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
         <activity
             android:name=".MainActivity"
-            android:label="Scribi"
+            android:label="Worn"
             android:exported="true"
             android:launchMode="singleTask"
             android:stateNotNeeded="true"
