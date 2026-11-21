@@ -18,7 +18,7 @@ paper, then back again, and it can't see your handwriting. So people stall at th
 1. **Pick on the phone.** Choose a language and a word (hello, thank you, water, friend, one) or your own name.
 2. **Hand off to the glasses.** The glasses show the next character stroke by stroke, with numbered strokes,
    pronunciation audio, romanization and meaning, while your hands stay free for pen and paper.
-3. **Write it on real paper.** Tap the glasses: they take a photo and grade it in about a second. You get a check
+3. **Write it on real paper.** Tap the glasses: they take a photo and grade it in a couple of seconds. You get a check
    and a goofy reaction ("Chef's kiss!"), or one specific fix ("add the dot under the letter"), spoken aloud.
 4. **Keep going hands-free.** The phone advances by itself, and the iPad at the table mirrors the glasses live,
    including what the AI saw and why it decided what it did.
@@ -37,6 +37,9 @@ paper, then back again, and it can't see your handwriting. So people stall at th
 Each of the 30 items has the native text, romanization, meaning, a one-line "how this script works", a one-line
 "why it's useful" (read a menu, write a card), a dictation hint, per-character romanization and native-voice audio.
 **Write your name** spells names by sound in Devanagari, Arabic, Cyrillic, Hebrew and Greek.
+
+**Measured on teammates' real handwriting (local model):** 87% of 76 grades correct, 94% on real letters,
+94% of wrong-target attempts rejected, and no harsh feedback (`backend/test_data/eval_results.md`).
 
 ## How it works
 
