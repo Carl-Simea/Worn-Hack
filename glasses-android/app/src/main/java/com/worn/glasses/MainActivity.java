@@ -144,6 +144,9 @@ public class MainActivity extends Activity {
         if (say != null && !say.isEmpty()) {
             if (pageReady) js("worn.heard(" + JSONObject.quote(say) + ")"); else pendingSay = say;
         }
+        String dbg = intent == null ? null : intent.getStringExtra("js");   // debug: run page script
+        if (dbg != null && pageReady) js(dbg);
+        if (intent != null) intent.removeExtra("js");
         String key = intent == null ? null : intent.getStringExtra("key");
         if (key != null && pageReady) js("worn.key(" + JSONObject.quote(key) + ")");
         if (intent != null) { intent.removeExtra("say"); intent.removeExtra("key"); }

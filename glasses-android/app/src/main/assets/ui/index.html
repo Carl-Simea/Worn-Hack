@@ -48,11 +48,11 @@
   /* lesson */
   #lesson { display:flex; height:100%; }
   #board { position:relative; width:300px; height:300px; flex:none; }
-  #board .grid { position:absolute; inset:0; border:1px solid #20242b; }
+  #board .grid { position:absolute; top:0;left:0;right:0;bottom:0; border:1px solid #20242b; }
   #board .grid:before, #board .grid:after { content:""; position:absolute; background:#20242b; }
   #board .grid:before { left:50%; top:0; bottom:0; width:1px; }
   #board .grid:after { top:50%; left:0; right:0; height:1px; }
-  #ink { position:absolute; inset:0; }
+  #ink { position:absolute; top:0;left:0;right:0;bottom:0; }
   #side { flex:1; padding-left:22px; display:flex; flex-direction:column; min-width:0; }
   #strip { font-size:34px; letter-spacing:4px; white-space:nowrap; overflow:hidden; color:var(--faint); padding-left:2px; }
   #strip .done { color:var(--dim); } #strip .cur { color:var(--fg); border-bottom:3px solid var(--say); }
@@ -62,7 +62,7 @@
   #step { font-size:34px; font-weight:700; color:var(--fg); margin-top:2px; }
   #bar { height:6px; background:#1d2127; border-radius:3px; margin-top:8px; overflow:hidden; }
   #bar i { display:block; height:100%; width:0; background:var(--say); }
-  #res { position:absolute; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; text-align:center; background:#000; }
+  #res { position:absolute; top:0;left:0;right:0;bottom:0; display:none; align-items:center; justify-content:center; flex-direction:column; text-align:center; background:#000; }
   #res .score { font-size:96px; font-weight:800; line-height:1; }
   #res .line { font-size:28px; margin-top:10px; max-width:560px; }
   #res .fix { font-size:22px; color:var(--gold); margin-top:12px; max-width:560px; }
@@ -151,18 +151,29 @@
     reportTimer = setTimeout(function () {
       var s = st.session || {};
       postJSON("/app-state", {
-        screen: st.screen, breadcrumb: crumbs, hint: hint, hint2: hint2, listening: micState === "listening" || micState === "hearing",
+        screen: st.screen, breadcrumb: idTrail(), breadcrumb_names: crumbs, hint: hint, hint2: hint2, listening: micState === "listening" || micState === "hearing",
         mic: micState, phase: st.screen === "lesson" ? st.phase : null, lang: st.lang, item_id: st.screen === "lesson" ? s.item_id : null,
         char: st.screen === "lesson" ? s.char : null, char_index: st.screen === "lesson" ? st.charIdx : null,
         stroke: st.stroke, stroke_count: st.strokeCount, last_heard: lastHeard, via: N.via(), source: "glasses"
       }).catch(function () {});
     }, 60);
   }
+  function idTrail() {
+    var sc = st.screen;
+    if (sc === "home") return ["home"];
+    if (sc === "learn") return ["home", "learn"];
+    if (sc === "words") return ["home", "learn", "words"];
+    if (sc === "lesson") {
+      if (st.from === "daily5" || st.from === "compose" || st.from === "name") return ["home", st.from, "lesson"];
+      return ["home", "learn", "words", "lesson"];
+    }
+    return ["home", sc];
+  }
   function setMic(s) {
     micState = s;
     var el = $("mic"); el.className = s;
     $("micText").textContent = voiceDown && s === "listening" ? "voice offline" :
-      { listening: "Listening", hearing: "Hearing you…", thinking: "Thinking…", speaking: "Speaking", off: "Mic off" }[s] || s;
+      { listening: "Listening", hearing: "Hearing you…", thinking: "Scribi is thinking…", speaking: "Scribi", off: "Mic off" }[s] || s;
     report();
   }
   function showHeard(t) {
@@ -235,14 +246,14 @@
   };
 
   RENDER.howto = function () {
-    $("main").innerHTML = "<div class='title'>What you can say</div><div class='cmds'>" + [
+    $("main").innerHTML = "<div class='title'>Just talk to Scribi</div><div class='cmds'>" + [
       ["learn Greek", "pick a language"], ["next · previous", "move, or next stroke"], ["show me again · slower", "replay the strokes"],
       ["check · I'm done", "I look at your paper"], ["what does this mean", "meaning + sound"],
       ["how do I write thank you in Hindi", "any message"], ["write my name, Sam", "your name in five scripts"],
       ["back · home", "anywhere"]
     ].map(function (c) { return "<div><b>“" + esc(c[0]) + "”</b> &nbsp;" + esc(c[1]) + "</div>"; }).join("") + "</div>";
     chrome(["Home", "How to use"], "Say “home” or “learn Mandarin”", "The button also works: tap = select, double tap = back");
-    say("Just talk to me. Say learn, then a language. In a lesson say next, check, or show me again. Say home anytime.");
+    say("Just talk to Scribi. Say learn, then a language. In a lesson say next, check, or show me again. Say home anytime.");
   };
 
   RENDER.name = function (o) {
@@ -354,11 +365,19 @@
     st.lang = body.lang;
     phaseUI("Loading…", "", 0);
     chrome(lessonCrumbs(), "One moment…", "");
-    postJSON("/session", body).then(startSession).catch(function (e) {
-      $("main").innerHTML = "<p class='big' style='font-size:32px'>I couldn't open that lesson.</p><p class='muted'>" + esc(e.message) + "</p>";
-      chrome(["Home", "Learn"], "Say “back” or “home”", "");
-      say("Sorry, I couldn't open that lesson.");
-    });
+    var tries = 0;
+    (function attempt() {
+      postJSON("/session", body).then(function (s) { if (st.screen === "lesson") startSession(s); }).catch(function (e) {
+        if (st.screen !== "lesson") return;
+        tries++;
+        var net = !e.status;   // no answer at all: the server is restarting or the link dropped
+        if (net && tries < 6) { phaseUI("Reconnecting…", "", 0); later("retryLesson", 2000, attempt); return; }
+        $("main").innerHTML = "<p class='big' style='font-size:32px'>I couldn't open that lesson.</p><p class='muted'>" +
+          esc(net ? "The lesson server isn't answering." : e.message) + "</p>";
+        chrome(["Home", "Learn"], "Say “back” or “home”", "");
+        say("Sorry, I couldn't open that lesson.");
+      });
+    })();
   };
   function lessonCrumbs() {
     var s = st.session || {};
@@ -515,9 +534,17 @@
     clearLessonTimers(); hideRes();
     st.lang = lang;
     phaseUI("Loading…", "", 0);
-    postJSON("/session", { lang: lang, item_id: itemId, char_index: charIdx, mode: "write" }).then(function (s) {
-      if (st.screen === "lesson") { st.inkFor = null; startSession(s); }
-    }).catch(function () { say("I couldn't open the next one."); });
+    var tries = 0;
+    (function attempt() {
+      postJSON("/session", { lang: lang, item_id: itemId, char_index: charIdx, mode: "write" }).then(function (s) {
+        if (st.screen === "lesson") { st.inkFor = null; startSession(s); }
+      }).catch(function (e) {
+        if (st.screen !== "lesson") return;
+        if (!e.status && ++tries < 6) { phaseUI("Reconnecting…", "", 0); later("retryLesson", 2000, attempt); return; }
+        say("I couldn't open the next one. Say next to try again.");
+        chrome(lessonCrumbs(), "Say “next” to try again", "“back” · “home”");
+      });
+    })();
   }
   function clearLessonTimers() {
     N.watchInk(false); ["watch", "watchBar", "stroke", "autocheck", "afterResult", "gradeTimeout"].forEach(clear); }
@@ -640,6 +667,7 @@
   function findLang(t) { for (var i = 0; i < LANG_WORDS.length; i++) if (LANG_WORDS[i][1].test(t)) return LANG_WORDS[i][0]; return null; }
   function match(raw) {
     var t = (" " + String(raw || "").toLowerCase().replace(/[^\w\s']/g, " ").replace(/\s+/g, " ") + " ");
+    t = t.replace(/^ (?:hey |hi |ok |okay )?(?:scribi|scribby|scribe|scribbie|scruby) /, " ");
     var m;
     if ((m = t.match(/(?:how (?:do|would|can|should) (?:i|you|we) (?:write|say|spell)|help me write|write|translate) (.+?) (?:in|into) (\w+)/))) {
       var cl = findLang(m[2]); if (cl) return { intent: "compose", args: { text: m[1].trim(), lang: cl } };
@@ -743,6 +771,10 @@
     audioDone: function () { if (micState === "speaking") setMic("listening"); },
     graded: function (json) { var r; try { r = typeof json === "string" ? JSON.parse(json) : json; } catch (e) { r = {}; } graded(r); },
     error: function (msg) { if (st.phase === "check") gradeError(msg || "I couldn't check that. Say check to try again."); else toast(msg, 2500); },
+    test: function (what) {   // adb --es js "worn.test(1)": 1 = pass, 0 = fail (forces a result while checking)
+      st.phase = "check"; $("res").style.display = "flex";
+      graded(what ? { correct: true, score: 94, reaction: "Nailed it!" } : { correct: false, score: 41, reaction: "So close!", feedback: "The second stroke should start higher." });
+    },
     state: function () { return JSON.stringify({ screen: st.screen, phase: st.phase, stroke: st.stroke, strokeCount: st.strokeCount, lang: st.lang, sel: st.sel }); },
     go: go
   };
@@ -752,7 +784,7 @@
   getJSON("/content").then(function (c) {
     (c.langs || []).forEach(function (l) { content[l.lang] = l; });
   }).catch(function () {}).then(function () {
-    go("home", { greet: "Hi, I'm Worn. Say learn Greek, or say help." }, true);
+    go("home", { greet: "Hi, I'm Scribi. Say learn Greek, or say help." }, true);
     N.ready();
   });
 })();
