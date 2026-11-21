@@ -7,7 +7,7 @@
 <!-- Content check page (owner: agent C). Open http://<laptop-ip>:8000/static/content/tools/stroke_preview.html
      For every character of every lesson item it shows:
        left  = the real font glyph (grey) under the stroke file, each stroke numbered at its start with an arrow at its end
-       right = the live animation, using /static/web/worn-strokes.js (the code the glasses and mirror use)
+       right = the live animation, using /static/web/worn-ink.js (the renderer the glasses, /live and /app use)
      ?lang=hindi limits to one language. ?grid=1 adds a labelled 0-100 grid (authoring aid). ?anim=0 hides animations.
      It never touches /session. -->
 <style>
@@ -31,11 +31,12 @@
 </head>
 <body>
 <h1>Worn stroke preview</h1>
-<div class="meta">Grey = real font glyph. Colored = stroke file: number at the start, arrow at the end. Black boxes = live animation.</div>
+<div class="meta">Grey = real font glyph. Colored = stroke file: number at the start, arrow at the end. Black boxes = live animation (WornInk).</div>
 <div id="sum">loading…</div>
 <div id="out"></div>
 <script src="/static/web/vendor/hanzi-writer.min.js"></script>
-<script src="/static/web/worn-strokes.js"></script>
+<script src="/static/web/worn-ink.js"></script>
+<script src="/static/web/worn-strokes.js" onerror="void 0"></script>
 <script>
 "use strict";
 const qs = new URLSearchParams(location.search);
@@ -124,7 +125,15 @@ async function cell(lang, ch, stroke_order) {
   if (ANIM) {
     const a = document.createElement("div"); a.className = "box anim";
     const inner = document.createElement("div"); inner.className = "inner"; a.appendChild(inner); pair.appendChild(a);
-    WornStrokes.create(inner, cap, "").animate({ char: ch, stroke_url: r.ok ? url : null, rtl: lang === "arabic" || lang === "hebrew" });
+    const sess = { lang, char: ch, stroke_url: r.ok ? url : null, rtl: lang === "arabic" || lang === "hebrew" };
+    try {
+      if (window.WornInk) {           // agent B's renderer (glasses, /live, /app)
+        const ink = WornInk.create(inner, { theme: "glasses", numbers: true, label: cap });
+        Promise.resolve(ink.load(sess)).then(() => ink.loop()).catch(e => { cap.textContent = "render error"; problems.push(`${lang} ${ch}: ${e}`); });
+      } else if (window.WornStrokes) {
+        WornStrokes.create(inner, cap, "").animate(sess);
+      } else { cap.textContent = "no renderer"; }
+    } catch (e) { cap.textContent = "render error"; problems.push(`${lang} ${ch}: ${e}`); }
   }
   return c;
 }
