@@ -5,7 +5,7 @@
  * WornVoice.recorder()          -> { start(): Promise, stop(): Promise<Blob wav>, cancel(), level }  16 kHz mono WAV, all local.
  *                               Stops by itself after ~1.1 s of quiet once speech was heard, or after 7 s.
  * WornVoice.send(api, {audio, text, screen}) -> Promise<{heard, intent, args, say, nav}>   POST /voice (multipart)
- * WornVoice.say(text)           speaks with the browser's own (on-device) voice
+ * WornVoice.say(text)           speaks Scribi's line with the browser's own (on-device) voice
  */
 (function () {
   "use strict";
@@ -26,7 +26,7 @@
   ];
 
   var HINTS = {
-    home: "Say “learn Mandarin”, “daily five” or “help”",
+    home: "Hi, I’m Scribi. Say “learn Mandarin” or “help”",
     learn: "Say a language, like “learn Greek”",
     lang: "Say “next” to pick a word, or “back”",
     words: "Say “next” to pick a word, or “back”",

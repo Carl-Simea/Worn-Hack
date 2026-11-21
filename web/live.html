@@ -224,7 +224,7 @@
         <span class="pill" data-t="tier1" title="Tier 1: new ink on the paper"><small>INK</small><b class="tnum">–</b></span>
         <span class="pill" data-t="tier2" title="Tier 2: stroke matched to the template"><small>STROKE</small><b class="tnum">–</b></span>
         <span class="pill" data-t="tier3" title="Tier 3: vision model reads the character"><small>VISION</small><b class="tnum">–</b></span>
-        <span class="pill" data-t="decide" title="Tutor agent decides and reacts"><small>TUTOR</small><b class="tnum">–</b></span>
+        <span class="pill" data-t="decide" title="Scribi, the tutor, decides and reacts"><small>SCRIBI</small><b class="tnum">–</b></span>
       </span>
       <span class="pill" id="conn"><span class="dot" id="connDot"></span><span id="connText">Glasses</span></span>
     </div>
@@ -233,7 +233,7 @@
   <section id="voice" aria-live="polite">
     <div id="mic" title="Glasses microphone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
     <div id="crumbs"></div>
-    <div id="said"><span class="q" style="color:var(--ink-3);font-style:normal;font-family:var(--ui);font-size:.85em">Say “what can I say” to the glasses</span></div>
+    <div id="said"><span class="q" style="color:var(--ink-3);font-style:normal;font-family:var(--ui);font-size:.85em">Talk to Scribi: say “what can I say”</span></div>
     <div id="hint"><small>SAY</small><span id="hintText">&nbsp;</span></div>
   </section>
 
@@ -261,7 +261,7 @@
     </section>
 
     <section class="panel tutorP">
-      <div class="cap"><span class="eyebrow">Tutor</span><span class="tnum" id="meaningCap">&nbsp;</span></div>
+      <div class="cap"><span class="eyebrow">Scribi</span><span class="tnum" id="meaningCap">&nbsp;</span></div>
       <div class="fit"><div class="square waiting" id="tutor">
         <div class="scoreRow">
           <div id="score" class="tnum">–</div>
@@ -553,7 +553,7 @@
   function renderSteps(steps) {
     var list = $("brain");
     if (!steps.length && !list.children.length) {
-      list.innerHTML = '<li class="empty-note"><span></span><span class="t">The tutor agent’s steps stream here as it reads the paper.</span><span></span></li>';
+      list.innerHTML = '<li class="empty-note"><span></span><span class="t">Scribi’s steps stream here as it reads the paper.</span><span></span></li>';
       return;
     }
     renderStream(list, steps, seenSteps, 12, function (x) {
@@ -604,7 +604,7 @@
       case "slower": return "Slowed the animation down";
       case "speak": return "Said: “" + (d.text || "") + "”";
       case "stroke_match": return "Stroke " + (d.stroke || "") + " matched" + (d.score !== undefined ? " · " + d.score : "");
-      case "grade.start": case "glasses.photo": return d.source === "glasses" ? "Glasses camera took a photo to check" : "Photo sent to the tutor";
+      case "grade.start": case "glasses.photo": return d.source === "glasses" ? "Glasses camera took a photo for Scribi" : "Photo sent to Scribi";
       case "grade.failed": return "Couldn't grade that photo, trying again";
       case "app.open": return "iPhone app opened";
       case "app.connected": return "iPhone connected to the laptop";

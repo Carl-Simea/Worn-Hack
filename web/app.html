@@ -341,7 +341,7 @@
   <section class="view" id="v-compose">
     <a class="back" href="#/">← Home</a>
     <h1 class="display" style="font-size:clamp(36px,5vw,56px)">Help me write</h1>
-    <p class="lede">Type a short message in English. The tutor writes it in the script you pick, then teaches it to you character by character.</p>
+    <p class="lede">Type a short message in English. Scribi writes it in the script you pick, then teaches it to you character by character.</p>
     <div class="two" style="margin-top:22px">
       <div class="card panel">
         <textarea id="cText" maxlength="120" placeholder="Happy birthday, my friend"></textarea>
@@ -394,7 +394,7 @@
   <section class="view" id="v-help">
     <a class="back" href="#/">← Home</a>
     <h1 class="display" style="font-size:clamp(36px,5vw,56px)">What can I say?</h1>
-    <p class="lede">Worn is run by your voice. Speak naturally. Every screen on the glasses shows what to say next, and the button is only a backup.
+    <p class="lede"><b>Just talk to Scribi</b>, the voice tutor inside Worn. Speak naturally. Every screen on the glasses shows what to say next, and the button is only a backup.
       Tap the microphone (bottom right) and try any of these, or tap one to send it.</p>
     <div class="tryrow"><input type="text" id="vType" placeholder="Type a command, like “learn Greek”" maxlength="80"><button class="btn primary" id="vSend">Send</button></div>
     <div class="cmdgrid" id="cmds"></div>
@@ -405,7 +405,7 @@
 <div class="vbubble" id="vBubble" aria-live="polite"><div class="q" id="vQ"></div><div class="a" id="vA"></div><span class="i" id="vI" hidden></span></div>
 <div class="vdock" id="vDock">
   <div class="vhint" id="vHint"></div>
-  <button class="vmic" id="vMic" aria-label="Talk to Worn" title="Talk to Worn (v)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+  <button class="vmic" id="vMic" aria-label="Talk to Scribi" title="Talk to Scribi (v)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -595,7 +595,7 @@
     recState = st;
     $("vMic").classList.toggle("rec", st === "rec");
     $("vMic").classList.toggle("busy", st === "busy");
-    $("vMic").setAttribute("aria-label", st === "rec" ? "Stop and send" : "Talk to Worn");
+    $("vMic").setAttribute("aria-label", st === "rec" ? "Stop and send" : "Talk to Scribi");
     if (st !== "rec") $("vMic").style.setProperty("--lvl", 0);
   }
   function sendVoice(o) {
@@ -603,7 +603,7 @@
     o.screen = SCREEN[curView] || curView;
     return WornVoice.send(API, o).then(act).catch(function (e) {
       bubble(o.text ? "“" + o.text + "”" : "", e.status === 404 ? "Voice isn’t on this server yet." :
-        e.status === 422 && o.text ? "This server only takes spoken commands. Tap the mic." : (e.message || "Couldn’t reach Worn. Try again."));
+        e.status === 422 && o.text ? "This server only takes spoken commands. Tap the mic." : (e.message || "Couldn’t reach Scribi. Try again."));
     }).then(function () { micState("idle"); });
   }
   function stopAndSend() {
@@ -622,7 +622,7 @@
     rec.onlevel = function (l) { $("vMic").style.setProperty("--lvl", l.toFixed(2)); };
     rec.onauto = stopAndSend;
     rec.start().then(function () { micState("rec"); bubble("Listening…", WornVoice.HINTS[curView] || "", "", true); })
-      .catch(function (e) { rec = null; micState("idle"); bubble("", e.name === "NotAllowedError" ? "Allow the microphone to talk to Worn. You can also type on “What can I say”." : e.message); });
+      .catch(function (e) { rec = null; micState("idle"); bubble("", e.name === "NotAllowedError" ? "Allow the microphone to talk to Scribi. You can also type on “What can I say”." : e.message); });
   };
   document.addEventListener("keydown", function (e) {
     if (e.key === "v" && !e.metaKey && !e.ctrlKey && !/input|textarea/i.test((e.target && e.target.tagName) || "")) $("vMic").click();
@@ -639,6 +639,13 @@
     var b = e.target.closest && e.target.closest(".cmd");
     if (b) sendVoice({ text: b.getAttribute("data-say") });
   });
+  // greet once per visit (shown, not spoken: browsers block sound before a tap)
+  try {
+    if (!sessionStorage.getItem("worn.greeted")) {
+      sessionStorage.setItem("worn.greeted", "1");
+      setTimeout(function () { bubble("Hi, I’m Scribi", "Tap the mic and say “learn Mandarin”, “write my name, Anna” or “what can I say”."); }, 900);
+    }
+  } catch (e) {}
   window.wornSay = function (t) { return sendVoice({ text: t }); }; // console / test hook: same path as speaking
   $("vSend").onclick = function () { var t = $("vType").value.trim(); if (t) { $("vType").value = ""; sendVoice({ text: t }); } };
   $("vType").addEventListener("keydown", function (e) { if (e.key === "Enter") $("vSend").click(); });
@@ -953,7 +960,7 @@
       $("cWrite").disabled = false;
     }).catch(function (e) {
       $("cNative").className = "native script faint"; $("cNative").textContent = "It appears here";
-      $("cErr").textContent = e.status === 422 ? e.message + " Or tap one of the ideas above." : "The tutor is busy. Try again in a moment.";
+      $("cErr").textContent = e.status === 422 ? e.message + " Or tap one of the ideas above." : "Scribi is busy. Try again in a moment.";
     }).then(function () { $("cGo").disabled = false; $("cGo").textContent = "Show me how"; });
   };
   $("cWrite").onclick = function () {
@@ -1006,7 +1013,7 @@
       if (!box.children.length) $("nErr").textContent = "I couldn't spell that one. Try another name.";
     }).catch(function (e) {
       box.innerHTML = "";
-      $("nErr").textContent = e.status === 422 ? e.message : "The tutor is busy right now. Try again, or tap a name above.";
+      $("nErr").textContent = e.status === 422 ? e.message : "Scribi is busy right now. Try again, or tap a name above.";
     }).then(function () { $("nGo").disabled = false; });
   };
 
