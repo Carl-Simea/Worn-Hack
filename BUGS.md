@@ -71,3 +71,6 @@ Each entry names its owner. Fix it in your area, then strike it through here.
 8. ~~**The Xcode license isn't accepted on this Mac,**~~ **Fixed:** the license was accepted on 11/21, and normal git and the Simulator work. so `/usr/bin/git` fails ("You have not agreed to the Xcode
    license agreements") and Xcode / the iOS Simulator won't run. Workaround used all night:
    `/Library/Developer/CommandLineTools/usr/bin/git`. Real fix (needs your password): `sudo xcodebuild -license accept`.
+
+## glasses display (found by D on real M6, 11/21 09:17) — web/glasses.html (C)
+- On the real 640×480 glasses the character strip at the top left (你 好) is clipped at the left edge (first char half cut off). Everything else fits. Screenshot: screenshots/glasses-live.png.

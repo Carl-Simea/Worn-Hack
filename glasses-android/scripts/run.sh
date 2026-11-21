@@ -28,6 +28,7 @@ case "$MODE" in
 esac
 
 if [ -z "${NOBUILD:-}" ]; then ./gradlew -q :app:assembleDebug; fi
+adb shell svc power stayon usb || true   # keep the display on while plugged in
 adb install -r -g "$APK"      # -g grants the camera permission (no dialog to tap on the glasses)
 adb shell am start -n "$PKG/.MainActivity" --es api "$API"
 echo "started $PKG with backend $API"
