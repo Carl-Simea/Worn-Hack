@@ -238,6 +238,30 @@ async def tier3() -> dict:
             "harsh_feedback": sum(1 for r in rows if r["harsh_words"]), "latency": _ms(lat), "rows": rows}
 
 
+async def tier3_agent() -> dict:
+    """The full /grade path (vision + template arbitration + echo/symbol guards + tutor), right and
+    wrong letters on real paper. Uses whatever WORN_DATA_DIR is set (the CLI sets a temp one)."""
+    from worn import agent, vision, llm
+    rows = []
+    for lang, right, wrong in PAIRS:
+        for style in ("print", "mixed"):
+            for kind, ch in (("right", right), ("wrong", wrong)):
+                jp = vision.prep_image(write_on_paper(ch, 2, **STYLES[style]))
+                t = time.perf_counter()
+                g = await agent.run_grade(jp, right, lang, None, None)
+                rows.append({"lang": lang, "target": right, "wrote": ch, "style": style, "kind": kind,
+                             "correct": g["correct"], "ok": g["correct"] == (kind == "right"), "seen": g["seen"],
+                             "template": g["template_score"], "feedback": g["feedback"], "reaction": g["reaction"],
+                             "ms": round((time.perf_counter() - t) * 1000)})
+    try:
+        await llm.client().aclose()
+    except Exception:
+        pass
+    acc = lambda k: round(sum(r["ok"] for r in rows if r["kind"] == k) / max(1, sum(r["kind"] == k for r in rows)), 3)
+    return {"right_accepted": acc("right"), "wrong_rejected": acc("wrong"), "n": len(rows),
+            "latency": _ms([r["ms"] for r in rows]), "rows": rows}
+
+
 # ------------------------------------------------------------------ report
 
 def report(res: dict) -> str:
@@ -270,6 +294,14 @@ def report(res: dict) -> str:
               "| case | accuracy | n |", "|---|---|---|"]
         for k, v in t3["by_kind"].items():
             L.append(f"| {k} | {v['accuracy']:.0%} | {v['n']} |")
+        if "tier3_agent" in res:
+            ta = res["tier3_agent"]
+            L += ["", "## Tier 3 + tutor agent (the full /grade)",
+                  f"Right letters accepted **{ta['right_accepted']:.0%}**, wrong letters rejected **{ta['wrong_rejected']:.0%}** "
+                  f"({ta['n']} grades, {len(PAIRS)} targets x print/slanted+tilted+shadowed on real paper); "
+                  f"latency avg {ta['latency']['avg_ms']:.0f} ms, max {ta['latency']['max_ms']:.0f} ms (includes the tutor LLM)."]
+            L += [f"- miss: target {r['target']} wrote {r['wrote']} ({r['style']}): correct={r['correct']} seen {r['seen']!r}"
+                  for r in ta["rows"] if not r["ok"]]
         bad = [r for r in t3["rows"] if not r["ok"]]
         if bad:
             L += ["", "Misses:"] + [f"- {r['kind']}: target {r['target']} read {r['seen']!r} ({r['score']}): "
@@ -281,6 +313,7 @@ def run(live: bool) -> dict:
     res = {"ink": ink_precision(), "tier1": tier1(), "tier2": tier2()}
     if live:
         res["tier3"] = asyncio.run(tier3())
+        res["tier3_agent"] = asyncio.run(tier3_agent())
     return res
 
 
@@ -288,6 +321,10 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--live", action="store_true", help="include tier 3 (needs Ollama + qwen2.5vl:7b)")
     a = ap.parse_args()
+    import os
+    import tempfile
+    os.environ.setdefault("WORN_DATA_DIR", tempfile.mkdtemp(prefix="worn-eval-"))  # never touch the real journal
+    os.environ.setdefault("WORN_CAPTURE_DIR", tempfile.mkdtemp(prefix="worn-eval-cap-"))
     res = run(a.live)
     md = report(res)
     (DATA / "eval_results.md").write_text(md, encoding="utf-8")
