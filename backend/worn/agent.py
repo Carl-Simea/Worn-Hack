@@ -32,6 +32,8 @@ log = logging.getLogger("worn.agent")
 _run_ids = itertools.count(1)
 
 MOODS = ("celebrate", "proud", "encourage", "gentle")
+ECHO_MODEL_SCORE = 60     # below this the vision read is weak...
+ECHO_TEMPLATE_SCORE = 40  # ...and needs at least this template agreement to count
 ACTIONS = ("advance", "retry", "review")
 HARSH = ("bad", "wrong", "ugly", "messy", "sloppy", "poor", "terrible", "awful", "fail", "stupid", "careless")
 
@@ -202,6 +204,14 @@ async def run_grade(jpeg: bytes, char: str, lang: str, session: dict | None, ima
     template_score = None if isinstance(tmp_res, BaseException) else tmp_res[0]["score"]
     LIVE.latency("tier3", vision_ms)
 
+    # Echo guard: a vision model told the target can "read" it in anything (a big X read as 你).
+    # A weak read (model's own score < 60) only counts when the stroke template agrees.
+    if (graded["correct"] and graded.get("model_score", 100) < ECHO_MODEL_SCORE and template_score is not None
+            and template_score < ECHO_TEMPLATE_SCORE):
+        graded = {**graded, "correct": False, "score": min(graded["score"], 40),
+                  "feedback": f"Hmm, I'm not sure that's {char} yet. Watch the strokes, then try again."}
+        run.step("evaluate", f"Echo guard: vision only {graded.get('model_score')}/100 and template {template_score}/100, "
+                             f"so not counted", data={"guard": "echo"})
     correct = bool(graded["correct"])
     tries_after = 0 if correct else LIVE.tries + 1
     weak = sorted(((memory.weakness(st), c) for c, st in memory.lang_stats(lang, user).items()

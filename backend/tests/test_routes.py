@@ -455,3 +455,24 @@ def test_compose_lesson_phrase_needs_no_model(client, monkeypatch):
     monkeypatch.setattr(llm, "tutor_json", boom)
     d = client.post("/compose", json={"text": "Hello!", "lang": "hebrew"}).json()
     assert d["native"] == "שלום" and d["chars"] == ["ש", "ל", "ו", "ם"] and "lesson" in d["model"]
+
+
+def test_echo_guard_rejects_weak_read_the_template_disagrees_with(client, fake, monkeypatch):
+    """BUGS #11: a big X 'read' as 你 by the vision model (weak score) must not count."""
+    from PIL import Image, ImageDraw
+    import io
+    start(client)
+
+    async def echo(jpeg, char, lang):
+        return vision.parse_grade({"seen": char, "score": 35, "fix": ""}, char, lang), {"model": "f"}
+    monkeypatch.setattr(vision, "grade", echo)
+    im = Image.new("RGB", (640, 480), (235, 230, 215))
+    d = ImageDraw.Draw(im)
+    d.line([(150, 80), (490, 400)], fill=(20, 20, 30), width=14)
+    d.line([(490, 80), (150, 400)], fill=(20, 20, 30), width=14)
+    buf = io.BytesIO(); im.save(buf, "JPEG")
+    g = client.post("/grade", files={"image": ("x.jpg", buf.getvalue(), "image/jpeg")}).json()
+    assert g["correct"] is False and g["template_score"] < 40
+    # the same weak read on a real 你 still counts (template agrees)
+    g2 = client.post("/grade", files={"image": ("p.jpg", write_on_paper("你"), "image/jpeg")}).json()
+    assert g2["correct"] is True

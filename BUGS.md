@@ -60,7 +60,7 @@ Each entry names its owner. Fix it in your area, then strike it through here.
    Repro: `curl -s 'localhost:8000/name?text=Maya'`. The web page retries once on 503 and offers the hand-checked
    names as one-tap examples, so the demo can avoid it.
 
-11. **A big "X" on paper is graded correct as 你 (65/100).** The vision step "reads 你" even though the template
+11. ~~**A big "X" on paper is graded correct as 你 (65/100).**~~ **Fixed (A):** echo guard. A vision read the model itself scores below 60 only counts when the stroke template agrees (40 or more), so an X 'read' as 你 is rejected and the real 你 still passes. Verified with sim_glasses.py --wrong. Original report: The vision step "reads 你" even though the template
    match is 23/100 on every stroke. Repro: `uv run --with pillow python web/dev/sim_glasses.py http://127.0.0.1:8000
    --lang mandarin --item hello --wrong` (its first photo is an "X"); the agent brain shows
    `Template match 23/100` then `Vision read "你": 65/100, correct`. Suggest: when template_score is very low

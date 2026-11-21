@@ -67,11 +67,12 @@ def _unlatex(seen: str) -> str:
 def parse_grade(data: dict, char: str, lang: str = "") -> dict:
     seen = _unlatex(str(data.get("seen") or "").strip())
     score = int(max(0, min(100, float(data.get("score") or 0))))
+    model_score = score
     fix = str(data.get("fix") or "").strip().splitlines()[0][:120] if data.get("fix") else ""
     if not seen and char in fix:
         seen = char  # the model named the char in its fix but left "seen" blank
     if not seen:
-        return {"correct": False, "score": 0, "seen": "",
+        return {"correct": False, "score": 0, "seen": "", "model_score": model_score, "exact_read": False,
                 "feedback": "I can't see your writing, hold the paper closer."}
     note = None
     if char in seen:
@@ -97,7 +98,8 @@ def parse_grade(data: dict, char: str, lang: str = "") -> dict:
         feedback = fix
     else:
         feedback = note or (f"Nice! That's {char}." if score >= 85 else f"Good, {char} is readable.")
-    return {"correct": correct, "score": score, "seen": seen, "feedback": feedback}
+    return {"correct": correct, "score": score, "seen": seen, "feedback": feedback, "model_score": model_score,
+            "exact_read": bool(seen) and char in seen}
 
 
 async def grade(jpeg: bytes, char: str, lang: str) -> tuple[dict, dict]:
