@@ -85,3 +85,12 @@ def test_duplicate_clip_is_not_executed_twice(client, nlu):
     a = say(client, "learn greek", "home")
     b = say(client, "learn greek", "home")  # the glasses posted the same clip again
     assert a["intent"] == "learn" and b.get("duplicate") and b["actions"] == []
+
+
+def test_request_id_is_echoed_so_stale_replies_can_be_ignored(vc, nlu):
+    d = vc.post("/voice", data={"text": "take me home", "screen": "words", "request_id": "r-42"}).json()
+    assert d["request_id"] == "r-42" and d["intent"] == "home"
+    d = vc.post("/voice", data={"text": "go back", "screen": "words"}, headers={"X-Request-Id": "h-7"}).json()
+    assert d["request_id"] == "h-7"
+    d = vc.post("/voice", data={"text": "next", "screen": "lesson", "id": "7"}).json()
+    assert d["request_id"] == "7"

@@ -102,7 +102,8 @@ _stt = None
 _stt_lock = threading.Lock()
 ASSISTANT = "Scribi"  # the voice tutor inside the Worn app
 VOCAB = ("Hey Scribi. Take me home. Go back. Help me write. Write this word. How do I write my name. "
-         "Teach me Chinese. Commands: home, back, next, previous, repeat, slower, show me again, check, I'm done, skip, help, "
+         "Teach me Chinese. Switch to Greek. My name is Sam. Main menu. Start over. Exit. Bye. "
+         "Commands: home, back, undo, next, previous, repeat, slower, faster, show me again, check, I'm done, skip, help, "
          "what can I say, what does this mean, open learn, open journal, daily five, write my name, "
          "how do I write thank you in Hindi. Learn Mandarin, Hindi, Arabic, Russian, Hebrew, Greek. "
          "Hello, thank you, water, friend, one.")

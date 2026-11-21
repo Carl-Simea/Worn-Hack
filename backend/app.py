@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import quote
 
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -824,8 +824,9 @@ async def _do_voice_once(heard: str, screen: str | None) -> dict:
 
 
 @app.post("/voice")
-async def post_voice(audio: UploadFile | None = File(None), screen: str | None = Form(None),
-                     text: str | None = Form(None)):
+async def post_voice(request: Request, audio: UploadFile | None = File(None), screen: str | None = Form(None),
+                     text: str | None = Form(None), request_id: str | None = Form(None), id: str | None = Form(None),
+                     req: str | None = Form(None)):
     """Glasses mic → {heard, intent, args, say, say_url, nav, hint, session?, ms}. `text` skips speech-to-text."""
     t0 = time.perf_counter()
     stt_ms = None
@@ -850,7 +851,8 @@ async def post_voice(audio: UploadFile | None = File(None), screen: str | None =
     ms = round((time.perf_counter() - t0) * 1000)
     new_screen = (r["nav"] or {}).get("screen") or screen or V.get_state().get("screen")
     hint = V.HINTS.get(new_screen, V.HINTS["home"])
-    out = {"heard": heard, **r, "say_url": f"/say?text={quote(r['say'])}" if r["say"] else None, "hint": hint,
+    rid = request_id or id or req or request.headers.get("x-request-id")
+    out = {"heard": heard, **r, "request_id": rid, "say_url": f"/say?text={quote(r['say'])}" if r["say"] else None, "hint": hint,
            "ms": ms, "stt_ms": stt_ms, "ts": time.time()}
     voice_rec = {k: out[k] for k in ("heard", "intent", "args", "say", "nav", "ms", "ts")}
     voice_rec["args"] = {k: v for k, v in (r["args"] or {}).items() if k not in ("items",)}
