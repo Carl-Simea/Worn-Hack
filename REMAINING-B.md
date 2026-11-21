@@ -6,6 +6,10 @@
   and rainbow confetti on a pass or a confetti event. Below that: the agent's steps (tool, model, ms), a timeline that reads
   every iOS event, latency chips INK/STROKE/VISION/TUTOR, a listening pill with the last thing heard, the glasses dot, a
   demo-mode tag and a milestone banner. It polls every 500 ms with `?since=` and only re-renders on change.
+- **Real glasses mirror**: `/live` shows the actual M6 display ("LIVE: what the wearer sees") when the glasses are on USB:
+  `GET /glasses/screen.mjpg` (backend/worn/screen.py) streams `adb screencap` at about 4 fps (each capture takes ~0.26 s). One shared
+  grabber serves all viewers, and unplugged it sends "not connected" frames instead of erroring. The middle panel is
+  "What the glasses camera sees" (latest photo). Tested on the real glasses over USB and with the device missing. `?screen=0` turns it off.
 - **`/glasses`**: 640×480, black, the same renderer, result overlay, confetti, C's sfx (`?sound=1` on the device).
 - **`/app`**: scripts, practice (follows whatever lesson is live, so it hands off with the iPhone), dictation, Help me write
   (with one-tap ideas), Write your name (5 scripts, tap to trace), Daily 5, phone-camera grading, Prev/Next, keys

@@ -381,6 +381,8 @@ class H(BaseHTTPRequestHandler):
             if q.get("since") and int(q["since"]) == ST.version:
                 return self.send(200, {"unchanged": True, "version": ST.version})
             return self.send(200, ST.snapshot())
+        if path == "/glasses/screen/status":  # the mock has no adb: /live keeps its synthesized glasses view
+            return self.send(200, {"connected": False, "error": "mock server", "fps": 5.0})
         if path == "/mock/photo.svg":
             return self.send(200, photo_svg(q.get("c", "?"), float(q.get("f", 1)), q.get("s", "0"), q.get("lang", "")), "image/svg+xml")
         if path == "/journal":

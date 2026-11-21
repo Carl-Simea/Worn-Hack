@@ -73,6 +73,15 @@
   #lensOff { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #6d7280; font-size: .8em;
     text-align: center; padding: 12%; opacity: 0; transition: opacity .4s; pointer-events: none; }
   #lens.off #lensOff { opacity: 1; } #lens.off #ink, #lens.off #lensLabel { opacity: .15; }
+  /* real mirror of the glasses display (adb screencap MJPEG); the synthesized view stays underneath as the fallback */
+  #screen { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; border-radius: inherit;
+    opacity: 0; transition: opacity .4s var(--ease); pointer-events: none; }
+  #lens.live #screen { opacity: 1; }
+  #lens.live #lensOff { opacity: 0; }
+  .liveTag { display: none; align-items: center; gap: .45em; color: #e5484d; }
+  .liveTag i { width: .62em; height: .62em; border-radius: 50%; background: currentColor; animation: livePulse 1.6s ease-in-out infinite; }
+  @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+  .panel.live .liveTag { display: inline-flex; } .panel.live .simTag { display: none; }
 
   #paper { border-radius: var(--radius); background: var(--paper-2); border: 1px solid var(--rule); overflow: hidden; }
   #paper img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .5s var(--ease); }
@@ -190,23 +199,24 @@
   </header>
 
   <main>
-    <section class="panel">
-      <div class="cap"><span class="eyebrow">On the glasses</span><span class="tnum" id="romCap">&nbsp;</span></div>
+    <section class="panel" id="lensPanel">
+      <div class="cap"><span class="eyebrow"><span class="simTag">On the glasses</span><span class="liveTag"><i></i>LIVE: what the wearer sees</span></span><span class="tnum" id="romCap">&nbsp;</span></div>
       <div class="fit"><div class="square lens" id="lens">
         <div class="grid" style="position:absolute;inset:0"></div>
         <div id="ink"></div>
         <div id="lensPhase">&nbsp;</div>
         <div id="lensLabel">&nbsp;</div>
         <div id="lensOff">Glasses not connected</div>
+        <img id="screen" alt="Live view of the glasses display">
       </div></div>
     </section>
 
     <section class="panel">
-      <div class="cap"><span class="eyebrow">On paper</span><span class="tnum" id="photoCap">&nbsp;</span></div>
+      <div class="cap"><span class="eyebrow">What the glasses camera sees</span><span class="tnum" id="photoCap">&nbsp;</span></div>
       <div class="fit"><div class="square" id="paper">
         <img id="imgA" alt=""><img id="imgB" alt="">
         <div id="paperEmpty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg>
-          <span>The glasses camera will show the paper here</span></div>
+          <span>The latest photo from the glasses camera shows up here</span></div>
         <div id="flash"></div>
       </div></div>
     </section>
@@ -254,6 +264,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var ink = WornInk.create($("ink"), { theme: "glasses", label: $("lensLabel"), api: API });
 
+  var screenOn = false, lastSession = false;
   var useLive = true, failCount = 0, lessonKey = "", inkReady = false, firstPoll = true, version = null, last = null;
   var celebrated = {}, shownPhoto = "", imgFront = "imgA", seenSteps = {}, seenEvents = {}, lastLat = {};
 
@@ -300,7 +311,8 @@
   // ---------------------------------------------------------------- render
   function render(st) {
     var s = st.session, g = st.glasses || {};
-    $("idle").classList.toggle("hide", !!s);
+    lastSession = !!s;
+    $("idle").classList.toggle("hide", !!s || screenOn); // the real glasses view is worth showing even before a lesson
     renderConn(g.stale ? null : g.connected, true);
     renderLatency(st.latency || {});
     renderSteps(st.agent_steps || []);
@@ -323,6 +335,7 @@
     var dot = $("connDot"), t;
     if (!serverOk) { dot.className = "dot off"; t = "Server offline"; }
     else if (c === true) { dot.className = "dot on pulse"; t = "Glasses connected"; }
+    else if (screenOn) { dot.className = "dot on pulse"; t = "Glasses on USB"; } // adb sees the display even if the app hasn't said hello
     else if (c === false) { dot.className = "dot off"; t = "Glasses offline"; }
     else { dot.className = "dot"; t = "Glasses"; }
     setText($("connText"), t);
@@ -601,6 +614,26 @@
     setTimeout(function () { WornConfetti.burst({ x: (t.left + t.width / 2) / innerWidth, y: (t.top + t.height * 0.3) / innerHeight, count: 110, power: .9 }); }, 180);
     $("tutor").classList.remove("pop"); void $("tutor").offsetWidth; $("tutor").classList.add("pop");
   }
+
+  // ---------------------------------------------------------------- real glasses screen (adb MJPEG), ?screen=0 turns it off
+  var BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+  function setScreen(on) {
+    if (on === screenOn) return;
+    screenOn = on;
+    $("screen").src = on ? url("/glasses/screen.mjpg?t=" + Date.now()) : BLANK; // swapping src closes the old stream
+    $("lens").classList.toggle("live", on);
+    $("lensPanel").classList.toggle("live", on);
+    $("idle").classList.toggle("hide", lastSession || on);
+  }
+  $("screen").onerror = function () { if (screenOn) setScreen(false); };
+  function watchScreen() {
+    get("/glasses/screen/status").then(function (st) {
+      if (st === null) return; // older backend without the endpoint: keep the synthesized view
+      setScreen(!!st.connected);
+      setTimeout(watchScreen, 3000);
+    }).catch(function () { setScreen(false); setTimeout(watchScreen, 5000); });
+  }
+  if (qs.get("screen") !== "0") watchScreen();
 
   get("/content").then(function (c) {
     var m = {};

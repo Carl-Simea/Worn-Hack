@@ -15,11 +15,11 @@ from typing import Any, Literal
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from worn import agent, compose, config, content, inkdiff, llm, memory, strokes, vision
+from worn import agent, compose, config, content, inkdiff, llm, memory, screen, strokes, vision
 from worn.live import LIVE
 
 log = logging.getLogger("worn")
@@ -396,6 +396,29 @@ def capture_latest():
     f = shots[-1]
     return FileResponse(f, media_type="image/jpeg", headers={
         "X-Capture-Ts": f"{f.stat().st_mtime:.3f}", "Cache-Control": "no-store"})
+
+
+@app.get("/glasses/screen.mjpg")
+def glasses_screen_mjpg():
+    """Live mirror of the glasses display (adb screencap over USB, ~5 fps). Never errors: unplugged = placeholder frames."""
+    return StreamingResponse(screen.mjpeg(), media_type=f"multipart/x-mixed-replace; boundary={screen.BOUNDARY}",
+                             headers={"Cache-Control": "no-store"})
+
+
+@app.get("/glasses/screen.jpg")
+async def glasses_screen_jpg():
+    st = await screen.grab()
+    if not st["ok"]:
+        raise HTTPException(503, f"Glasses screen unavailable: {st['error']}")
+    return Response(st["jpeg"], media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/glasses/screen/status")
+async def glasses_screen_status():
+    """{connected, error, capture_ms, size, ...}: whether /glasses/screen.mjpg is showing the real display."""
+    if screen.status()["age_s"] is None or screen.status()["age_s"] > 2:
+        await screen.grab()
+    return screen.status()
 
 
 # ------------------------------------------------------------------ pages (owned by /web)

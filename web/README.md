@@ -22,6 +22,11 @@ loop, follow-the-glasses sync, static partial and word-gap helpers), `worn-confe
 Fonts: Inter and Newsreader are self-hosted in `web/fonts/` (`fonts.css`), so the brand survives a venue network
 without internet. The Noto script faces come from Google Fonts and fall back to the system's fonts offline.
 
+**Real glasses mirror on `/live`:** with the M6 plugged into the laptop over USB, the left panel switches to
+"LIVE: what the wearer sees", an MJPEG stream of the actual display (`GET /glasses/screen.mjpg`, `adb exec-out screencap`,
+about 4–5 fps; `/glasses/screen/status` says whether it's real). Unplugged, it falls back to the drawn view within 3 s.
+`/live?screen=0` turns the mirror off. `WORN_ADB_SERIAL` picks a device if several are attached.
+
 Query params on every page: `?api=http://IP:8000` (talk to another server), `?theme=dark|light`.
 
 ## Dev tools (`web/dev/`)
