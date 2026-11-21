@@ -231,6 +231,14 @@ def extract_ink(bgr: np.ndarray) -> np.ndarray:
     paper = (bg > 0.55 * bright).astype(np.uint8)
     paper = cv2.erode(paper, np.ones((9, 9), np.uint8))
     weak[paper == 0] = 0
+    # Ruled lines touching a letter would be "grown" into it as horizontal spurs. Remove long thin
+    # horizontal runs made only of faint pixels; pen strokes (even horizontal ones) are dark enough
+    # to be strong, so they are never removed here.
+    faint = cv2.bitwise_and(weak, cv2.bitwise_not(strong.astype(np.uint8) * 255))
+    run = max(15, w // 40)
+    lines = cv2.morphologyEx(faint, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (run, 1)))
+    lines = cv2.dilate(lines, np.ones((3, 1), np.uint8))
+    weak = cv2.bitwise_and(weak, cv2.bitwise_not(cv2.bitwise_and(lines, faint)))
     nw, wl = cv2.connectedComponents(weak, connectivity=8)
     seeded = np.zeros(nw, bool)
     seeded[np.unique(wl[strong & (wl > 0)])] = True
@@ -266,6 +274,11 @@ def extract_ink(bgr: np.ndarray) -> np.ndarray:
         if len(cand) > 2 and thick > 2.2 * max(pen, 1.0):
             continue
         keep[labels == i] = 255
+    if pen >= 2.5:
+        # Hairline stubs (bits of ruled line touching a thick stroke) wreck the shape match; a 3x3
+        # opening removes them. Only when the pen is clearly thicker than a hair, so fine-pen
+        # whole-page photos keep every stroke.
+        keep = cv2.morphologyEx(keep, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
     return keep
 
 
@@ -306,13 +319,15 @@ def _normalize(pts: np.ndarray) -> np.ndarray:
     return (pts - (lo + hi) / 2) / ext * 0.9 + 0.5
 
 
-def _rotate(pts: np.ndarray, deg: float) -> np.ndarray:
-    if not deg:
+def _transform(pts: np.ndarray, deg: float, shear: float) -> np.ndarray:
+    """Rotate by deg and shear horizontally (x += shear * y) around the centroid."""
+    if not deg and not shear:
         return pts
     t = np.deg2rad(deg)
+    rot = np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]], dtype=np.float32)
+    sh = np.array([[1, shear], [0, 1]], dtype=np.float32)
     c = pts.mean(0)
-    r = np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]], dtype=np.float32)
-    return (pts - c) @ r.T + c
+    return (pts - c) @ (rot @ sh).T + c
 
 
 def _raster(pts: np.ndarray) -> np.ndarray:
@@ -334,15 +349,17 @@ def _chamfer_once(ink: np.ndarray, tmpl: np.ndarray) -> float:
     return float(max(0.0, min(100.0, 100.0 * (1 - d / 0.11))))
 
 
-ANGLES = (-12, -6, 0, 6, 12)  # glasses photos are rarely square to the page
+# Camera tilt and handwriting slant: the ink is un-tilted / un-slanted before comparing.
+# Slanted (cursive-ish) writing is mostly a horizontal shear, which rotation alone can't undo.
+POSES = [(a, s) for a in (-10, -5, 0, 5, 10) for s in (-0.3, 0.0, 0.3)]
 
 
 def chamfer_score(ink: np.ndarray, tmpl: np.ndarray) -> float:
     """0-100. Symmetric mean distance between two point sets after normalization,
-    best over a few small rotations of the ink."""
+    best over a few small rotations and slants of the ink."""
     if len(ink) < 3 or len(tmpl) < 2:
         return 0.0
-    return max(_chamfer_once(_rotate(ink, a), tmpl) for a in ANGLES)
+    return max(_chamfer_once(_transform(ink, a, s), tmpl) for a, s in POSES)
 
 
 def match_stroke(raw: bytes, lang: str, char: str, stroke_index: int, diff: bool = False) -> dict:

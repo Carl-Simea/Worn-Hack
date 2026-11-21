@@ -354,3 +354,19 @@ def test_tutor_hedge_prefers_14b_when_fast(monkeypatch):
     monkeypatch.setattr(llm, "json_call", fake_call)
     data, meta = asyncio.run(llm.tutor_json("x"))
     assert data["model"] == config.TUTOR_MODEL and not meta["fallback"]
+
+
+def test_ios_event_names_drive_live_state(client):
+    """The iPhone app reports dotted event types; they must move the /live state too."""
+    for t, data in [("glasses.status", {"status": "Connected", "connected": True}),
+                    ("glasses.show", {"char": "你", "stroke": 3, "stroke_count": 7, "phase": "write", "trigger": "auto"}),
+                    ("ink", {"new_ink": 0.01, "coverage": 0.2, "tier1_ms": 37, "pen_to_next_ms": 400}),
+                    ("voice", {"command": "next", "heard": "next please"}),
+                    ("mode.demo", {"on": True})]:
+        client.post("/event", json={"type": t, "data": data, "ts": 1.0})  # extra 'ts' field is fine
+    s = client.get("/live/state").json()
+    assert s["glasses"]["connected"] and s["glasses"]["stroke"] == 3 and s["glasses"]["stroke_count"] == 7
+    assert s["latency"]["tier1"]["last_ms"] == 37 and s["listening"] and s["last_heard"] == "next please"
+    assert s["demo_mode"] is True
+    client.post("/event", json={"type": "grade.start", "data": {}})
+    assert client.get("/live/state").json()["glasses"]["phase"] == "checking"

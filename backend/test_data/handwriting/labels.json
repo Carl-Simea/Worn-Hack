@@ -1,0 +1,21 @@
+{
+  "about": "Hand-labeled letter pairs from the first written row of each teammate page. box = [x0, y0, x1, y1] as fractions of the EXIF-corrected image. target = the capital letter the pair shows. Real pen on lined notebook paper, real light; writer1 print, writer2 print/slanted, writer3 cursive-ish.",
+  "crops": [
+    {"writer": 1, "target": "B", "box": [0.272, 0.063, 0.313, 0.098]},
+    {"writer": 1, "target": "D", "box": [0.369, 0.063, 0.414, 0.098]},
+    {"writer": 1, "target": "F", "box": [0.457, 0.063, 0.503, 0.098]},
+    {"writer": 1, "target": "G", "box": [0.504, 0.063, 0.558, 0.098]},
+    {"writer": 1, "target": "H", "box": [0.561, 0.063, 0.615, 0.098]},
+    {"writer": 1, "target": "M", "box": [0.811, 0.058, 0.870, 0.098]},
+    {"writer": 2, "target": "C", "box": [0.312, 0.060, 0.376, 0.092]},
+    {"writer": 2, "target": "D", "box": [0.374, 0.058, 0.438, 0.092]},
+    {"writer": 2, "target": "F", "box": [0.497, 0.058, 0.567, 0.092]},
+    {"writer": 2, "target": "G", "box": [0.561, 0.058, 0.623, 0.094]},
+    {"writer": 2, "target": "K", "box": [0.748, 0.058, 0.805, 0.092]},
+    {"writer": 3, "target": "B", "box": [0.287, 0.040, 0.349, 0.074]},
+    {"writer": 3, "target": "C", "box": [0.351, 0.046, 0.411, 0.080]},
+    {"writer": 3, "target": "D", "box": [0.415, 0.048, 0.486, 0.082]},
+    {"writer": 3, "target": "G", "box": [0.608, 0.056, 0.651, 0.090]},
+    {"writer": 3, "target": "K", "box": [0.897, 0.060, 0.935, 0.094]}
+  ]
+}

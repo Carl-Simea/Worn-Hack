@@ -31,6 +31,8 @@ class Live:
                                             "stroke": 0, "stroke_count": 0, "last_seen": None}
             self.latest_photo_url: str | None = None
             self.listening = False
+            self.last_heard: str | None = None
+            self.demo_mode = False
             self.events: deque = deque(maxlen=MAX_EVENTS)
             self.steps: deque = deque(maxlen=MAX_STEPS)
             self.lat: dict[str, deque] = {t: deque(maxlen=50) for t in ("tier1", "tier2", "tier3")}
@@ -133,6 +135,31 @@ class Live:
                 self.listening = (type_ == "listening_start") or (type_ == "listening" and bool(data.get("on", True)))
             elif type_ == "photo" and data.get("url"):
                 self.latest_photo_url = data["url"]
+            # ---- the iOS app's dotted event names (ios/Worn/App/*.swift report(...)) ----
+            elif type_ == "glasses.status":
+                g["connected"] = bool(data.get("connected", g["connected"]))
+                g["status"] = data.get("status")
+                g["last_seen"] = time.time()
+            elif type_ == "glasses.show":
+                g.update({"showing": "dictation" if data.get("phase") == "dictation" else "stroke_animation",
+                          "phase": data.get("phase", "write"), "last_seen": time.time()})
+                if "stroke" in data:
+                    g["stroke"] = int(data["stroke"])
+                if data.get("stroke_count"):
+                    g["stroke_count"] = int(data["stroke_count"])
+            elif type_ in ("grade.start", "glasses.photo"):
+                g["phase"] = "checking"
+                g["showing"] = "checking"
+            elif type_ == "ink":
+                if data.get("tier1_ms") is not None:
+                    self.lat["tier1"].append(float(data["tier1_ms"]))
+            elif type_ == "voice":
+                self.listening = True
+                self.last_heard = data.get("heard") or self.last_heard
+            elif type_ == "mode.demo":
+                self.demo_mode = bool(data.get("on"))
+            elif type_ in ("practice.stop", "app.offline"):
+                g["phase"] = "idle"
             return self.add_event(type_, data)
 
     # -------------------------------------------------------------- reader
@@ -163,6 +190,8 @@ class Live:
                 "latency": {t: self._lat(t) for t in ("tier1", "tier2", "tier3")},
                 "progress": progress or {},
                 "listening": self.listening,
+                "last_heard": self.last_heard,
+                "demo_mode": self.demo_mode,
                 "tries": self.tries,
             }
 
