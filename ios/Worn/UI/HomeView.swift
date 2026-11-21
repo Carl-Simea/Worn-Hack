@@ -142,7 +142,7 @@ struct LanguageCard: View {
                 .font(Theme.script(lesson.lang, size: 34))
                 .foregroundStyle(Theme.ink)
                 .lineLimit(1).minimumScaleFactor(0.5)
-                .frame(maxWidth: .infinity, alignment: lesson.isRTL ? .trailing : .leading)
+                .frame(maxWidth: .infinity, minHeight: 52, maxHeight: 52, alignment: lesson.isRTL ? .trailing : .leading)
                 .environment(\.layoutDirection, lesson.isRTL ? .rightToLeft : .leftToRight)
                 .padding(.vertical, 4)
             VStack(alignment: .leading, spacing: 2) {

@@ -2,7 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Plain http to the laptop on the venue wifi (IPs are ATS-exempt; this also covers *.local hostnames). -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
@@ -10,5 +9,13 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>UIAppFonts</key>
+	<array>
+		<string>NotoSansSC-Regular.ttf</string>
+		<string>NotoSansDevanagari-Regular.ttf</string>
+		<string>NotoNaskhArabic-Regular.ttf</string>
+		<string>NotoSansHebrew-Regular.ttf</string>
+		<string>NotoSans-Regular.ttf</string>
+	</array>
 </dict>
 </plist>

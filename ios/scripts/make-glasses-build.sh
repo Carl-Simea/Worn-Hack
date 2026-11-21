@@ -37,6 +37,12 @@ plutil -replace CFBundleDisplayName -string "Worn" "$plist" \
  && plutil -replace NSMicrophoneUsageDescription -string "Say next, again, slower or check to practice hands-free." "$plist" \
  && plutil -replace NSCameraUsageDescription -string "In Demo Mode the camera watches your page so the next stroke follows your pen." "$plist" \
  || exit 1
+# Worn's bundled Noto script fonts (ios/Worn/Resources/Fonts).
+plutil -remove UIAppFonts "$plist" 2>/dev/null
+plutil -insert UIAppFonts -array "$plist" || exit 1
+for f in NotoSansSC NotoSansDevanagari NotoNaskhArabic NotoSansHebrew NotoSans; do
+  plutil -insert UIAppFonts -string "$f-Regular.ttf" -append "$plist" || exit 1
+done
 
 # 5. Bundle id, deployment target (Worn uses iOS 17 APIs), optional signing team.
 pbx="$out/MLDemo.xcodeproj/project.pbxproj"

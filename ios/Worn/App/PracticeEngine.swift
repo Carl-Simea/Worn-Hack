@@ -52,10 +52,17 @@ final class PracticeEngine {
     private(set) var reactionLine: String?
     private(set) var newMilestone: EarnedMilestone?
     private(set) var streak = 0
+    /// A short toast ("Using the phone camera").
+    private(set) var notice: String?
     private(set) var confettiBurst = 0
     private(set) var outcomes: [Outcome] = []
     private(set) var lastInk: InkDiff.Result?
     private(set) var lastPhoto: CGImage?
+    /// "Use phone camera": set by the button, or automatically after the glasses camera fails twice in a row.
+    private(set) var usePhoneCamera = false
+    private var glassesFailures = 0
+    /// Where this practice takes its photos.
+    var source: PhotoSource { usePhoneCamera ? .phone : app.photoSource }
     private var lastPhotoAt: Date?
     private var lastInkAt: Date?
     private(set) var now = Date()
@@ -158,7 +165,7 @@ final class PracticeEngine {
             "lang": .string(item.lang), "item": .string(item.phrase.id), "char": .string(item.char),
             "char_index": .int(item.charIndex), "total_chars": .int(item.phrase.chars.count),
             "mode": .string(mode.rawValue), "strokes": .int(strokes?.count ?? 0), "speed": .number(speed),
-            "source": .string(app.photoSource.rawValue), "on_server": .bool(!item.adHoc),
+            "source": .string(source.rawValue), "on_server": .bool(!item.adHoc),
             "text": .string(item.phrase.text), "romanization": .opt(item.phrase.romanization(at: item.charIndex) ?? item.phrase.romanization),
         ])
         introduce(item)
@@ -195,7 +202,7 @@ final class PracticeEngine {
         dictationInkAt = nil
         dictationStartedAt = Date()
         phase = .writing
-        if app.photoSource == .phone {
+        if source == .phone {
             Task { await app.camera.start() }
             app.camera.simulated.reset(strokes: strokes, glyph: current?.char ?? "")
         }
@@ -215,16 +222,19 @@ final class PracticeEngine {
 
             let t0 = Date()
             let frame: CGImage?
-            if app.photoSource == .glasses {
+            if source == .glasses {
                 do {
                     let (jpeg, timing) = try await app.glasses.takePhoto()
                     frame = Self.decode(jpeg)
+                    glassesFailures = 0
                     app.recordLatency(.capture, ms: timing.totalMs)
                     app.report("glasses.frame", ["ms": .int(timing.totalMs), "shutter_ms": .int(timing.shutterMs),
                                                  "list_ms": .int(timing.listMs), "download_ms": .int(timing.downloadMs)])
                 } catch {
                     app.report("glasses.photo_failed", ["error": .string(error.localizedDescription)])
                     frame = nil
+                    glassesFailures += 1
+                    if glassesFailures >= 2 { switchToPhoneCamera(reason: "the glasses camera didn't answer") }
                 }
             } else {
                 frame = app.camera.frame()
@@ -249,7 +259,7 @@ final class PracticeEngine {
 
     /// Simulator / no camera: a pretend writer adds the shown stroke ~1.4 s after it appears.
     private func simulatePen() {
-        guard app.photoSource == .phone, app.camera.usesSimulatedPage else { return }
+        guard source == .phone, app.camera.usesSimulatedPage else { return }
         let page = app.camera.simulated
         let target = mode == .dictation ? (strokes?.count ?? 3) : shownStroke
         let delay = mode == .dictation ? 0.9 : 1.4 * pacer.speed
@@ -356,6 +366,21 @@ final class PracticeEngine {
 
     func skip() { Task { await begin(index: index + 1) } }
 
+    /// Fallback: watch the page with the phone's camera for the rest of this practice.
+    func switchToPhoneCamera(reason: String = "you asked") {
+        guard !usePhoneCamera else { return }
+        usePhoneCamera = true
+        notice = "Using the phone camera"
+        app.report("camera.fallback", ["reason": .string(reason)])
+        Task { await app.camera.start() }
+        app.camera.simulated.reset(strokes: strokes, glyph: current?.char ?? "")
+        ink.reset()
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            self?.notice = nil
+        }
+    }
+
     private func restartCurrent() async {
         advanceTask?.cancel()
         let speed = pacer.speed
@@ -377,11 +402,11 @@ final class PracticeEngine {
     }
 
     private func grade(_ item: PracticeItem) async {
-        if app.photoSource == .phone, app.camera.usesSimulatedPage {
+        if source == .phone, app.camera.usesSimulatedPage {
             app.camera.simulated.strokesDrawn = max(app.camera.simulated.strokesDrawn, strokes?.count ?? 3)
         }
         var jpeg: Data?
-        if app.photoSource == .glasses {
+        if source == .glasses {
             // A glasses photo takes seconds. If the last one is fresh and nothing new was written since, grade that.
             if let at = lastPhotoAt, Date().timeIntervalSince(at) < 2.5, lastInkAt.map({ $0 <= at }) ?? true,
                let frame = lastPhoto {

@@ -107,5 +107,7 @@ Screenshots: `screenshots/ios/`.
 - **Glasses speaker** (`playTTS(forAssistant:…, modelId: "namibox")`, as in MLDemo): English lines only;
   pronunciation clips play on the phone.
 - **SDK delegate**: `sdkInit(withDelegate:)` gets the app's root view controller (MLDemo passes its home view controller).
+- Script fonts: Noto Sans SC / Devanagari / Naskh Arabic / Hebrew / Sans (Greek, Cyrillic), subset and bundled
+  (`Worn/Resources/Fonts`, SIL OFL 1.1, `OFL.txt`). Characters outside the subset fall back to the system font.
 - Voice recognition and the phone camera are untested on a real device tonight (they're standard Apple APIs); the
   Simulator runs with voice off and a simulated page.

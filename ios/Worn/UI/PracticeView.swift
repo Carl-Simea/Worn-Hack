@@ -50,7 +50,7 @@ private struct PracticeContent: View {
                         StatusPanel(engine: engine, item: item)
                         HStack(alignment: .top, spacing: 12) {
                             GlassesMirror(engine: engine, item: item)
-                            if app.photoSource == .phone { CameraCard(engine: engine) }
+                            if engine.source == .phone { CameraCard(engine: engine) }
                         }
                     }
                     .padding(.horizontal, 16)
@@ -72,6 +72,17 @@ private struct PracticeContent: View {
             }
         }
         .animation(.spring(response: 0.5, dampingFraction: 0.8), value: app.handoffNote)
+        .overlay(alignment: .top) {
+            if let note = engine.notice {
+                Label(note, systemImage: "iphone.rear.camera")
+                    .font(Theme.sans(13, weight: .semibold)).foregroundStyle(.white)
+                    .padding(.horizontal, 14).padding(.vertical, 9)
+                    .background(Theme.ink.opacity(0.88), in: Capsule())
+                    .padding(.top, 58)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: engine.notice)
         .overlay(alignment: .top) {
             if let m = engine.newMilestone { MilestoneBanner(milestone: m).padding(.top, 60).transition(.move(edge: .top).combined(with: .opacity)) }
         }
@@ -105,7 +116,7 @@ private struct TopBar: View {
             }
             Spacer()
             MicBadge()
-            SourceBadge()
+            SourceBadge(source: engine.source)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
@@ -150,9 +161,9 @@ private struct MicBadge: View {
 }
 
 private struct SourceBadge: View {
-    @Environment(AppModel.self) private var app
+    let source: PhotoSource
     var body: some View {
-        let glasses = app.photoSource == .glasses
+        let glasses = source == .glasses
         Label(glasses ? "Glasses" : "Phone", systemImage: glasses ? "eyeglasses" : "iphone.rear.camera")
             .font(Theme.sans(12, weight: .semibold))
             .foregroundStyle(glasses ? Theme.good : Theme.inkSoft)
@@ -244,7 +255,7 @@ private struct GlassesMirror: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label(app.photoSource == .glasses ? "On your glasses" : "Glasses view", systemImage: "eyeglasses")
+            Label(engine.source == .glasses ? "On your glasses" : "Glasses view", systemImage: "eyeglasses")
                 .font(Theme.sans(11, weight: .semibold)).foregroundStyle(Theme.inkSoft)
             ZStack {
                 Theme.glassesBG
@@ -414,13 +425,19 @@ private struct PacingStrip: View {
                 Spacer(minLength: 0)
             }
             Text(hint).font(Theme.sans(13)).foregroundStyle(Theme.inkSoft)
+            if engine.source == .glasses {
+                Button { engine.switchToPhoneCamera() } label: {
+                    Label("Use phone camera", systemImage: "iphone.rear.camera")
+                }
+                .font(Theme.sans(13, weight: .semibold))
+            }
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: engine.shownStroke)
     }
 
     private var hint: String {
         if engine.mode == .dictation { return "Say “check” when you're done, or just put the pen down." }
-        if app.photoSource == .glasses { return "Write on paper in front of you. The glasses watch and show the next stroke." }
+        if engine.source == .glasses { return "Write on paper in front of you. The glasses watch and show the next stroke." }
         if app.camera.usesSimulatedPage { return "Simulator: a pretend pen writes each stroke so you can watch the loop." }
         return "Keep the page inside the dashed box. The next stroke follows your pen."
     }

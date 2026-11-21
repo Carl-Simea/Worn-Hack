@@ -46,4 +46,4 @@ Morning setup (signing, free Apple ID, trust, pairing, backend URL): **`ios/READ
   `/glasses` page following `/session` + `/event`; pacing is hands-free (ink / voice / timeout).
 - "Write your name" offline spelling is approximate (English vowels are ambiguous); the server's `/name` replaces it
   when it answers.
-- Script fonts are the iOS system fonts (Noto names are wired in `Theme.script` and used automatically if bundled).
+- Script fonts: bundled Noto subsets (Chinese: lesson characters + the 3,755 most common hanzi); anything outside falls back to the system font.
