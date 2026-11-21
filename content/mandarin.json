@@ -1,0 +1,68 @@
+{
+  "lang": "mandarin",
+  "name": "Mandarin Chinese",
+  "rtl": false,
+  "phrases": [
+    {
+      "id": "hello",
+      "text": "你好",
+      "chars": [
+        "你",
+        "好"
+      ],
+      "romanization": "nǐ hǎo",
+      "meaning": "hello",
+      "audio": "audio/mandarin/hello.m4a",
+      "asl": "asl/hello.mp4"
+    },
+    {
+      "id": "thank_you",
+      "text": "谢谢",
+      "chars": [
+        "谢",
+        "谢"
+      ],
+      "romanization": "xièxie",
+      "meaning": "thank you",
+      "audio": "audio/mandarin/thank_you.m4a",
+      "asl": "asl/thank_you.mp4"
+    },
+    {
+      "id": "yes",
+      "text": "是",
+      "chars": [
+        "是"
+      ],
+      "romanization": "shì",
+      "meaning": "yes",
+      "audio": "audio/mandarin/yes.m4a",
+      "asl": "asl/yes.mp4"
+    },
+    {
+      "id": "no",
+      "text": "不",
+      "chars": [
+        "不"
+      ],
+      "romanization": "bù",
+      "meaning": "no",
+      "audio": "audio/mandarin/no.m4a",
+      "asl": "asl/no.mp4"
+    },
+    {
+      "id": "bathroom",
+      "text": "厕所在哪里？",
+      "chars": [
+        "厕",
+        "所",
+        "在",
+        "哪",
+        "里"
+      ],
+      "romanization": "cèsuǒ zài nǎlǐ?",
+      "meaning": "where is the bathroom?",
+      "audio": "audio/mandarin/bathroom.m4a",
+      "asl": "asl/bathroom.mp4"
+    }
+  ]
+}

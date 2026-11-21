@@ -1,0 +1,84 @@
+{
+  "lang": "russian",
+  "name": "Russian",
+  "rtl": false,
+  "phrases": [
+    {
+      "id": "hello",
+      "text": "Привет",
+      "chars": [
+        "П",
+        "р",
+        "и",
+        "в",
+        "е",
+        "т"
+      ],
+      "romanization": "privet",
+      "meaning": "hello",
+      "audio": "audio/russian/hello.m4a",
+      "asl": "asl/hello.mp4"
+    },
+    {
+      "id": "thank_you",
+      "text": "Спасибо",
+      "chars": [
+        "С",
+        "п",
+        "а",
+        "с",
+        "и",
+        "б",
+        "о"
+      ],
+      "romanization": "spasibo",
+      "meaning": "thank you",
+      "audio": "audio/russian/thank_you.m4a",
+      "asl": "asl/thank_you.mp4"
+    },
+    {
+      "id": "yes",
+      "text": "Да",
+      "chars": [
+        "Д",
+        "а"
+      ],
+      "romanization": "da",
+      "meaning": "yes",
+      "audio": "audio/russian/yes.m4a",
+      "asl": "asl/yes.mp4"
+    },
+    {
+      "id": "no",
+      "text": "Нет",
+      "chars": [
+        "Н",
+        "е",
+        "т"
+      ],
+      "romanization": "nyet",
+      "meaning": "no",
+      "audio": "audio/russian/no.m4a",
+      "asl": "asl/no.mp4"
+    },
+    {
+      "id": "bathroom",
+      "text": "Где туалет?",
+      "chars": [
+        "Г",
+        "д",
+        "е",
+        "т",
+        "у",
+        "а",
+        "л",
+        "е",
+        "т"
+      ],
+      "romanization": "gde tualet?",
+      "meaning": "where is the bathroom?",
+      "audio": "audio/russian/bathroom.m4a",
+      "asl": "asl/bathroom.mp4"
+    }
+  ]
+}

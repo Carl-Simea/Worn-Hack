@@ -1,0 +1,52 @@
+{
+  "lang": "asl",
+  "name": "American Sign Language",
+  "rtl": false,
+  "phrases": [
+    {
+      "id": "hello",
+      "text": "HELLO",
+      "chars": [],
+      "romanization": null,
+      "meaning": "hello",
+      "audio": null,
+      "asl": "asl/hello.mp4"
+    },
+    {
+      "id": "thank_you",
+      "text": "THANK-YOU",
+      "chars": [],
+      "romanization": null,
+      "meaning": "thank you",
+      "audio": null,
+      "asl": "asl/thank_you.mp4"
+    },
+    {
+      "id": "yes",
+      "text": "YES",
+      "chars": [],
+      "romanization": null,
+      "meaning": "yes",
+      "audio": null,
+      "asl": "asl/yes.mp4"
+    },
+    {
+      "id": "no",
+      "text": "NO",
+      "chars": [],
+      "romanization": null,
+      "meaning": "no",
+      "audio": null,
+      "asl": "asl/no.mp4"
+    },
+    {
+      "id": "bathroom",
+      "text": "BATHROOM WHERE?",
+      "chars": [],
+      "romanization": null,
+      "meaning": "where is the bathroom?",
+      "audio": null,
+      "asl": "asl/bathroom.mp4"
+    }
+  ]
+}

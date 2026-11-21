@@ -1,0 +1,74 @@
+{
+  "lang": "hindi",
+  "name": "Hindi",
+  "rtl": false,
+  "phrases": [
+    {
+      "id": "hello",
+      "text": "नमस्ते",
+      "chars": [
+        "न",
+        "म",
+        "स्ते"
+      ],
+      "romanization": "namaste",
+      "meaning": "hello",
+      "audio": "audio/hindi/hello.m4a",
+      "asl": "asl/hello.mp4"
+    },
+    {
+      "id": "thank_you",
+      "text": "धन्यवाद",
+      "chars": [
+        "ध",
+        "न्य",
+        "वा",
+        "द"
+      ],
+      "romanization": "dhanyavād",
+      "meaning": "thank you",
+      "audio": "audio/hindi/thank_you.m4a",
+      "asl": "asl/thank_you.mp4"
+    },
+    {
+      "id": "yes",
+      "text": "हाँ",
+      "chars": [
+        "हाँ"
+      ],
+      "romanization": "hā̃",
+      "meaning": "yes",
+      "audio": "audio/hindi/yes.m4a",
+      "asl": "asl/yes.mp4"
+    },
+    {
+      "id": "no",
+      "text": "नहीं",
+      "chars": [
+        "न",
+        "हीं"
+      ],
+      "romanization": "nahī̃",
+      "meaning": "no",
+      "audio": "audio/hindi/no.m4a",
+      "asl": "asl/no.mp4"
+    },
+    {
+      "id": "bathroom",
+      "text": "शौचालय कहाँ है?",
+      "chars": [
+        "शौ",
+        "चा",
+        "ल",
+        "य",
+        "क",
+        "हाँ",
+        "है"
+      ],
+      "romanization": "śaucālay kahā̃ hai?",
+      "meaning": "where is the bathroom?",
+      "audio": "audio/hindi/bathroom.m4a",
+      "asl": "asl/bathroom.mp4"
+    }
+  ]
+}

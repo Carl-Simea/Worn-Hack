@@ -1,0 +1,79 @@
+{
+  "lang": "arabic",
+  "name": "Arabic",
+  "rtl": true,
+  "phrases": [
+    {
+      "id": "hello",
+      "text": "مرحبا",
+      "chars": [
+        "م",
+        "ر",
+        "ح",
+        "ب",
+        "ا"
+      ],
+      "romanization": "marḥaban",
+      "meaning": "hello",
+      "audio": "audio/arabic/hello.m4a",
+      "asl": "asl/hello.mp4"
+    },
+    {
+      "id": "thank_you",
+      "text": "شكرا",
+      "chars": [
+        "ش",
+        "ك",
+        "ر",
+        "ا"
+      ],
+      "romanization": "shukran",
+      "meaning": "thank you",
+      "audio": "audio/arabic/thank_you.m4a",
+      "asl": "asl/thank_you.mp4"
+    },
+    {
+      "id": "yes",
+      "text": "نعم",
+      "chars": [
+        "ن",
+        "ع",
+        "م"
+      ],
+      "romanization": "naʿam",
+      "meaning": "yes",
+      "audio": "audio/arabic/yes.m4a",
+      "asl": "asl/yes.mp4"
+    },
+    {
+      "id": "no",
+      "text": "لا",
+      "chars": [
+        "لا"
+      ],
+      "romanization": "lā",
+      "meaning": "no",
+      "audio": "audio/arabic/no.m4a",
+      "asl": "asl/no.mp4"
+    },
+    {
+      "id": "bathroom",
+      "text": "أين الحمام؟",
+      "chars": [
+        "أ",
+        "ي",
+        "ن",
+        "ا",
+        "ل",
+        "ح",
+        "م",
+        "ا",
+        "م"
+      ],
+      "romanization": "ayna al-ḥammām?",
+      "meaning": "where is the bathroom?",
+      "audio": "audio/arabic/bathroom.m4a",
+      "asl": "asl/bathroom.mp4"
+    }
+  ]
+}

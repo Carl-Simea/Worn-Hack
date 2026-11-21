@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=640,height=480,initial-scale=1,user-scalable=no">
+<title>Worn Glasses</title>
+<!-- Served by the backend at GET /glasses. Owner: agent C.
+     Android 9 WebView: no ?. or ??, no flex gap, no aspect-ratio. Black = transparent on the optics. -->
+<style>
+  :root { --fg:#fff; --dim:#8a8f98; --accent:#5cd6ff; --ok:#3ef08a; --fix:#ffc23d; --ghost:#2a2f38; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { width:640px; height:480px; overflow:hidden; background:#000; color:var(--fg);
+    font-family:"Noto Sans","Noto Sans CJK SC","Noto Sans Devanagari","Noto Naskh Arabic",Roboto,sans-serif; }
+  .screen { position:absolute; left:0; top:0; width:640px; height:480px; display:none; }
+  .screen.on { display:block; }
+
+  /* top strip: the whole phrase, current char highlighted */
+  #strip { position:absolute; left:16px; right:16px; top:10px; height:56px; display:flex; align-items:center;
+    justify-content:center; font-size:40px; line-height:56px; white-space:nowrap; }
+  #strip span { color:var(--dim); margin:0 3px; }
+  #strip span.done { color:#5e6d63; }
+  #strip span.cur { color:var(--accent); border-bottom:3px solid var(--accent); }
+  #strip.rtl { direction:rtl; }
+
+  #board { position:absolute; left:16px; top:76px; width:340px; height:340px; border:2px solid var(--ghost); border-radius:14px; }
+  #board::before, #board::after { content:""; position:absolute; background:var(--ghost); }
+  #board::before { left:50%; top:0; bottom:0; width:1px; }
+  #board::after { top:50%; left:0; right:0; height:1px; }
+  #anim { position:absolute; left:10px; top:10px; width:316px; height:316px; }
+  #anim svg { width:316px; height:316px; display:block; }
+  #strokeNo { position:absolute; left:16px; top:424px; width:340px; text-align:center; font-size:22px; color:var(--dim); }
+
+  #side { position:absolute; left:376px; top:76px; width:248px; height:340px; }
+  #rom { font-size:38px; font-weight:700; color:var(--accent); line-height:1.15; word-wrap:break-word; }
+  #meaning { font-size:24px; margin-top:10px; color:var(--fg); }
+  #lang { font-size:18px; margin-top:14px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; }
+  #prompt { position:absolute; bottom:0; left:0; right:0; font-size:22px; line-height:1.3; color:var(--fg); }
+  #prompt b { color:var(--accent); }
+  #counter { position:absolute; right:16px; top:430px; font-size:20px; color:var(--dim); }
+
+  /* result overlay */
+  #result { position:absolute; left:0; top:0; width:640px; height:480px; background:rgba(0,0,0,.88); display:none; text-align:center; }
+  #result.on { display:block; }
+  #resIcon { font-size:190px; line-height:1; margin-top:46px; font-weight:700; }
+  #resText { font-size:34px; line-height:1.25; margin:18px 30px 0; }
+  #resScore { font-size:22px; color:var(--dim); margin-top:14px; }
+  #result.ok #resIcon { color:var(--ok); }
+  #result.fix #resIcon { color:var(--fix); font-size:150px; margin-top:70px; }
+  #result.busy #resIcon { color:var(--accent); font-size:90px; margin-top:150px; animation:pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity:.3; } }
+
+  /* ASL */
+  #asl video { position:absolute; left:0; top:0; width:640px; height:410px; object-fit:contain; background:#000; }
+  #aslWord { position:absolute; left:0; right:0; bottom:10px; text-align:center; font-size:44px; font-weight:700; color:var(--accent); }
+  #aslMissing { position:absolute; left:40px; right:40px; top:150px; text-align:center; font-size:28px; color:var(--dim); display:none; }
+
+  #idle { text-align:center; }
+  #idle h1 { font-size:64px; margin-top:140px; letter-spacing:4px; }
+  #idle p { font-size:26px; color:var(--dim); margin-top:18px; }
+  #net { position:absolute; right:8px; top:4px; font-size:14px; color:#ff6b6b; display:none; }
+</style>
+</head>
+<body>
+<div id="idle" class="screen on"><h1>WORN</h1><p>Pick a phrase on your phone</p></div>
+
+<div id="write" class="screen">
+  <div id="strip"></div>
+  <div id="board"><div id="anim"></div></div>
+  <div id="strokeNo"></div>
+  <div id="side">
+    <div id="rom"></div>
+    <div id="meaning"></div>
+    <div id="lang"></div>
+    <div id="prompt">Write it on paper,<br>then <b>press the button</b></div>
+  </div>
+  <div id="counter"></div>
+</div>
+
+<div id="asl" class="screen">
+  <video id="aslVideo" muted loop playsinline autoplay></video>
+  <div id="aslMissing">ASL video not recorded yet</div>
+  <div id="aslWord"></div>
+</div>
+
+<div id="result"><div id="resIcon"></div><div id="resText"></div><div id="resScore"></div></div>
+<div id="net">no server</div>
+<audio id="say" preload="auto"></audio>
+
+<script src="/static/web/vendor/hanzi-writer.min.js"></script>
+<script>
+(function () {
+  "use strict";
+  // ?api=http://<laptop-ip>:8000 lets this page run from file:// or another host while testing.
+  var qs = new URLSearchParams(location.search);
+  var API = (qs.get("api") || "").replace(/\/$/, "");
+  var POLL_MS = 600;
+  var RESULT_HOLD_MS = 3500;  // how long the check / fix stays up before going back to the lesson
+
+  var $ = function (id) { return document.getElementById(id); };
+  var session = null, sessionKey = "", lastResultTs = null, firstResultPoll = true;
+  var animToken = 0, resultTimer = null, writer = null;
+
+  function url(p) { return !p ? null : /^https?:/.test(p) ? p : API + p; }
+  function getJSON(p) {
+    return fetch(url(p), { cache: "no-store" }).then(function (r) {
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    });
+  }
+  function show(id) {
+    ["idle", "write", "asl"].forEach(function (s) { $(s).classList.toggle("on", s === id); });
+  }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  // ---- speech: native bridge from the glasses app if it exists, else Web Speech, else nothing.
+  // Contract for agent B: addJavascriptInterface(obj, "WornNative") with speak(String text).
+  function speak(text) {
+    try {
+      if (window.WornNative && window.WornNative.speak) { window.WornNative.speak(text); return; }
+      if (window.speechSynthesis) {
+        speechSynthesis.cancel();
+        var u = new SpeechSynthesisUtterance(text); u.lang = "en-US"; u.rate = 1;
+        speechSynthesis.speak(u);
+      }
+    } catch (e) { /* no voice on this device; the screen still shows the text */ }
+  }
+  function playPronunciation() {
+    var a = $("say");
+    if (!session || !session.audio_url) return;
+    if (a.getAttribute("data-src") !== session.audio_url) {
+      a.src = url(session.audio_url); a.setAttribute("data-src", session.audio_url);
+    }
+    try { a.currentTime = 0; } catch (e) {}
+    var p = a.play();
+    if (p && p.catch) p.catch(function () { /* autoplay blocked: B must setMediaPlaybackRequiresUserGesture(false) */ });
+  }
+
+  // ---- stroke animations. Three renderers, picked by what the backend found in content/strokes/:
+  //   .json  -> hanzi-writer data (Mandarin)       true stroke order
+  //   .svg   -> KanjiVG centerlines (Japanese kana) true stroke order
+  //   none   -> trace the font glyph outline (Hindi, Arabic, Russian): shape only, not stroke order
+  function stopAnim() {
+    animToken++;
+    if (writer) { try { writer.pauseAnimation(); } catch (e) {} writer = null; }
+    $("anim").innerHTML = ""; $("strokeNo").textContent = "";
+  }
+
+  function animate(s) {
+    stopAnim();
+    var tok = animToken;
+    var su = s.stroke_url || "";
+    if (/\.json$/.test(su) && window.HanziWriter) return animHanzi(s, tok);
+    if (/\.svg$/.test(su)) return animSvg(s, tok);
+    return animGlyph(s, tok);
+  }
+
+  function animHanzi(s, tok) {
+    var data = null;
+    writer = HanziWriter.create("anim", s.char, {
+      width: 316, height: 316, padding: 8, showOutline: true, showCharacter: false,
+      strokeColor: "#ffffff", outlineColor: "#2f3540", radicalColor: null,
+      strokeAnimationSpeed: 0.9, delayBetweenStrokes: 250,
+      charDataLoader: function (ch, done, fail) {
+        getJSON(s.stroke_url).then(function (d) { data = d; done(d); }).catch(fail);
+      },
+      onLoadCharDataError: function () { if (tok === animToken) animGlyph(s, tok); }
+    });
+    var w = writer;
+    function strokeOnce(i) {
+      return new Promise(function (res) { w.animateStroke(i, { onComplete: res }); });
+    }
+    (async function loop() {
+      while (!data) { await sleep(50); if (tok !== animToken) return; }
+      var n = data.strokes.length;
+      while (tok === animToken) {
+        await w.hideCharacter();
+        for (var i = 0; i < n && tok === animToken; i++) {
+          $("strokeNo").textContent = "stroke " + (i + 1) + " of " + n;
+          await strokeOnce(i);
+        }
+        if (tok !== animToken) return;
+        $("strokeNo").textContent = n + " strokes";
+        await sleep(1800);
+      }
+    })();
+  }
+
+  function animSvg(s, tok) {
+    fetch(url(s.stroke_url)).then(function (r) { return r.text(); }).then(function (txt) {
+      if (tok !== animToken) return;
+      var src = new DOMParser().parseFromString(txt, "image/svg+xml");
+      var ds = Array.prototype.map.call(src.getElementsByTagName("path"), function (p) { return p.getAttribute("d"); });
+      var NS = "http://www.w3.org/2000/svg";
+      var svg = document.createElementNS(NS, "svg");
+      svg.setAttribute("viewBox", "0 0 109 109");
+      var ghost = document.createElementNS(NS, "g"), ink = document.createElementNS(NS, "g"), nums = document.createElementNS(NS, "g");
+      [[ghost, "#2f3540"], [ink, "#ffffff"]].forEach(function (g) {
+        g[0].setAttribute("fill", "none"); g[0].setAttribute("stroke", g[1]); g[0].setAttribute("stroke-width", "5");
+        g[0].setAttribute("stroke-linecap", "round"); g[0].setAttribute("stroke-linejoin", "round");
+      });
+      svg.appendChild(ghost); svg.appendChild(ink); svg.appendChild(nums);
+      $("anim").appendChild(svg);
+      var strokes = ds.map(function (d, i) {
+        var g = document.createElementNS(NS, "path"); g.setAttribute("d", d); ghost.appendChild(g);
+        var p = document.createElementNS(NS, "path"); p.setAttribute("d", d); ink.appendChild(p);
+        var len = p.getTotalLength(); p.style.strokeDasharray = len; p.style.strokeDashoffset = len;
+        var st = p.getPointAtLength(0), t = document.createElementNS(NS, "text");
+        t.setAttribute("x", st.x - 6); t.setAttribute("y", st.y - 3); t.setAttribute("font-size", "9");
+        t.setAttribute("fill", "#5cd6ff"); t.textContent = String(i + 1); t.style.opacity = 0; nums.appendChild(t);
+        return { p: p, len: len, num: t };
+      });
+      function draw(st, ms) {
+        return new Promise(function (res) {
+          var t0 = null;
+          st.num.style.opacity = 1;
+          (function step(ts) {
+            if (tok !== animToken) return res();
+            if (t0 === null) t0 = ts;
+            var k = Math.min(1, (ts - t0) / ms);
+            st.p.style.strokeDashoffset = st.len * (1 - k);
+            if (k < 1) requestAnimationFrame(step); else res();
+          })(performance.now());
+        });
+      }
+      (async function loop() {
+        while (tok === animToken) {
+          strokes.forEach(function (st) { st.p.style.strokeDashoffset = st.len; st.num.style.opacity = 0; });
+          for (var i = 0; i < strokes.length && tok === animToken; i++) {
+            $("strokeNo").textContent = "stroke " + (i + 1) + " of " + strokes.length;
+            await draw(strokes[i], 350 + strokes[i].len * 9);
+            await sleep(200);
+          }
+          if (tok !== animToken) return;
+          $("strokeNo").textContent = strokes.length + (strokes.length === 1 ? " stroke" : " strokes");
+          await sleep(1800);
+        }
+      })();
+    }).catch(function () { if (tok === animToken) animGlyph(s, tok); });
+  }
+
+  function animGlyph(s, tok) {
+    var NS = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", "0 0 300 300");
+    var t = document.createElementNS(NS, "text");
+    t.setAttribute("x", "150"); t.setAttribute("y", "150");
+    t.setAttribute("text-anchor", "middle"); t.setAttribute("dominant-baseline", "central");
+    t.setAttribute("font-size", (s.char || "").length > 2 ? "150" : "210");
+    t.setAttribute("stroke", "#ffffff"); t.setAttribute("stroke-width", "2.5"); t.setAttribute("fill", "#ffffff");
+    if (s.rtl) t.setAttribute("direction", "rtl");
+    t.textContent = s.char || "";
+    svg.appendChild(t); $("anim").appendChild(svg);
+    $("strokeNo").textContent = "trace the shape";
+    var L = 2400;
+    t.style.strokeDasharray = L;
+    (async function loop() {
+      while (tok === animToken) {
+        var t0 = performance.now(), dur = 2600;
+        while (tok === animToken) {
+          var k = Math.min(1, (performance.now() - t0) / dur);
+          t.style.strokeDashoffset = L * (1 - k);
+          t.style.fillOpacity = Math.max(0, (k - 0.7) / 0.3);
+          if (k >= 1) break;
+          await new Promise(requestAnimationFrame);
+        }
+        await sleep(2000);
+      }
+    })();
+  }
+
+  // ---- render a lesson
+  function renderWrite(s) {
+    var strip = $("strip"); strip.innerHTML = ""; strip.classList.toggle("rtl", !!s.rtl);
+    var text = s.text || s.char || "";
+    // Highlight by char index when the phrase splits cleanly into s.chars; otherwise show just the char.
+    var chars = window.__wornChars && window.__wornChars[s.lang + "/" + s.phrase_id];
+    // Arabic letters join; splitting them into spans breaks the shapes. Show the real word, unhighlighted.
+    var stripChar = s.char;
+    if (s.rtl) { chars = null; stripChar = text; }
+    (chars || [stripChar]).forEach(function (c, i) {
+      var sp = document.createElement("span"); sp.textContent = c;
+      if (chars) sp.className = i < s.char_index ? "done" : i === s.char_index ? "cur" : "";
+      else sp.className = "cur";
+      strip.appendChild(sp);
+    });
+    strip.style.fontSize = (chars && chars.length > 7 ? 30 : 40) + "px";
+    $("rom").textContent = s.romanization || "";
+    $("meaning").textContent = "“" + (s.meaning || "") + "”";
+    $("lang").textContent = s.lang_name || s.lang;
+    $("counter").textContent = (s.char_index + 1) + " / " + s.total_chars;
+    show("write");
+    animate(s);
+    playPronunciation();
+  }
+
+  function renderAsl(s) {
+    stopAnim();
+    var v = $("aslVideo");
+    $("aslWord").textContent = s.text || s.meaning || "";
+    if (s.asl_url) {
+      $("aslMissing").style.display = "none"; v.style.display = "block";
+      if (v.getAttribute("data-src") !== s.asl_url) { v.src = url(s.asl_url); v.setAttribute("data-src", s.asl_url); }
+      var p = v.play(); if (p && p.catch) p.catch(function () {});
+    } else {
+      v.removeAttribute("src"); v.removeAttribute("data-src"); v.style.display = "none";
+      $("aslMissing").style.display = "block";
+    }
+    show("asl");
+  }
+
+  function render(s) {
+    hideResult();
+    session = s;
+    if (!s) { stopAnim(); show("idle"); return; }
+    if (s.mode === "asl") renderAsl(s); else renderWrite(s);
+  }
+
+  // ---- result overlay
+  function hideResult() { clearTimeout(resultTimer); $("result").className = ""; }
+  function showResult(r) {
+    clearTimeout(resultTimer);
+    if (r.ts) lastResultTs = r.ts;  // don't show it twice when the poll sees it too
+    var el = $("result");
+    el.className = "on " + (r.correct ? "ok" : "fix");
+    $("resIcon").textContent = r.correct ? "✓" : "↻";
+    $("resText").textContent = r.feedback || (r.correct ? "Nice!" : "Try again");
+    $("resScore").textContent = typeof r.score === "number" ? r.score + " / 100" : "";
+    speak(r.feedback || (r.correct ? "Nice!" : "Try again"));
+    resultTimer = setTimeout(function () { el.className = ""; }, RESULT_HOLD_MS);
+  }
+  function showBusy(msg) {
+    clearTimeout(resultTimer);
+    $("result").className = "on busy"; $("resIcon").textContent = "●"; $("resText").textContent = msg || "Checking…"; $("resScore").textContent = "";
+    resultTimer = setTimeout(hideResult, 60000);
+  }
+
+  // ---- polling (phone -> backend -> here)
+  var contentLoaded = false;
+  function loadContent() {
+    return getJSON("/content").then(function (c) {
+      var m = {};
+      (c && c.langs || []).forEach(function (l) { l.phrases.forEach(function (p) { if (p.chars && p.chars.length) m[l.lang + "/" + p.id] = p.chars; }); });
+      window.__wornChars = m; contentLoaded = true;
+    }).catch(function () {});
+  }
+
+  async function tick() {
+    try {
+      if (!contentLoaded) await loadContent();
+      var s = await getJSON("/session");
+      $("net").style.display = "none";
+      var key = s ? [s.version, s.lang, s.phrase_id, s.char_index, s.mode].join("|") : "";
+      if (key !== sessionKey) { sessionKey = key; firstResultPoll = true; render(s); }
+      if (s && s.mode !== "asl") {
+        var r = await getJSON("/session/result");
+        var ts = r ? r.ts : null;
+        // ignore a result that already existed when this lesson appeared
+        if (!firstResultPoll && ts && ts !== lastResultTs) showResult(r);
+        lastResultTs = ts; firstResultPoll = false;
+      }
+    } catch (e) {
+      $("net").style.display = "block";
+    }
+    setTimeout(tick, POLL_MS);
+  }
+
+  // ---- hooks for the native glasses app (agent B) via evaluateJavascript("worn.x()")
+  window.worn = {
+    capturing: function () { showBusy("Checking…"); },     // call on button press, before the photo POST
+    graded: function (json) { showResult(typeof json === "string" ? JSON.parse(json) : json); }, // optional: result straight from /grade
+    error: function (msg) { showResult({ correct: false, feedback: msg || "Couldn't check that, press again" }); },
+    replay: function () { if (session) render(session); }  // re-run animation + audio
+  };
+  document.addEventListener("keydown", function (e) {
+    if (e.key === " " || e.key === "r") window.worn.replay();   // dev: space replays
+  });
+
+  tick();
+})();
+</script>
+</body>
+</html>
