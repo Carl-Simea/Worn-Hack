@@ -24,7 +24,7 @@ WHY = {
 
 LESSONS = {
     "mandarin": dict(
-        name="Mandarin Chinese", script="Simplified Chinese characters", script_type="logographic", rtl=False,
+        name="Mandarin Chinese", script="Simplified characters", script_type="logographic", rtl=False,
         about="Each character is one syllable with its own meaning. Pinyin with tone marks shows the sound.",
         stroke_order="standard", stroke_source="hanzi-writer-data (Make Me a Hanzi)",
         items={
@@ -108,7 +108,7 @@ LESSONS = {
                     "Four letters: о д и н."),
         }),
     "hebrew": dict(
-        name="Hebrew", script="Hebrew alphabet (block print)", script_type="abjad", rtl=True,
+        name="Hebrew", script="Hebrew (block print)", script_type="abjad", rtl=True,
         about="Written right to left with 22 letters; everyday writing leaves out most vowels. We teach block print letters; everyday handwriting uses a different cursive style.",
         stroke_order="suggested", stroke_source="hand-authored for Worn (suggested stroke order)",
         items={

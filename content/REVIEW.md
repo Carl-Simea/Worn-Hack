@@ -7,7 +7,7 @@ Things to check: the native text, the romanization, the meaning, the one-line no
 (`content/audio/{lang}/{id}.m4a`, macOS text-to-speech). For Hindi, Arabic, Russian, Hebrew and Greek, also check the
 **suggested** stroke order in `content/review/strokes_{lang}.png` (Mandarin uses standard data).
 
-## Mandarin Chinese · Simplified Chinese characters (logographic)
+## Mandarin Chinese · Simplified characters (logographic)
 
 _Each character is one syllable with its own meaning. Pinyin with tone marks shows the sound._  Stroke order: **standard** (hanzi-writer-data (Make Me a Hanzi)).
 
@@ -55,7 +55,7 @@ _An alphabet like English, with some look-alike letters that sound different. Ru
 | ☐ | **друг** | drug | friend | д · р · у · г | д is 'd', у is 'oo' and г is 'g'. In cursive, д and г look very different. | Four letters: д р у г. | |
 | ☐ | **один** | odin | one | о · д · и · н | и is 'ee' and н is 'n', not 'h'. Stress the second syllable: a-DEEN. | Four letters: о д и н. | |
 
-## Hebrew · Hebrew alphabet (block print) (abjad, right to left)
+## Hebrew · Hebrew (block print) (abjad, right to left)
 
 _Written right to left with 22 letters; everyday writing leaves out most vowels. We teach block print letters; everyday handwriting uses a different cursive style._  Stroke order: **suggested** (hand-authored for Worn (suggested stroke order)).
 

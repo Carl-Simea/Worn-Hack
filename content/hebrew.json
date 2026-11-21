@@ -1,7 +1,7 @@
 {
   "lang": "hebrew",
   "name": "Hebrew",
-  "script": "Hebrew alphabet (block print)",
+  "script": "Hebrew (block print)",
   "script_type": "abjad",
   "rtl": true,
   "about": "Written right to left with 22 letters; everyday writing leaves out most vowels. We teach block print letters; everyday handwriting uses a different cursive style.",

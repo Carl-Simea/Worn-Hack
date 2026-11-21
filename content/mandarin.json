@@ -1,7 +1,7 @@
 {
   "lang": "mandarin",
   "name": "Mandarin Chinese",
-  "script": "Simplified Chinese characters",
+  "script": "Simplified characters",
   "script_type": "logographic",
   "rtl": false,
   "about": "Each character is one syllable with its own meaning. Pinyin with tone marks shows the sound.",

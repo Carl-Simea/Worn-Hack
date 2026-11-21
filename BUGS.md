@@ -25,8 +25,26 @@ Each entry names its owner. Fix it in your area, then strike it through here.
    puts the word gap back on /live, /glasses and /app. Original report: (`γ ε ι α σ ο υ`). `chars` leaves out the space on
    purpose (no empty writing step), so use `item.text` to place the gap: there's a word break wherever `text` has a space.
 
+## iOS (D)
+
+9. **The phone no longer follows a session started elsewhere.** `API.currentSession()` (GET /session) is defined
+   but never called in the rewritten app, so a lesson started from another device (e.g. `POST /session` from the web
+   phone picker) doesn't open on the iPhone. Checked in the iOS 27.2 Simulator (iPhone 18 Pro Max) built from
+   origin/main `f96a62e`: two external sessions, and the phone stayed on Home. The demo is phone-driven, so this
+   doesn't block it. If it's intentional, update `ios/README.md` (it still says "Handoff: it also polls GET /session").
+   Otherwise the iOS check passed: the app connects, loads `/content`, `reactions.json`, `milestones.json`, all 9
+   `sfx/*.wav` and all 5 `names/*.json`, and the home screen shows all six hero greetings.
+
+## Found by B (web) against the real backend
+
+9. **`POST /compose {"text":"thank you","lang":"hebrew"}` returns 422** "I couldn't turn that into a short message to write."
+   Repro: `curl -s -X POST localhost:8000/compose -H 'content-type: application/json' -d '{"text":"thank you","lang":"hebrew"}'`.
+   "good morning" in Hebrew and "Happy birthday, my friend" in Mandarin work. תודה is already a lesson item, so a lookup
+   in content before the LLM (like /name does with examples.json) would make the obvious phrases never fail. The web page
+   shows the message and offers one-tap example messages, so the demo isn't blocked.
+
 ## Machine / setup (whoever is at the laptop)
 
-8. **The Xcode license isn't accepted on this Mac,** so `/usr/bin/git` fails ("You have not agreed to the Xcode
+8. ~~**The Xcode license isn't accepted on this Mac,**~~ **Fixed:** the license was accepted on 11/21, and normal git and the Simulator work. so `/usr/bin/git` fails ("You have not agreed to the Xcode
    license agreements") and Xcode / the iOS Simulator won't run. Workaround used all night:
    `/Library/Developer/CommandLineTools/usr/bin/git`. Real fix (needs your password): `sudo xcodebuild -license accept`.

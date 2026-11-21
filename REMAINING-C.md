@@ -51,6 +51,6 @@ Then follow `DEMO.md`.
 ## Open items for others (in BUGS.md)
 - B: none open. #5 (/app at 390 px) was a headless-Chrome capture artifact (B checked a real 390 px viewport), and B
   fixed #7 (the Greek word gap).
-- Laptop: the Xcode license isn't accepted, so `/usr/bin/git` and the iOS Simulator fail. Use
-  `/Library/Developer/CommandLineTools/usr/bin/git`, or run `sudo xcodebuild -license accept` (needs your password).
-  I couldn't run the iOS Simulator because of this.
+- D: the rewritten iOS app no longer follows a session started from another device (BUGS #9). Not demo-blocking.
+- iOS Simulator check (iPhone 18 Pro Max, origin/main): builds, connects, loads all content files, and the home
+  screen shows all six heroes and script names.
