@@ -11,7 +11,13 @@ PKG=com.worn.glasses
 APK=app/build/outputs/apk/debug/app-debug.apk
 MODE="${1:-wifi}"
 
-command -v adb >/dev/null || { echo "adb not found (brew install android-platform-tools)"; exit 1; }
+# Toolchain from `brew install openjdk@17` + `brew install --cask android-commandlinetools` (sdkmanager
+# "platforms;android-34" "build-tools;34.0.0" into ~/Library/Android/sdk).
+[ -n "${JAVA_HOME:-}" ] || { [ -d /opt/homebrew/opt/openjdk@17 ] && export JAVA_HOME=/opt/homebrew/opt/openjdk@17; }
+[ -n "${ANDROID_HOME:-}" ] || export ANDROID_HOME="$HOME/Library/Android/sdk"
+[ -f local.properties ] || echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+command -v adb >/dev/null ||{ echo "adb not found (brew install android-platform-tools)"; exit 1; }
 adb get-state >/dev/null 2>&1 || { echo "no glasses on adb: turn on Developer Mode in MLDemo, replug USB, run adb devices -l"; exit 1; }
 
 case "$MODE" in
