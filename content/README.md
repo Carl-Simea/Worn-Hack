@@ -39,14 +39,7 @@ auto-advances 1.8 s after a correct answer (next char, then next phrase). It als
 A landscape iPad view that copies the glasses: the same stroke animation (`web/worn-strokes.js`, shared with glasses.html),
 the char, romanization and meaning, the latest handwriting photo, and the grade (✓ or the fix). It polls /session and
 /session/result every 500 ms. The LIVE dot turns red (OFFLINE) once the backend hasn't answered for 2 s.
-It works now at `/static/web/mirror.html`.
-
-### Needs from agent A (backend) for /mirror and the photo
-1. Add a route: `GET /mirror` -> `FileResponse(WEB_DIR / "mirror.html")`
-2. Serve the captures: `app.mount("/captures", StaticFiles(directory=CAPTURE_DIR))`.
-   In `/grade`, keep the saved filename and add `"image_url": f"/captures/{name}"` to the result,
-   so it also shows up in `/session/result`.
-Until then the photo box says "Graded (no photo from the server)" and everything else works.
+Served at `GET /mirror`. The photo is `result.image_url` if present, else A's `GET /capture/latest` (cache-busted by the grade's `ts`).
 
 ASL was cut on 2026-11-20. The backend still lists `"asl"` in LANG_ORDER and the mode literal, which is harmless.
 

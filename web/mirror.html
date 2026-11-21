@@ -7,7 +7,7 @@
 <title>Worn Mirror</title>
 <!-- Live audience view of what the glasses show (owner: agent C). Landscape iPad first, also works on a phone.
      Served at GET /mirror (backend) or /static/web/mirror.html. Polls /session and /session/result every 500 ms.
-     The handwriting photo comes from result.image_url (see content/README.md, backend contract). -->
+     The handwriting photo comes from result.image_url, else GET /capture/latest. -->
 <style>
   :root { --bg:#000; --panel:#0c0e12; --line:#232831; --fg:#fff; --dim:#8a93a0; --accent:#5cd6ff; --ok:#3ef08a; --fix:#ffc23d; --bad:#ff4d4d;
     --sq: min(42vw, 60vh); }
@@ -135,8 +135,10 @@ function renderResult(r) {
     $("grade").className = "wait"; $("grade").textContent = session ? "Writing on paper…" : "";
     return;
   }
-  if (r.image_url) {
-    const src = (/^https?:/.test(r.image_url) ? r.image_url : API + r.image_url);
+  // Prefer result.image_url; else A's GET /capture/latest (the photo /grade just saved), cache-busted by the grade ts.
+  const photo = r.image_url || ("/capture/latest?ts=" + encodeURIComponent(r.ts || Date.now()));
+  if (photo) {
+    const src = (/^https?:/.test(photo) ? photo : API + photo);
     let el = img;
     if (!el) { el = document.createElement("img"); el.alt = "handwriting photo"; $("photo").insertBefore(el, $("badge")); }
     el.onerror = () => { el.remove(); $("photoEmpty").style.display = "flex"; $("photoEmpty").textContent = "Photo couldn't load"; };
@@ -145,7 +147,7 @@ function renderResult(r) {
   } else {
     if (img) img.remove();
     $("photoEmpty").style.display = "flex";
-    $("photoEmpty").textContent = "Graded (no photo from the server)";
+    $("photoEmpty").textContent = "No photo";
   }
   const ok = !!r.correct;
   $("badge").className = ok ? "ok" : "fix"; $("badge").textContent = ok ? "✓" : "↻";
