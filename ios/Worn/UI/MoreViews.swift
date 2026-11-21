@@ -19,8 +19,6 @@ struct ComposeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 Text("Help me write…").font(Theme.display(30, weight: .medium))
-                Text("Type or say a short message. Scribi translates it, puts it on your glasses, and guides you stroke by stroke.")
-                    .font(Theme.sans(14)).foregroundStyle(Theme.inkSoft)
 
                 TextField("happy birthday", text: $text, axis: .vertical)
                     .font(Theme.display(22))
@@ -168,8 +166,6 @@ struct NameView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 Text("Write your name").font(Theme.display(30, weight: .medium))
-                Text("See it in every script, then write it by hand. Spellings are approximate: names are sounded out.")
-                    .font(Theme.sans(14)).foregroundStyle(Theme.inkSoft)
                 HStack {
                     TextField("Your name", text: $name)
                         .font(Theme.display(24))
@@ -205,7 +201,7 @@ struct NameView: View {
                                 if r.offline {
                                     HStack(spacing: 6) {
                                         if loading { ProgressView().controlSize(.mini) }
-                                        Text(loading ? "Quick spelling · checking with the tutor…" : "Spelled by sound (approximate)")
+                                        if loading { Text("Checking…") }
                                     }
                                     .font(Theme.sans(11)).foregroundStyle(Theme.inkSoft)
                                 }
@@ -268,8 +264,6 @@ struct DailyView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Daily 5").font(Theme.display(30, weight: .medium))
-                Text("Five characters picked for today: shaky ones, ones you haven't seen in a while, and something new.")
-                    .font(Theme.sans(14)).foregroundStyle(Theme.inkSoft)
                 if loading {
                     ProgressView().frame(maxWidth: .infinity).padding(40)
                 } else if items.isEmpty {
@@ -361,7 +355,6 @@ struct JournalView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Journal").font(Theme.display(30, weight: .medium))
-                Text("Every page you've written, so you can watch your hand improve.").font(Theme.sans(14)).foregroundStyle(Theme.inkSoft)
                 if loading {
                     ProgressView().frame(maxWidth: .infinity).padding(40)
                 } else if entries.isEmpty {

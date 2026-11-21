@@ -283,6 +283,7 @@ private struct GlassesMirror: View {
                         Text(item.phrase.romanization ?? "")
                     }
                     .font(.system(size: 9, weight: .semibold, design: .monospaced)).foregroundStyle(Theme.glassesStroke.opacity(0.8))
+                    .hidden()
                     .padding(6)
                 }
             }
@@ -299,7 +300,6 @@ private struct CameraCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label("Phone camera", systemImage: "camera.viewfinder").font(Theme.sans(11, weight: .semibold)).foregroundStyle(Theme.inkSoft)
             ZStack {
                 if app.camera.usesSimulatedPage {
                     TimelineView(.periodic(from: .now, by: 0.5)) { _ in
@@ -472,12 +472,6 @@ private struct ResultView: View {
             if !result.correct || reaction == nil {
                 Text(result.feedback).font(Theme.sans(14)).foregroundStyle(Theme.inkSoft).multilineTextAlignment(.center)
             }
-            if let seen = result.seen, !seen.isEmpty, !result.correct {
-                Text("Looked like: \(seen)").font(Theme.sans(12)).foregroundStyle(Theme.inkSoft)
-            }
-            Text(result.correct ? (engine.isLast ? "Finishing up…" : "Next one coming up…")
-                 : (engine.attemptsOnCurrent < 2 ? "Let's try that once more, a little slower." : "Moving on. It'll come back in Daily 5."))
-                .font(Theme.sans(12)).foregroundStyle(Theme.inkSoft.opacity(0.8))
         }
         .frame(maxWidth: .infinity)
         .onAppear {

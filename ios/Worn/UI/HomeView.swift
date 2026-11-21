@@ -38,14 +38,12 @@ struct HomeView: View {
                             Image(systemName: "text.bubble").font(.system(size: 22)).foregroundStyle(Theme.accent)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Help me write…").font(Theme.display(19))
-                                Text("Any message, guided stroke by stroke. Or just say it.").font(Theme.sans(13)).foregroundStyle(Theme.inkSoft)
                             }
                             Spacer()
                             Image(systemName: "chevron.right").foregroundStyle(Theme.inkSoft)
                         }
                         .card()
                     }.buttonStyle(PressableStyle())
-                    VoiceHint()
                 }
             }
             .padding(.horizontal, 18)
@@ -65,13 +63,11 @@ struct HomeView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Scribi").font(Theme.display(44, weight: .medium)).foregroundStyle(Theme.ink)
-                Circle().fill(Theme.accent).frame(width: 9, height: 9).offset(y: -4)
+                ScribiMark().fill(Theme.ink).frame(width: 44, height: 16).alignmentGuide(.firstTextBaseline) { d in d[.bottom] - 2 }
+                Text("Scribi").font(Theme.display(40, weight: .medium)).foregroundStyle(Theme.ink)
                 Spacer()
                 NavigationLink(value: Route.connect) { StatusPill() }
             }
-            Text("Learn to write it by hand, on real paper.")
-                .font(Theme.display(18)).foregroundStyle(Theme.inkSoft)
             let streak = app.progress.streak()
             let mastered = app.progress.count(.mastered)
             if streak > 0 || mastered > 0 {
@@ -134,7 +130,7 @@ struct LanguageCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
-                Text(lesson.name).font(Theme.sans(13, weight: .semibold)).foregroundStyle(Theme.ink)
+                Text(lesson.name).font(Theme.sans(16, weight: .semibold)).foregroundStyle(Theme.ink)
                 Spacer()
                 Ring(value: app.progress.ring(for: lesson), lineWidth: 3.5).frame(width: 22, height: 22)
             }
@@ -145,14 +141,6 @@ struct LanguageCard: View {
                 .frame(maxWidth: .infinity, minHeight: 52, maxHeight: 52, alignment: lesson.isRTL ? .trailing : .leading)
                 .environment(\.layoutDirection, lesson.isRTL ? .rightToLeft : .leftToRight)
                 .padding(.vertical, 4)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(ScriptInfo.script(lesson.lang).isEmpty ? (lesson.script ?? "") : ScriptInfo.script(lesson.lang))
-                    .font(Theme.sans(12, weight: .medium)).foregroundStyle(Theme.accent).lineLimit(1)
-                Text(ScriptInfo.blurb(lesson.lang).isEmpty ? (lesson.about ?? "") : ScriptInfo.blurb(lesson.lang))
-                    .font(Theme.sans(12)).foregroundStyle(Theme.inkSoft)
-                    .lineLimit(2, reservesSpace: true)
-                    .multilineTextAlignment(.leading)
-            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .card(padding: 14)
@@ -169,7 +157,6 @@ struct FeatureCard: View {
         VStack(alignment: .leading, spacing: 8) {
             Image(systemName: symbol).font(.system(size: 22)).foregroundStyle(Theme.accent)
             Text(title).font(Theme.display(18)).foregroundStyle(Theme.ink)
-            Text(detail).font(Theme.sans(12)).foregroundStyle(Theme.inkSoft)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .card(padding: 14)

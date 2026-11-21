@@ -37,10 +37,6 @@ struct LessonView: View {
                 }
                 .pickerStyle(.segmented)
 
-                Text(mode == .write
-                     ? "Each stroke appears on your glasses. Write it on paper; the next one follows your pen."
-                     : "You hear the word and see its meaning. Write it from memory, then see how you did.")
-                    .font(Theme.sans(13)).foregroundStyle(Theme.inkSoft)
 
                 VStack(spacing: 12) {
                     ForEach(lesson.phrases) { p in
@@ -93,10 +89,6 @@ struct LessonView: View {
             HStack(spacing: 14) {
                 levelCount(.seen, lesson); levelCount(.practiced, lesson); levelCount(.mastered, lesson)
                 Spacer()
-                if lesson.isRTL { Label("Right to left", systemImage: "arrow.left").font(Theme.sans(12, weight: .medium)).foregroundStyle(Theme.inkSoft) }
-            }
-            if lesson.strokeOrder == "suggested" {
-                Label("Suggested stroke order (hand-authored)", systemImage: "hand.draw").font(Theme.sans(12)).foregroundStyle(Theme.inkSoft)
             }
         }
         .card()
