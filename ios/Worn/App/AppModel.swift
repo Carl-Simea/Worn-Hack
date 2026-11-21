@@ -35,6 +35,10 @@ final class AppModel {
     private(set) var lessons: [Lesson] = []
     private(set) var reactions = Reactions.fallback
     private(set) var milestones = Milestones.fallback
+    /// content/names/*.json, used when /name can't answer.
+    private(set) var nameTables: [String: NameTable] = [:]
+    /// Scripts written correctly since launch (for the "all six" milestone).
+    var langsCorrectThisSitting: Set<String> = []
     private(set) var glassesStatus: GlassesStatus = .noSDK
     private(set) var nearbyGlasses: [GlassesDevice] = []
     var progress = ProgressBook.load() { didSet { progress.save() } }
@@ -68,6 +72,9 @@ final class AppModel {
         glasses = GlassesLinkFactory.make()
         glasses.onChange = { [weak self] in self?.glassesChanged() }
         voice.onCommand = { [weak self] cmd in self?.handle(cmd) }
+        voice.onStateChange = { [weak self] state in
+            self?.report("listening", ["on": .bool(state == .listening)])
+        }
         reconnect()
     }
 
@@ -98,6 +105,7 @@ final class AppModel {
         link = .unknown
         guard hasServer else { api = nil; return }
         do { api = try API(baseString: serverAddress) } catch { api = nil; link = .down(error.localizedDescription); return }
+        Sounds.shared.api = api
         strokeCache = [:]; strokeMisses = []
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -127,11 +135,26 @@ final class AppModel {
     }
 
     private func loadOptionalContent(_ api: API) async {
-        if let d = try? await api.staticFile("reactions.json"), let r = try? JSONDecoder().decode(Reactions.self, from: d), !r.lines.isEmpty {
+        if let d = try? await api.staticFile("reactions.json"), let r = try? JSONDecoder().decode(Reactions.self, from: d), !r.kinds.isEmpty {
             reactions = r
         }
-        if let d = try? await api.staticFile("milestones.json"), let m = try? JSONDecoder().decode(Milestones.self, from: d), !m.milestones.isEmpty {
+        if let d = try? await api.staticFile("milestones.json"), let m = try? JSONDecoder().decode(Milestones.self, from: d), !m.byLang.isEmpty {
             milestones = m
+        }
+        Sounds.shared.preload(Array(Set(reactions.kinds.values.flatMap { [$0.sound, $0.then].compactMap { $0 } + ($0.altSounds ?? []) })))
+        for script in ["devanagari", "arabic", "cyrillic", "hebrew", "greek"] {
+            if let d = try? await api.staticFile("names/\(script).json"), let t = try? JSONDecoder().decode(NameTable.self, from: d) {
+                nameTables[t.lang] = t
+            }
+        }
+    }
+
+    /// Offline "Write your name": spell it by sound with the team's tables.
+    func offlineName(_ name: String) -> [NameResponse.Rendering] {
+        NameResponse.scriptKeys.compactMap { k in
+            guard let t = nameTables[k.lang] else { return nil }
+            let spelled = t.spell(name)
+            return spelled.isEmpty ? nil : NameResponse.Rendering(lang: k.lang, text: spelled, offline: true)
         }
     }
 
@@ -159,7 +182,7 @@ final class AppModel {
         eventLog.append((Date(), type, summary))
         if eventLog.count > 60 { eventLog.removeFirst(eventLog.count - 60) }
         guard let api else { return }
-        let body = EventBody(type: type, data: data, ts: Date().timeIntervalSince1970)
+        let body = EventBody(type: type, data: data)
         Task.detached { try? await api.event(body) }
     }
 

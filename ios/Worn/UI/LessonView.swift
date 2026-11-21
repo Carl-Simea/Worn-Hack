@@ -6,6 +6,7 @@ struct PracticeLaunch: Identifiable {
     let items: [PracticeItem]
     let mode: PracticeMode
     let title: String
+    var isName = false
 }
 
 struct LessonView: View {

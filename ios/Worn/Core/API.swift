@@ -8,7 +8,7 @@ enum APIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .badURL(let s): return "Bad server address: \(s)"
-        case .http(let code, let body): return "Server said \(code): \(body)"
+        case .http(let code, let body): return body.isEmpty ? "The server answered \(code)." : body
         case .notFound: return "Not found on the server"
         }
     }
@@ -73,7 +73,10 @@ struct API: Sendable {
         let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
         if code == 404 { throw APIError.notFound }
         guard (200..<300).contains(code) else {
-            throw APIError.http(code, String(decoding: data.prefix(200), as: UTF8.self))
+            // The backend sends a friendly, speakable `message` (or FastAPI's `detail`).
+            struct Err: Decodable { let message: String?; let detail: String? }
+            let e = try? JSONDecoder().decode(Err.self, from: data)
+            throw APIError.http(code, e?.message ?? e?.detail ?? String(decoding: data.prefix(200), as: UTF8.self))
         }
         return data
     }
@@ -126,8 +129,9 @@ struct API: Sendable {
         try await postMultipart("grade", fields: ["char": char, "lang": lang], jpeg: jpeg, slow: true)
     }
 
-    func strokeMatch(jpeg: Data, char: String, strokeIndex: Int) async throws -> StrokeMatch {
-        try await postMultipart("stroke-match", fields: ["char": char, "stroke_index": String(strokeIndex)], jpeg: jpeg, slow: false)
+    /// Tier 2: `strokeIndex` is 0-based.
+    func strokeMatch(jpeg: Data, char: String, lang: String, strokeIndex: Int) async throws -> StrokeMatch {
+        try await postMultipart("stroke-match", fields: ["char": char, "lang": lang, "stroke_index": String(strokeIndex)], jpeg: jpeg, slow: false)
     }
 
     func compose(text: String, lang: String) async throws -> ComposeResult {

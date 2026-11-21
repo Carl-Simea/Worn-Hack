@@ -38,6 +38,7 @@ struct ProgressBook: Codable, Equatable, Sendable {
     var practiceDays: Set<String> = []          // "yyyy-MM-dd"
     var earnedMilestones: Set<String> = []
     var perfectScores = 0
+    var itemCompletions: [String: Int] = [:]
 
     static func key(_ lang: String, _ char: String) -> String { "\(lang)/\(char)" }
 
@@ -98,28 +99,13 @@ struct ProgressBook: Codable, Equatable, Sendable {
         return chars.values.filter { $0.attempts > 0 && $0.lastSeen.map { cal.isDate($0, inSameDayAs: now) } == true }.count
     }
 
-    /// Newly earned milestones after a grade.
-    mutating func checkMilestones(_ all: Milestones, lessons: [Lesson], lastScore: Int, now: Date = Date()) -> [Milestones.Milestone] {
-        var new: [Milestones.Milestone] = []
-        let mastered = count(.mastered)
-        let anyCorrect = chars.values.contains { $0.correct > 0 }
-        for m in all.milestones where !earnedMilestones.contains(m.id) {
-            let hit: Bool
-            switch m.kind {
-            case "first_correct": hit = anyCorrect
-            case "chars_mastered": hit = mastered >= (m.count ?? 1)
-            case "streak_days": hit = streak(now: now) >= (m.count ?? 1)
-            case "perfect_score": hit = lastScore >= (m.count ?? 100)
-            case "lang_complete":
-                hit = lessons.contains { l in
-                    let u = Set(l.phrases.flatMap(\.chars))
-                    return !u.isEmpty && u.allSatisfy { progress(l.lang, $0).level >= .practiced }
-                }
-            default: hit = false
-            }
-            if hit { earnedMilestones.insert(m.id); new.append(m) }
-        }
-        return new
+    /// Mark a milestone as earned; true only the first time.
+    mutating func earn(_ id: String) -> Bool { earnedMilestones.insert(id).inserted }
+
+    /// Count a whole item written correctly in one run; returns the new total.
+    mutating func completeItem(_ lang: String, _ itemId: String) -> Int {
+        itemCompletions["\(lang)/\(itemId)", default: 0] += 1
+        return itemCompletions["\(lang)/\(itemId)"] ?? 0
     }
 
     static func day(_ d: Date) -> String {

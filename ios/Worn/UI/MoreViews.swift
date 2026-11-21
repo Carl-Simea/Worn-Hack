@@ -7,18 +7,19 @@ struct ComposeView: View {
     @State private var text = ""
     @State private var lang = "mandarin"
     @State private var result: ComposeResult?
+    @State private var session: SessionState?
     @State private var loading = false
     @State private var error: String?
     @State private var launch: PracticeLaunch?
     @FocusState private var focused: Bool
 
-    private let suggestions = ["good luck", "I love you", "happy birthday", "see you soon", "welcome"]
+    private let suggestions = ["good luck", "happy birthday", "see you soon", "welcome", "thank you, friend"]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 Text("Help me write…").font(Theme.display(30, weight: .medium))
-                Text("Type or say a short message. Worn translates it, then guides you stroke by stroke.")
+                Text("Type or say a short message. Worn translates it, puts it on your glasses, and guides you stroke by stroke.")
                     .font(Theme.sans(14)).foregroundStyle(Theme.inkSoft)
 
                 TextField("happy birthday", text: $text, axis: .vertical)
@@ -39,7 +40,11 @@ struct ComposeView: View {
                 LangPicker(selection: $lang)
 
                 Button(action: compose) {
-                    if loading { ProgressView().tint(.white) } else { Label("Translate", systemImage: "character.book.closed") }
+                    if loading {
+                        HStack(spacing: 10) { ProgressView().tint(.white); Text("Translating…") }
+                    } else {
+                        Label("Translate", systemImage: "character.book.closed")
+                    }
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty || loading)
@@ -56,13 +61,9 @@ struct ComposeView: View {
                         if let rom = r.romanization { Text(rom).font(Theme.sans(17, weight: .semibold)).foregroundStyle(Theme.accent) }
                         if let back = r.backTranslation { Text("Means: “\(back)”").font(Theme.display(16)).foregroundStyle(Theme.inkSoft) }
                         if let note = r.note { Text(note).font(Theme.sans(12)).foregroundStyle(Theme.inkSoft) }
-                        Button {
-                            let phrase = r.asPhrase(id: "compose-\(abs(text.hashValue))")
-                            let items = PracticeItem.all(lang: lang, phrase: phrase, adHoc: r.phraseId == nil)
-                            if !items.isEmpty { launch = PracticeLaunch(items: items, mode: .compose, title: text) }
-                        } label: { Label("Write it, stroke by stroke", systemImage: "pencil.and.scribble") }
-                        .buttonStyle(PrimaryButtonStyle())
-                        .disabled(r.chars.isEmpty)
+                        Button(action: startWriting) { Label("Write it, stroke by stroke", systemImage: "pencil.and.scribble") }
+                            .buttonStyle(PrimaryButtonStyle())
+                            .disabled(r.chars.isEmpty)
                     }
                     .card()
                     .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -80,29 +81,44 @@ struct ComposeView: View {
                 if let l = p.lang, app.lesson(l) != nil { lang = l }
                 app.pendingCompose = nil
                 compose()
-            } else if let first = app.lessons.first, app.lesson(lang) == nil {
+            } else if app.lesson(lang) == nil, let first = app.lessons.first {
                 lang = first.lang
             }
         }
     }
 
+    /// POST /session with mode "compose": the server translates, stores the item (so the glasses can show it),
+    /// and answers with its item_id. Falls back to POST /compose (phone-only) if that fails.
     private func compose() {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty, let api = app.api else { return }
         focused = false
-        loading = true; error = nil
+        loading = true; error = nil; session = nil
         app.report("compose.start", ["text": .string(t), "lang": .string(lang)])
         Task {
             do {
-                let r = try await api.compose(text: t, lang: lang)
-                result = r
-                app.report("compose", ["text": .string(t), "lang": .string(lang), "native": .string(r.native),
-                                       "romanization": .opt(r.romanization), "back_translation": .opt(r.backTranslation)])
+                let s = try await api.startSession(SessionRequest(composing: t, lang: lang))
+                session = s
+                result = ComposeResult(session: s)
             } catch {
-                self.error = "Couldn't translate right now. \(error.localizedDescription)"
+                do { result = try await api.compose(text: t, lang: lang) } catch {
+                    self.error = error.localizedDescription
+                }
+            }
+            if let r = result {
+                app.report("compose", ["text": .string(t), "lang": .string(lang), "native": .string(r.native),
+                                       "romanization": .opt(r.romanization), "back_translation": .opt(r.backTranslation),
+                                       "on_server": .bool(session != nil)])
             }
             loading = false
         }
+    }
+
+    private func startWriting() {
+        guard let r = result else { return }
+        let phrase = session?.asPhrase ?? Phrase(id: "compose-local", text: r.native, chars: r.chars, romanization: r.romanization, meaning: r.backTranslation)
+        let items = PracticeItem.all(lang: lang, phrase: phrase, adHoc: session == nil)
+        if !items.isEmpty { launch = PracticeLaunch(items: items, mode: .compose, title: text) }
     }
 }
 
@@ -140,6 +156,7 @@ struct NameView: View {
     @State private var loading = false
     @State private var error: String?
     @State private var launch: PracticeLaunch?
+    @State private var note: String?
 
     var body: some View {
         ScrollView {
@@ -164,14 +181,14 @@ struct NameView: View {
                 if results.isEmpty && !loading && error == nil {
                     VStack(spacing: 8) {
                         Image(systemName: "signature").font(.system(size: 34)).foregroundStyle(Theme.accent.opacity(0.7))
-                        Text("Your name, six ways.").font(Theme.display(18)).foregroundStyle(Theme.inkSoft)
+                        Text("Your name in five scripts.").font(Theme.display(18)).foregroundStyle(Theme.inkSoft)
                     }
                     .frame(maxWidth: .infinity).padding(.vertical, 30)
                 }
                 ForEach(results) { r in
                     Button {
                         let phrase = Phrase(id: "name-\(r.lang)", text: r.text, chars: r.chars, romanization: r.romanization, meaning: name)
-                        launch = PracticeLaunch(items: PracticeItem.all(lang: r.lang, phrase: phrase, adHoc: true), mode: .compose, title: name)
+                        launch = PracticeLaunch(items: PracticeItem.all(lang: r.lang, phrase: phrase, adHoc: true), mode: .write, title: name, isName: true)
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
@@ -179,6 +196,7 @@ struct NameView: View {
                                 Text(r.text).font(Theme.script(r.lang, size: 34)).foregroundStyle(Theme.ink)
                                     .environment(\.layoutDirection, ScriptInfo.isRTL(r.lang) ? .rightToLeft : .leftToRight)
                                 if let rom = r.romanization { Text(rom).font(Theme.sans(14, weight: .medium)).foregroundStyle(Theme.accent) }
+                                if r.offline { Text("Spelled offline, by sound").font(Theme.sans(11)).foregroundStyle(Theme.inkSoft) }
                             }
                             Spacer()
                             Image(systemName: "pencil.and.scribble").foregroundStyle(Theme.accent)
@@ -204,14 +222,18 @@ struct NameView: View {
         guard !n.isEmpty, let api = app.api else { return }
         loading = true; error = nil
         Task {
+            var list: [NameResponse.Rendering]
             do {
-                let r = try await api.name(n)
-                results = r.results.filter { app.lesson($0.lang) != nil || ScriptInfo.order.contains($0.lang) }
-                    .sorted { (ScriptInfo.order.firstIndex(of: $0.lang) ?? 99) < (ScriptInfo.order.firstIndex(of: $1.lang) ?? 99) }
-                app.report("name", ["name": .string(n), "scripts": .int(results.count)])
+                list = try await api.name(n).results
             } catch {
-                self.error = "Couldn't spell that right now. \(error.localizedDescription)"
+                // The name model is busy or down: spell it with the team's sound tables instead.
+                list = app.offlineName(n)
+                if list.isEmpty { self.error = error.localizedDescription }
             }
+            note = nil
+            results = list.filter { ScriptInfo.order.contains($0.lang) }
+                .sorted { (ScriptInfo.order.firstIndex(of: $0.lang) ?? 99) < (ScriptInfo.order.firstIndex(of: $1.lang) ?? 99) }
+            app.report("name", ["name": .string(n), "scripts": .int(results.count), "offline": .bool(results.first?.offline ?? false)])
             loading = false
         }
     }
@@ -335,7 +357,8 @@ struct JournalView: View {
                             HStack {
                                 Text(e.char).font(Theme.script(lang, size: 32))
                                 Spacer()
-                                if let best = e.photos.compactMap(\.score).max() {
+                                Text("\(e.photos.count) \(e.photos.count == 1 ? "page" : "pages")").font(Theme.sans(12)).foregroundStyle(Theme.inkSoft)
+                                if let best = e.best {
                                     Text("best \(Int(best))").font(Theme.sans(12, weight: .semibold)).foregroundStyle(Theme.good)
                                 }
                             }
@@ -381,8 +404,8 @@ private struct JournalPhoto: View {
             .background(Theme.paper)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             HStack(spacing: 4) {
-                if let d = photo.day { Text("Day \(d)") }
-                if let s = photo.score { Text("· \(Int(s))").foregroundStyle(s >= 60 ? Theme.good : Theme.warn) }
+                Text(Date(timeIntervalSince1970: photo.ts), format: .dateTime.month(.abbreviated).day())
+                if let s = photo.score { Text("· \(Int(s))").foregroundStyle(photo.correct ?? (s >= 60) ? Theme.good : Theme.warn) }
             }
             .font(Theme.sans(11, weight: .medium)).foregroundStyle(Theme.inkSoft)
         }

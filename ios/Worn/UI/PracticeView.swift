@@ -18,7 +18,7 @@ struct PracticeView: View {
         }
         .onAppear {
             guard engine == nil else { return }
-            let e = PracticeEngine(app: app, items: launch.items, mode: launch.mode, title: launch.title)
+            let e = PracticeEngine(app: app, items: launch.items, mode: launch.mode, title: launch.title, isName: launch.isName)
             engine = e
             e.start()
         }
@@ -537,14 +537,14 @@ private struct SummaryView: View {
 }
 
 private struct MilestoneBanner: View {
-    let milestone: Milestones.Milestone
+    let milestone: EarnedMilestone
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "rosette").font(.system(size: 26)).foregroundStyle(Theme.accent)
                 .symbolEffect(.bounce, value: milestone.id)
             VStack(alignment: .leading, spacing: 2) {
-                Text(milestone.title).font(Theme.display(18, weight: .medium))
-                if let d = milestone.detail { Text(d).font(Theme.sans(13)).foregroundStyle(Theme.inkSoft) }
+                Text(milestone.line.shown ?? "Milestone").font(Theme.display(18, weight: .medium))
+                Text(milestone.line.spoken).font(Theme.sans(13)).foregroundStyle(Theme.inkSoft)
             }
             Spacer()
         }

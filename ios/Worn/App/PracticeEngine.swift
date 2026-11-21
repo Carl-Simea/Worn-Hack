@@ -50,7 +50,8 @@ final class PracticeEngine {
     private(set) var strokeEpoch = 0
     private(set) var lastTrigger: Pacer.Trigger?
     private(set) var reactionLine: String?
-    private(set) var newMilestone: Milestones.Milestone?
+    private(set) var newMilestone: EarnedMilestone?
+    private(set) var streak = 0
     private(set) var confettiBurst = 0
     private(set) var outcomes: [Outcome] = []
     private(set) var lastInk: InkDiff.Result?
@@ -70,7 +71,11 @@ final class PracticeEngine {
     private var dictationStartedAt = Date()
     private var running = false
 
-    init(app: AppModel, items: [PracticeItem], mode: PracticeMode, title: String) {
+    /// "Write your name" run (for the first_name milestone).
+    let isName: Bool
+
+    init(app: AppModel, items: [PracticeItem], mode: PracticeMode, title: String, isName: Bool = false) {
+        self.isName = isName
         self.app = app
         self.queue = items
         self.mode = mode
@@ -120,11 +125,12 @@ final class PracticeEngine {
         newMilestone = nil
         app.progress.markSeen(item.lang, item.char)
 
-        // Tell the backend (glasses page + judge site follow it). Ad-hoc items may be unknown there: that's fine.
-        var hint: String?
-        if let api = app.api {
-            let req = SessionRequest(lang: item.lang, item: item.phrase, charIndex: item.charIndex, mode: mode, adHoc: item.adHoc)
-            if let s = try? await api.startSession(req) { hint = s.strokeUrl }
+        // Tell the backend: the glasses page and the live view follow /session.
+        // Ad-hoc items (a name spelled on the phone) aren't on the server; they're reported as events instead.
+        var hint = item.phrase.strokeURL(at: item.charIndex)
+        if let api = app.api, !item.adHoc {
+            let req = SessionRequest(lang: item.lang, itemId: item.phrase.id, charIndex: item.charIndex, mode: mode)
+            if let s = try? await api.startSession(req) { hint = s.strokeUrl ?? hint }
         }
         strokes = await app.strokes(lang: item.lang, char: item.char, hint: hint)
         guard running, index == i else { return }
@@ -135,7 +141,8 @@ final class PracticeEngine {
             "lang": .string(item.lang), "item": .string(item.phrase.id), "char": .string(item.char),
             "char_index": .int(item.charIndex), "total_chars": .int(item.phrase.chars.count),
             "mode": .string(mode.rawValue), "strokes": .int(strokes?.count ?? 0), "speed": .number(speed),
-            "source": .string(app.photoSource.rawValue),
+            "source": .string(app.photoSource.rawValue), "on_server": .bool(!item.adHoc),
+            "text": .string(item.phrase.text), "romanization": .opt(item.phrase.romanization(at: item.charIndex) ?? item.phrase.romanization),
         ])
         introduce(item)
         beginWriting()
@@ -196,7 +203,7 @@ final class PracticeEngine {
                     let (jpeg, timing) = try await app.glasses.takePhoto()
                     frame = Self.decode(jpeg)
                     app.recordLatency(.capture, ms: timing.totalMs)
-                    app.report("glasses.photo", ["ms": .int(timing.totalMs), "shutter_ms": .int(timing.shutterMs),
+                    app.report("glasses.frame", ["ms": .int(timing.totalMs), "shutter_ms": .int(timing.shutterMs),
                                                  "list_ms": .int(timing.listMs), "download_ms": .int(timing.downloadMs)])
                 } catch {
                     app.report("glasses.photo_failed", ["error": .string(error.localizedDescription)])
@@ -238,10 +245,10 @@ final class PracticeEngine {
         if mode == .dictation { dictationInkAt = Date(); return }
         apply(pacer.strokeWritten(.ink))
         if app.useStrokeMatch, let jpeg = PhoneCamera.jpeg(frame, quality: 0.6), let item = current, let api = app.api {
-            let strokeIndex = shownStroke - 1
+            let strokeIndex = max(0, shownStroke - 2)   // the stroke that was just written (0-based)
             Task { [weak self] in
                 let t = Date()
-                guard let m = try? await api.strokeMatch(jpeg: jpeg, char: item.char, strokeIndex: strokeIndex) else { return }
+                guard let m = try? await api.strokeMatch(jpeg: jpeg, char: item.char, lang: item.lang, strokeIndex: strokeIndex) else { return }
                 self?.app.recordLatency(.strokeMatch, ms: Self.ms(since: t))
                 self?.app.report("stroke_match", ["stroke": .int(strokeIndex + 1), "score": .number(m.score), "done": .bool(m.done)])
             }
@@ -274,8 +281,9 @@ final class PracticeEngine {
         lastTrigger = trigger
         strokeShownAt = Date()
         guard let item = current else { return }
+        // `stroke` is 0-based (the glasses page shows stroke + 1); `stroke_number` is for humans.
         app.report("glasses.show", [
-            "char": .string(item.char), "stroke": .int(i), "stroke_count": .int(strokes?.count ?? 0),
+            "char": .string(item.char), "stroke": .int(i - 1), "stroke_number": .int(i), "stroke_count": .int(strokes?.count ?? 0),
             "trigger": .string(trigger.rawValue), "phase": .string(mode == .dictation ? "dictation" : "write"),
         ])
         if trigger != .manual { Sounds.shared.effect(.tick) }
@@ -382,34 +390,68 @@ final class PracticeEngine {
         outcomes.removeAll { $0.item == item }
         outcomes.append(Outcome(item: item, result: r))
         app.progress.record(item.lang, item.char, correct: r.correct, score: r.scoreInt)
+        streak = r.correct ? streak + 1 : 0
 
-        let key: String
-        if mode == .dictation { key = r.correct ? "dictation_correct" : "dictation_wrong" }
-        else if r.correct { key = "correct" }
-        else if (r.seen ?? "x").isEmpty { key = "blank" }
-        else { key = r.score >= 40 ? "close" : "wrong" }
-        let line = r.reaction.flatMap { app.reactions.line(for: $0) } ?? app.reactions.line(for: key) ?? r.feedback
-        reactionLine = line
-        let sound = app.reactions.sounds?[key] ?? (r.correct ? "tada" : "boing")
-        Sounds.shared.effect(named: sound)
-        app.say(r.correct ? line : r.feedback)
+        // Reaction: a goofy line + sound from content/reactions.json; streaks get their own.
+        var key = Reactions.key(correct: r.correct, score: r.scoreInt)
+        var line = app.reactions.line(key)
+        if r.correct, app.reactions.isStreak(streak), let s = app.reactions.line("streak", n: streak) {
+            key = "streak"; line = s
+        }
+        let milestone = r.correct ? earnMilestone(item) : nil
+        newMilestone = milestone
+        if milestone != nil { key = "milestone" }
+        reactionLine = milestone?.line.shown ?? line ?? r.reaction ?? r.feedback
+        let sounds = app.reactions.sounds(key)
+        Sounds.shared.reaction(sounds)
+
+        // Spoken: the milestone, or the fun line when right; the one-line fix when not.
+        let spoken = milestone?.line.spoken ?? (r.correct ? (line ?? r.reaction ?? r.feedback) : r.feedback)
+        app.say(spoken)
+
         app.report("grade", ["char": .string(item.char), "score": .int(r.scoreInt), "correct": .bool(r.correct),
-                             "feedback": .string(r.feedback), "reaction": .opt(r.reaction), "seen": .opt(r.seen)])
-        app.report("reaction", ["key": .string(key), "line": .string(line), "sound": .string(sound)])
+                             "feedback": .string(r.feedback), "reaction": .opt(r.reaction), "seen": .opt(r.seen),
+                             "next_action": .opt(r.next?.action)])
+        app.report("reaction", ["key": .string(key), "line": .opt(reactionLine), "spoken": .string(spoken),
+                                "sound": .string(sounds.joined(separator: "+")), "streak": .int(streak)])
+        if let m = milestone {
+            app.report("milestone", ["id": .string(m.id), "shown": .opt(m.line.shown), "spoken": .string(m.line.spoken)])
+        }
 
         if r.correct {
             confettiBurst += 1
             app.report("confetti", ["char": .string(item.char), "score": .int(r.scoreInt)])
-            let earned = app.progress.checkMilestones(app.milestones, lessons: app.lessons, lastScore: r.scoreInt)
-            if let m = earned.first {
-                newMilestone = m
-                app.report("milestone", ["id": .string(m.id), "title": .string(m.title)])
-            }
-            scheduleAdvance(after: newMilestone == nil ? 2.4 : 3.6, retry: false)
+            scheduleAdvance(after: milestone == nil ? 2.4 : 3.8, retry: false)
         } else {
-            // One automatic retry (slower), then move on. Never stuck.
-            scheduleAdvance(after: 4.5, retry: attemptsOnCurrent < 2)
+            // The tutor agent decides retry vs. move on; without it, retry once (slower), then move on.
+            let retry = r.next?.action.map { $0 == "retry" } ?? (attemptsOnCurrent < 2)
+            scheduleAdvance(after: 4.5, retry: retry && attemptsOnCurrent < 3)
         }
+    }
+
+    /// content/milestones.json: first letter / first word / first mastered per script, plus first name and all six.
+    private func earnMilestone(_ item: PracticeItem) -> EarnedMilestone? {
+        let lang = item.lang
+        app.langsCorrectThisSitting.insert(lang)
+        var fired: [String] = []
+        func try_(_ id: String, scope: String) {
+            if app.progress.earn("\(scope)/\(id)") { fired.append(id) }
+        }
+        try_("first_letter", scope: lang)
+        // A whole item done right in this run?
+        let isLastChar = item.charIndex == item.phrase.chars.count - 1
+        let runForItem = outcomes.filter { $0.item.lang == lang && $0.item.phrase.id == item.phrase.id }
+        if isLastChar, runForItem.count == item.phrase.chars.count, runForItem.allSatisfy({ $0.result?.correct == true }) {
+            if isName { try_("first_name", scope: lang) }
+            try_("first_word", scope: lang)
+            let n = app.progress.completeItem(lang, item.phrase.id)
+            if n >= 3 || mode == .dictation { try_("first_mastered", scope: lang) }
+        }
+        if app.langsCorrectThisSitting.count >= 6 { try_("all_six_languages", scope: "any") }
+        // Show the biggest one.
+        let rank = ["all_six_languages", "first_mastered", "first_name", "first_word", "first_letter"]
+        guard let best = rank.first(where: fired.contains), let line = app.milestones.line(lang, best) else { return nil }
+        return EarnedMilestone(id: "\(lang)/\(best)", line: line)
     }
 
     private func scheduleAdvance(after seconds: Double, retry: Bool) {

@@ -7,6 +7,11 @@ final class Sounds {
     static let shared = Sounds()
 
     private var player: AVPlayer?
+    private var sfxPlayer: AVAudioPlayer?
+    private var sfxCache: [String: Data] = [:]
+    private var sfxTask: Task<Void, Never>?
+    /// Set by the app once the server is known; sound effects come from content/sfx/NAME.wav.
+    var api: API?
     private let synth = AVSpeechSynthesizer()
     private let engine = AVAudioEngine()
     private let node = AVAudioPlayerNode()
@@ -29,6 +34,47 @@ final class Sounds {
         u.rate = rate
         synth.stopSpeaking(at: .immediate)
         synth.speak(u)
+    }
+
+    /// Download the team's sound effects once so reactions play instantly.
+    func preload(_ names: [String]) {
+        guard let api else { return }
+        for n in names where sfxCache[n] == nil {
+            Task { if let d = try? await api.staticFile("sfx/\(n).wav") { sfxCache[n] = d } }
+        }
+    }
+
+    /// Play reaction sounds in order ("drumroll" then "cheer"). Falls back to the built-in synth.
+    func reaction(_ names: [String]) {
+        sfxTask?.cancel()
+        sfxTask = Task {
+            for n in names {
+                guard !Task.isCancelled else { return }
+                let seconds = await playSFX(n)
+                try? await Task.sleep(for: .seconds(max(0.15, seconds - 0.1)))
+            }
+        }
+    }
+
+    private func playSFX(_ name: String) async -> Double {
+        if sfxCache[name] == nil, let api, let d = try? await api.staticFile("sfx/\(name).wav") { sfxCache[name] = d }
+        if let d = sfxCache[name], let p = try? AVAudioPlayer(data: d) {
+            AudioSessionConfig.activate()
+            sfxPlayer = p
+            p.volume = 0.9
+            p.play()
+            return p.duration
+        }
+        let fallback: Effect
+        switch name {
+        case "ding", "kiss", "sparkle": fallback = .chime
+        case "tada", "cheer", "drumroll": fallback = .tada
+        case "boing", "slide": fallback = .boing
+        case "buzzer": fallback = .boing
+        default: fallback = .pop
+        }
+        effect(fallback)
+        return 0.4
     }
 
     enum Effect: String { case chime, tada, pop, boing, tick }

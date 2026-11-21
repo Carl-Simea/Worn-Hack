@@ -9,7 +9,8 @@ import Speech
 final class VoiceListener {
     enum State: Equatable { case off, unauthorized, unavailable, listening, paused }
 
-    private(set) var state: State = .off
+    private(set) var state: State = .off { didSet { if state != oldValue { onStateChange?(state) } } }
+    var onStateChange: ((State) -> Void)?
     private(set) var lastHeard = ""
     private(set) var lastCommand: VoiceCommand?
     var onCommand: ((VoiceCommand) -> Void)?
