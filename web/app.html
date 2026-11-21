@@ -170,6 +170,46 @@
   .done-card { text-align: center; padding: 48px 20px; }
   .done-card .display { font-size: 56px; }
 
+  /* ---------- voice: mic dock (every screen says what to say next) + "What can I say" */
+  .vdock { position: fixed; right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); z-index: 31;
+    display: flex; align-items: center; gap: 10px; transition: bottom .5s var(--ease); max-width: calc(100vw - 36px); }
+  .handoff.on ~ .vdock { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 74px); }
+  .vhint { background: var(--card); border: 1px solid var(--rule); box-shadow: var(--shadow); border-radius: 999px; padding: 9px 14px;
+    font: 600 13.5px/1.25 var(--ui); color: var(--ink-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vhint b { color: var(--accent); font-weight: 650; }
+  .vmic { flex: none; width: 58px; height: 58px; border-radius: 50%; border: 0; cursor: pointer; display: grid; place-items: center;
+    background: var(--ink); color: var(--paper); box-shadow: var(--shadow-lift); position: relative; transition: background .25s, transform .2s var(--ease); }
+  .vmic:active { transform: scale(.95); }
+  .vmic svg { width: 24px; height: 24px; }
+  .vmic::before { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 3px solid var(--accent); opacity: 0;
+    transform: scale(calc(1 + var(--lvl, 0) * .35)); transition: transform .08s linear; }
+  .vmic.rec { background: var(--accent); color: var(--on-accent); }
+  .vmic.rec::before { opacity: .55; }
+  .vmic.busy svg { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .vbubble { position: fixed; right: max(18px, env(safe-area-inset-right)); bottom: calc(max(18px, env(safe-area-inset-bottom)) + 74px); z-index: 31;
+    width: min(380px, calc(100vw - 36px)); background: var(--ink); color: var(--paper); border-radius: 18px; padding: 14px 16px; box-shadow: var(--shadow-lift);
+    opacity: 0; transform: translateY(10px); pointer-events: none; transition: opacity .3s var(--ease), transform .3s var(--ease); }
+  .vbubble.on { opacity: 1; transform: none; }
+  .handoff.on ~ .vbubble { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 148px); }
+  .vbubble .q { font-family: var(--display); font-style: italic; font-size: 21px; line-height: 1.2; }
+  .vbubble .a { font-size: 14px; opacity: .78; margin-top: 6px; line-height: 1.4; }
+  .vbubble .i { display: inline-block; margin-top: 8px; font: 700 10.5px/1 var(--ui); letter-spacing: .12em; text-transform: uppercase;
+    color: var(--paper); background: color-mix(in srgb, var(--paper) 16%, transparent); padding: 5px 7px; border-radius: 5px; }
+  .cmdgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 16px; margin-top: 22px; }
+  .cmdgrid .card { padding: 18px 18px 10px; }
+  .cmdgrid h3 { font: 600 11px/1 var(--ui); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 10px; }
+  .cmd { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; text-align: start; background: none; border: 0; border-top: 1px solid var(--rule);
+    padding: 11px 0; cursor: pointer; color: var(--ink); font: inherit; }
+  .cmd:first-of-type { border-top: 0; }
+  .cmd b { font-family: var(--display); font-weight: 400; font-size: 21px; line-height: 1.2; }
+  .cmd b::before { content: "“"; color: var(--ink-3); } .cmd b::after { content: "”"; color: var(--ink-3); }
+  .cmd span { font-size: 13.5px; color: var(--ink-2); }
+  .cmd:hover b { color: var(--accent); }
+  .tryrow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  .tryrow input { flex: 1; min-width: 200px; }
+  @media (max-width: 560px) { .vhint { font-size: 12.5px; padding: 8px 12px; } .vmic { width: 54px; height: 54px; } }
+
   .toast { position: fixed; left: 50%; top: 74px; transform: translate(-50%, -20px); opacity: 0; transition: all .35s var(--ease); z-index: 40;
     background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 12px; font-size: 14px; pointer-events: none; max-width: calc(100vw - 32px); }
   .toast.on { opacity: 1; transform: translate(-50%, 0); }
@@ -202,6 +242,7 @@
 <header class="top" id="top"><div class="wrap">
   <a class="wordmark" href="#/">Worn</a>
   <nav>
+    <a class="btn ghost" href="#/help" id="helpLink">What can I say</a>
     <a class="btn ghost" href="/app/journal">Journal</a>
     <span class="gl" id="gl" title="Glasses"><span class="dot" id="glDot"></span><span class="t" id="glText">Glasses</span></span>
   </nav>
@@ -348,14 +389,30 @@
       <a class="btn" href="#/">Home</a>
     </div>
   </section>
+
+  <!-- WHAT CAN I SAY -->
+  <section class="view" id="v-help">
+    <a class="back" href="#/">← Home</a>
+    <h1 class="display" style="font-size:clamp(36px,5vw,56px)">What can I say?</h1>
+    <p class="lede">Worn is run by your voice. Speak naturally. Every screen on the glasses shows what to say next, and the button is only a backup.
+      Tap the microphone (bottom right) and try any of these, or tap one to send it.</p>
+    <div class="tryrow"><input type="text" id="vType" placeholder="Type a command, like “learn Greek”" maxlength="80"><button class="btn primary" id="vSend">Send</button></div>
+    <div class="cmdgrid" id="cmds"></div>
+  </section>
 </main>
 
 <div class="handoff" id="handoff"><span class="script" id="hoChar"></span><div><b id="hoTitle">Lesson in progress</b><small id="hoSub">Started on another device</small></div><a class="btn" href="#/practice">Continue here</a></div>
+<div class="vbubble" id="vBubble" aria-live="polite"><div class="q" id="vQ"></div><div class="a" id="vA"></div><span class="i" id="vI" hidden></span></div>
+<div class="vdock" id="vDock">
+  <div class="vhint" id="vHint"></div>
+  <button class="vmic" id="vMic" aria-label="Talk to Worn" title="Talk to Worn (v)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+</div>
 <div class="toast" id="toast"></div>
 
 <script src="/static/web/worn-ink.js"></script>
 <script src="/static/web/worn-confetti.js"></script>
 <script src="/static/web/worn-sfx.js"></script>
+<script src="/static/web/worn-voice.js"></script>
 <script>
 (function () {
   "use strict";
@@ -422,7 +479,7 @@
   }
 
   // ---------------------------------------------------------------- router
-  var views = ["home", "lang", "practice", "compose", "name", "daily"];
+  var views = ["home", "lang", "practice", "compose", "name", "daily", "help"];
   function route() {
     var h = location.hash.replace(/^#\/?/, "").split("/");
     var v = h[0] || "home";
@@ -435,10 +492,133 @@
     if (v === "compose") renderCompose();
     if (v === "daily") renderDaily();
     if (v !== "practice") pinkStop();
+    curView = v;
+    renderHint();
     updateHandoff();
   }
   window.addEventListener("hashchange", route);
   window.addEventListener("scroll", function () { $("top").classList.toggle("scrolled", scrollY > 6); }, { passive: true });
+
+  // ---------------------------------------------------------------- voice (POST /voice; the backend turns speech into an intent)
+  var curView = "home", SCREEN = { home: "home", lang: "words", practice: "lesson", compose: "compose", name: "name", daily: "daily", help: "howto" };
+  var NAVS = { home: "#/", learn: "#/", words: null, lesson: "#/practice", practice: "#/practice", compose: "#/compose", help_me_write: "#/compose",
+               name: "#/name", write_my_name: "#/name", daily: "#/daily", daily5: "#/daily", daily_five: "#/daily", help: "#/help", howto: "#/help",
+               how_to_use: "#/help", journal: "/app/journal" };
+  function renderHint() {
+    var h = WornVoice.HINTS[curView] || WornVoice.HINTS.home;
+    $("vHint").innerHTML = esc(h).replace(/“([^”]+)”/g, "<b>“$1”</b>");
+  }
+  var bubbleT = null;
+  function bubble(q, a, intent, stay) {
+    $("vQ").textContent = q || ""; $("vA").textContent = a || "";
+    $("vI").hidden = !intent; $("vI").textContent = intent || "";
+    $("vBubble").classList.add("on");
+    clearTimeout(bubbleT);
+    if (!stay) bubbleT = setTimeout(function () { $("vBubble").classList.remove("on"); }, 5200);
+  }
+  function go(h) { if (h.charAt(0) === "/") location.href = h; else if (location.hash === h) route(); else location.hash = h; }
+  function langOf(x) {
+    x = String(x || "").toLowerCase();
+    if (x === "chinese") x = "mandarin";
+    return LANGS[x] ? x : null;
+  }
+  function navTo(nav, args) {
+    if (!nav) return false;
+    if (typeof nav === "object") { args = Object.assign({}, nav, args || {}); nav = nav.screen || nav.to; }
+    var p = String(nav).toLowerCase().replace(/[\s-]+/g, "_").split(/[:\/]/);
+    var l = langOf(p[1]) || langOf(args && args.lang);
+    if ((p[0] === "words" || p[0] === "lang" || p[0] === "learn") && l) { go("#/lang/" + l); return true; }
+    if (NAVS[p[0]]) { go(NAVS[p[0]]); return true; }
+    return false;
+  }
+  function act(v) {
+    var it = v.intent || "", a = v.args || {}, s = live && live.session;
+    var onP = curView === "practice";
+    WornVoice.say(v.say);
+    bubble(v.heard ? "“" + v.heard + "”" : "", v.say || "", it && it !== "unknown" && it !== "none" ? it.replace(/_/g, " ") : "");
+    switch (it) {
+      case "home": return go("#/");
+      case "back": return history.length > 1 ? history.back() : go("#/");
+      case "help": case "what_can_i_say": return go("#/help");
+      case "learn": case "open_language": { var l = langOf(a.lang); if (l) return go("#/lang/" + l); break; }
+      case "open": if (navTo(a.target || a.screen || v.nav, a)) return; break;
+      case "next": case "skip":
+        if (onP) return $("next").click();
+        if (curView === "daily") return $("dStart").click();
+        if (curView === "lang" && curLang) { var first = items(curLang)[0]; if (first) return start({ lang: curLang, item_id: first.id, char_index: 0, mode: mode }); }
+        break;
+      case "previous": if (onP && !$("prev").disabled) return $("prev").click(); break;
+      case "repeat": case "show_again": case "show_me_again": case "slower":
+        if (onP) { $("replay").click(); hear(); if (it === "slower") toast("Slower: watch one stroke at a time"); return; } break;
+      case "check": case "done":
+        if (onP) { toast("Tap “Check with phone camera”, or the glasses check it for you"); $("camBtn") && $("camBtn").focus(); return; } break;
+      case "meaning": case "what_does_this_mean":
+        if (s && !v.say) { var m = (s.item && s.item.meaning) || s.meaning; if (m) { WornVoice.say("It means " + m); bubble("", "It means “" + m + "”"); } }
+        return;
+      case "how_write": case "how_do_i_write": case "compose": {
+        var cl = langOf(a.lang); if (cl) cLang = cl;
+        go("#/compose");
+        if (a.word || a.text) setTimeout(function () { renderCompose(); $("cText").value = a.word || a.text; $("cGo").click(); }, 80);
+        return;
+      }
+      case "write_name": case "name":
+        go("#/name");
+        if (a.name) setTimeout(function () { $("nText").value = a.name; $("nGo").click(); }, 80);
+        return;
+    }
+    navTo(v.nav, a);
+  }
+  var rec = null, recState = "idle";
+  function micState(st) {
+    recState = st;
+    $("vMic").classList.toggle("rec", st === "rec");
+    $("vMic").classList.toggle("busy", st === "busy");
+    $("vMic").setAttribute("aria-label", st === "rec" ? "Stop and send" : "Talk to Worn");
+    if (st !== "rec") $("vMic").style.setProperty("--lvl", 0);
+  }
+  function sendVoice(o) {
+    micState("busy");
+    o.screen = SCREEN[curView] || curView;
+    return WornVoice.send(API, o).then(act).catch(function (e) {
+      bubble(o.text ? "“" + o.text + "”" : "", e.status === 404 ? "Voice isn’t on this server yet." :
+        e.status === 422 && o.text ? "This server only takes spoken commands. Tap the mic." : (e.message || "Couldn’t reach Worn. Try again."));
+    }).then(function () { micState("idle"); });
+  }
+  function stopAndSend() {
+    if (recState !== "rec" || !rec) return;
+    var r = rec; rec = null;
+    var spoke = r.heardSpeech();
+    r.stop().then(function (wav) {
+      if (!wav || !spoke) { micState("idle"); bubble("", "I didn’t hear anything. Tap the mic and speak."); return; }
+      sendVoice({ audio: wav });
+    });
+  }
+  $("vMic").onclick = function () {
+    if (recState === "rec") return stopAndSend();
+    if (recState === "busy") return;
+    rec = WornVoice.recorder();
+    rec.onlevel = function (l) { $("vMic").style.setProperty("--lvl", l.toFixed(2)); };
+    rec.onauto = stopAndSend;
+    rec.start().then(function () { micState("rec"); bubble("Listening…", WornVoice.HINTS[curView] || "", "", true); })
+      .catch(function (e) { rec = null; micState("idle"); bubble("", e.name === "NotAllowedError" ? "Allow the microphone to talk to Worn. You can also type on “What can I say”." : e.message); });
+  };
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "v" && !e.metaKey && !e.ctrlKey && !/input|textarea/i.test((e.target && e.target.tagName) || "")) $("vMic").click();
+  });
+  WornVoice.COMMANDS.forEach(function (g) {
+    var c = document.createElement("div");
+    c.className = "card";
+    c.innerHTML = "<h3>" + esc(g.title) + "</h3>" + g.items.map(function (x) {
+      return '<button class="cmd" data-say="' + esc(x[0]) + '"><b>' + esc(x[0]) + "</b><span>" + esc(x[1]) + "</span></button>";
+    }).join("");
+    $("cmds").appendChild(c);
+  });
+  $("cmds").addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest(".cmd");
+    if (b) sendVoice({ text: b.getAttribute("data-say") });
+  });
+  $("vSend").onclick = function () { var t = $("vType").value.trim(); if (t) { $("vType").value = ""; sendVoice({ text: t }); } };
+  $("vType").addEventListener("keydown", function (e) { if (e.key === "Enter") $("vSend").click(); });
 
   // ---------------------------------------------------------------- home
   function renderHome() {
