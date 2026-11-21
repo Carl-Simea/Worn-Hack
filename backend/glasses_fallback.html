@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- Fallback glasses display (backend-owned). C's web/glasses.html replaces this automatically. -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=640,height=480">
+<title>Worn</title>
+<style>
+  html,body{margin:0;width:640px;height:480px;background:#000;color:#fff;font-family:sans-serif;overflow:hidden}
+  #wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center}
+  #char{font-size:260px;line-height:1}
+  #stroke{max-width:340px;max-height:340px}
+  #rom{font-size:40px;color:#7fd}
+  #msg{font-size:34px;margin-top:8px;min-height:40px}
+  .ok{color:#4f4}.bad{color:#fc4}
+  video{max-width:640px;max-height:420px}
+</style></head>
+<body><div id="wrap"><div id="main"></div><div id="rom"></div><div id="msg">waiting for phone…</div></div>
+<audio id="aud"></audio>
+<script>
+let ver = -1, lastTs = 0;
+const $ = id => document.getElementById(id);
+async function tick(){
+  try{
+    const s = await (await fetch('/session')).json();
+    if (s.version !== ver){
+      ver = s.version; lastTs = 0; $('msg').textContent=''; $('msg').className='';
+      if (s.mode === 'asl' && s.asl_url){
+        $('main').innerHTML = `<video src="${s.asl_url}" autoplay loop muted playsinline></video>`;
+      } else if (s.stroke_url && /\.(svg|gif)$/.test(s.stroke_url)){
+        $('main').innerHTML = `<img id="stroke" src="${s.stroke_url}">`;
+      } else {
+        $('main').innerHTML = `<div id="char">${s.char || s.text || ''}</div>`;
+      }
+      $('rom').textContent = s.romanization || '';
+      if (s.audio_url){ $('aud').src = s.audio_url; $('aud').play().catch(()=>{}); }
+    }
+    const r = await fetch('/session/result');
+    if (r.ok){
+      const g = await r.json();
+      if (g.ts !== lastTs){
+        lastTs = g.ts;
+        $('msg').textContent = (g.correct ? '✓ ' : '') + g.feedback;
+        $('msg').className = g.correct ? 'ok' : 'bad';
+      }
+    }
+  }catch(e){}
+  setTimeout(tick, 700);
+}
+tick();
+</script></body></html>
