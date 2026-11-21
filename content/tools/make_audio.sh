@@ -9,7 +9,7 @@ for lang, voice in V.items():
         print(lang, p["id"], voice, p["text"], sep="\t")
 PY
   mkdir -p "content/audio/$lang" &&
-  say -v "$voice" -r 140 -o "/tmp/worn_$$.aiff" -- "$text" &&
+  say -v "$voice" -r 120 -o "/tmp/worn_$$.aiff" -- "[[slnc 250]]${text}[[slnc 200]]" &&
   afconvert -f m4af -d aac -b 64000 "/tmp/worn_$$.aiff" "content/audio/$lang/$id.m4a" &&
   echo "ok $lang/$id"
 done
