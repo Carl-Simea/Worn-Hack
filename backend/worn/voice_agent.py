@@ -251,23 +251,70 @@ def fast_path(heard: str, screen: str, ctx: dict) -> dict | None:
 
 EXACT_INTENTS = ("learn", "compose", "write_name", "select")
 
+# Room speech the glasses mic picks up ("Are you ready?", "Okay, I'm gonna ask you again.") must not fire
+# lesson commands. A gated intent from a longer sentence needs its trigger phrase; questions aimed at
+# someone else are chatter.
+GATED_TRIGGERS = {
+    "check": r"\b(i'?m|i am|i think i'?m) (done|finished)\b|\bhow did i do\b|\b(check|grade|score)\b|\bi finished\b|\bthat'?s it\b",
+    "repeat": r"\bsay (that|it) again\b|\bwhat did you say\b|\brepeat\b|\bone more time\b|\bdidn'?t (hear|catch)\b|\bpardon\b",
+    "skip": r"\bskip\b|\btoo hard\b",
+    "next": r"\bnext\b|\bmove on\b|\bgo on\b|\bkeep going\b",
+    "previous": r"\bprevious\b|\bback one\b|\bone before\b|\blast one\b",
+    "exit": r"\b(bye|goodbye|exit|quit)\b|\bclose (the )?app\b|\bdone for (today|now)\b|\bstop listening\b",
+    "slower": r"\btoo fast\b|\bslow(er| down)?\b",
+    "faster": r"\btoo slow\b|\bspeed (it )?up\b|\bfaster\b",
+    "show_again": r"\b(show|replay|watch)\b",
+    "meaning": r"\bmean(ing|s)?\b|\bwhat (is|am i|'s) (this|that|it|i)\b|\bwhat am i (even )?writing\b",
+}
+OTHER_PERSON_Q = re.compile(r"^(?:(?:ok|okay|so|um|uh|well|hey|wait)\s+)*(are|were|did|do|have|will|would|is) (you|he|she|they|we)\b")
+FILLER_START = re.compile(r"^(?:(?:ok|okay|so|um|uh|well|alright|hey|scribi|please|now|oh|wait)\s+)+")
+
+
+def gate(intents: list[dict], heard: str) -> list[dict]:
+    """Drop lesson commands that room speech triggered. Short commands (<= 3 words) always pass."""
+    t = V.norm(heard)
+    core = FILLER_START.sub("", t)
+    n = len(core.split())
+    out = []
+    for i in intents:
+        name = i["intent"]
+        if name in GATED_TRIGGERS and n > 3:
+            if OTHER_PERSON_Q.match(t):
+                continue  # "did you see the next train": a question to someone in the room
+            if not re.search(GATED_TRIGGERS[name], core):
+                continue
+            if name == "repeat" and re.search(r"\b(i'?m|i am) (gonna|going to) (ask|say|tell)\b", core):
+                continue  # "I'm gonna ask you again": the speaker repeating, not a request
+        if name == "learn" and not V.find_lang(t) and not re.search(r"\b(learn|lesson|teach|languages?)\b", t):
+            continue  # "Are you ready?" isn't "learn <current language>"
+        out.append(i)
+    return out
+
+
+LANG_ALT = r"(mandarin|chinese|hindi|arabic|russian|hebrew|greek)"
+EXACT = [
+    ("learn", re.compile(rf"^(?:(?:let'?s|i want to|i wanna|can we|please)\s+)?(?:learn|study|practi[cs]e|do|start|open)\s+(?:some\s+)?{LANG_ALT}(?:\s+please)?$")),
+    ("compose", re.compile(rf"^how (?:do|would|can|should) (?:i|you|we) (?:write|say|spell) (?P<text>[a-z' ]{{1,40}}?) in {LANG_ALT}$")),
+    ("write_name", re.compile(r"^(?:write|spell) my name,? (?P<name>[a-z' -]{1,30})$|^my name is (?P<name2>[a-z' -]{1,30})$")),
+]
+
 
 def exact_path(heard: str, screen: str, ctx: dict) -> dict | None:
-    """Sentences with a fixed shape ("learn Hindi", "how do I write water in Greek", "write my name, Sam",
-    a lesson word on the word list) are answered by the rule matcher: instant and never misrouted."""
-    t = V.norm(heard)
-    if len(t.split()) > 9:
-        return None
-    r = V.parse_any(heard, screen, ctx)
-    if r["intent"] not in EXACT_INTENTS:
-        return None
-    a = r["args"]
-    if r["intent"] == "learn" and not re.search(r"\b(learn|study|practice|practise|teach me|do|start|open|switch to)\b", t) \
-            and screen != "learn" and len(t.split()) > 1:
-        return None  # "I was in Greece" is not "learn Greek"
-    if r["intent"] == "compose" and not a.get("lang"):
-        return None  # let the model (or the question) find the language
-    return r
+    """Canonical sentences ("learn Hindi", "how do I write water in Greek", "write my name, Sam") are answered
+    by rules: instant and never misrouted by the model. Anything looser goes to the model."""
+    t = re.sub(r"^(?:(?:ok|okay|so|um|uh|hey|scribi)\s+)+", "", V.norm(heard))
+    for intent, rx in EXACT:
+        m = rx.match(t)
+        if not m:
+            continue
+        if intent == "learn":
+            return {"intent": "learn", "args": {"lang": V.find_lang(m.group(1))}}
+        if intent == "compose":
+            return {"intent": "compose", "args": {"text": m.group("text").strip(), "lang": V.find_lang(m.group(2))}}
+        name = V._clean_name(m.group("name") or m.group("name2") or "")
+        if name:
+            return {"intent": "write_name", "args": {"name": name}}
+    return None
 
 
 async def plan(heard: str, screen: str, state: dict, ctx: dict) -> dict:
@@ -301,6 +348,8 @@ async def plan(heard: str, screen: str, state: dict, ctx: dict) -> dict:
     if fp:
         return {"intents": [{"intent": fp["intent"], "args": fp["args"]}], "via": "fast", "ms": ms()}
 
+    if OTHER_PERSON_Q.match(t) and len(t.split()) > 2:
+        return {"intents": [{"intent": "unknown", "args": {"reason": "chatter"}}], "via": "fast", "ms": ms()}
     word = (LIVE_word(state) or "none")
     prompt = PROMPT.format(
         tools="; ".join(f"{k}({v})" if v else k for k, v in TOOLS.items()), screen=screen,
@@ -311,7 +360,8 @@ async def plan(heard: str, screen: str, state: dict, ctx: dict) -> dict:
     except (asyncio.TimeoutError, llm.LLMError, Exception) as e:  # never break voice on the model
         log.info("voice model fallback (%s): %r", type(e).__name__, heard)
         r = V.parse_any(heard, screen, ctx)
-        return {"intents": [{"intent": r["intent"], "args": r["args"]}], "via": "rules",
+        kept = gate([{"intent": r["intent"], "args": r["args"]}], heard)
+        return {"intents": kept or [{"intent": "unknown", "args": {"reason": "chatter"}}], "via": "rules",
                 "error": f"{type(e).__name__}: {str(e)[:80]}", "ms": ms()}
 
     steps = data["steps"]
@@ -332,6 +382,11 @@ async def plan(heard: str, screen: str, state: dict, ctx: dict) -> dict:
                 "pending": {"need": "confirm", "steps": steps}, "via": "model", "tools": steps,
                 "confidence": data["confidence"], "ms": ms()}
     intents, ask = to_intents(steps, ctx, heard)
+    kept = gate(intents, heard)
+    if intents and not kept and not ask:
+        return {"intents": [{"intent": "unknown", "args": {"reason": "chatter"}}], "via": "model", "ms": ms(),
+                "tools": steps, "confidence": data["confidence"]}
+    intents = kept
     return {"intents": intents, **(ask or {}), "pending": (ask or {}).get("pending"), "via": "model",
             "tools": steps, "model_say": data["say"], "confidence": data["confidence"], "ms": ms()}
 

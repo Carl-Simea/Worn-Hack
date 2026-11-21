@@ -172,3 +172,50 @@ def test_forty_plus_real_world_phrasings(vc, nlu, monkeypatch):
         if d["intent"] != want:
             bad.append((heard, d["intent"], want, d["say"]))
     assert len(PHRASES) >= 40 and not bad, bad
+
+
+ROOM_SPEECH = [  # what the real glasses mic picked up, plus the same shape
+    ("lesson", "Are you ready?", "check {}"),
+    ("lesson", "Okay, I'm gonna ask you again.", "repeat {}"),
+    ("lesson", "did you see the next train", "next {}"),
+    ("lesson", "are you done with the laptop", "check {}"),
+    ("lesson", "Are you ready?", 'start_lesson {"language": "greek"}'),
+    ("lesson", "we should get lunch soon I think", "skip {}"),
+]
+REAL_COMMANDS = [
+    ("lesson", "ok I think I'm finished", "check {}", "check"),
+    ("lesson", "how did I do", "check {}", "check"),
+    ("lesson", "can you check it", "check {}", "check"),
+    ("lesson", "wait what did you say", "repeat {}", "repeat"),
+    ("lesson", "say that again please", "repeat {}", "repeat"),
+    ("lesson", "skip this one, it's too hard", "skip {}", "skip"),
+    ("lesson", "go to the next one", "next {}", "next"),
+    ("lesson", "okay move on", "next {}", "next"),
+    ("lesson", "whoa slow down", "slower {}", "slower"),
+    ("lesson", "can you speed it up", "faster {}", "faster"),
+    ("home", "I'm done for today", "exit_app {}", "exit"),
+    ("lesson", "what am I even writing", "explain {}", "meaning"),
+]
+
+
+def test_room_speech_never_fires_lesson_commands(vc, nlu):
+    say(vc, "learn greek", "home")
+    say(vc, "water", "words")
+    for screen, heard, reply in ROOM_SPEECH:
+        nlu.replies[heard] = reply
+        vc.post("/app-state", json={"screen": "lesson", "phase": "your_turn"})
+        d = say(vc, heard, screen)
+        assert d["intent"] == "unknown" and d["nav"] is None and not d["actions"], (heard, d["intent"], d["actions"])
+
+
+def test_real_commands_still_pass_the_gate(vc, nlu):
+    bad = []
+    for screen, heard, reply, want in REAL_COMMANDS:
+        nlu.replies[heard] = reply
+        say(vc, "learn greek", "home")
+        say(vc, "water", "words")
+        vc.post("/app-state", json={"screen": screen, "phase": "result"})
+        d = say(vc, heard, screen)
+        if d["intent"] != want:
+            bad.append((heard, d["intent"]))
+    assert not bad, bad
