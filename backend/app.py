@@ -12,6 +12,7 @@ import logging
 import time
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import quote
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,7 +29,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 
 @contextlib.asynccontextmanager
 async def lifespan(_app: FastAPI):
-    tasks = []
+    tasks = [asyncio.create_task(asyncio.to_thread(V.warm_stt))] if config.WARM_MODELS else []
     if config.WARM_MODELS:
         tasks.append(asyncio.create_task(llm.keep_warm()))
         tasks.append(asyncio.create_task(_prefetch_later()))
@@ -381,6 +382,7 @@ def get_review():
 def reset_demo(journal: bool = False):
     """Clear the live state (and the journal/memory with ?journal=true) before a demo."""
     LIVE.reset()
+    V.reset_state()
     if journal:
         memory.reset()
     return {"ok": True}
@@ -456,3 +458,307 @@ def page_print(lang: str):
 @app.get("/glasses", response_class=HTMLResponse)
 def page_glasses():
     return _page("glasses.html", str(config.HERE / "glasses_fallback.html"))
+
+
+# ------------------------------------------------------------------ voice (glasses are voice-first)
+
+from worn import voice as V  # noqa: E402
+
+
+def _lang_name(lang: str | None) -> str:
+    return config.LANGS.get(lang or "", {}).get("name", lang or "")
+
+
+def _start_item(lang: str, item_id: str, char_index: int = 0, mode: str = "write") -> dict:
+    lesson, it = _lookup(lang, item_id)
+    sess = build_session(lang, it, lesson, char_index, mode)
+    LIVE.set_session(sess)
+    return sess
+
+
+def _lesson_say(sess: dict, lead: str = "") -> str:
+    rom = sess.get("char_romanization") or sess.get("romanization") or ""
+    part = (f" Letter {sess['char_index'] + 1} of {sess['total_chars']}." if sess.get("total_chars", 1) > 1 else "")
+    return (f"{lead}{sess.get('meaning') or ''}, in {sess.get('lang_name')}: {rom}.{part} "
+            f"Watch the strokes, then write it. Say check when you're done.").strip()
+
+
+def _lesson_nav(sess: dict) -> dict:
+    return {"screen": "lesson", "lang": sess["lang"], "item_id": sess["item_id"], "char_index": sess["char_index"],
+            "phase": "watch"}
+
+
+def _step(delta: int, *, from_agent: bool) -> dict | None:
+    """Next/previous character, then next/previous word in that language (wraps)."""
+    s = LIVE.session
+    if not s:
+        return None
+    if from_agent and LIVE.next and LIVE.result and LIVE.next.get("item_id"):
+        n = LIVE.next
+        return _start_item(n["lang"], n["item_id"], n["char_index"], s.get("mode", "write"))
+    ci = s["char_index"] + delta
+    if 0 <= ci < s["total_chars"]:
+        return _start_item(s["lang"], s["item_id"], ci, s.get("mode", "write"))
+    items = (content.load().get(s["lang"]) or {}).get("items") or []
+    ids = [i["id"] for i in items]
+    if s["item_id"] not in ids or not ids:
+        return None
+    j = (ids.index(s["item_id"]) + delta) % len(ids)
+    ci = 0 if delta > 0 else len(items[j]["chars"]) - 1
+    return _start_item(s["lang"], ids[j], ci)
+
+
+async def _do_voice(heard: str, screen: str | None) -> dict:
+    st = V.get_state()
+    screen = V.norm_screen(screen or st.get("screen"))
+    langs = content.load()
+    sess = LIVE.session
+    ctx_lang = st.get("lang") or (sess or {}).get("lang")
+    ctx = {"lang": ctx_lang, "items": (langs.get(ctx_lang) or {}).get("items") or [], "langs": langs}
+    p = V.parse_any(heard, screen, ctx)
+    intent, args = p["intent"], dict(p["args"])
+    nav: dict | None = None
+    say = ""
+    out_sess = None
+    in_lesson = screen == "lesson" and sess is not None
+
+    if intent == "home":
+        nav, say = {"screen": "home"}, "Home. " + V.HINTS["home"]
+    elif intent == "back":
+        bc = list(st.get("breadcrumb") or ["home"])
+        prev = bc[-2] if len(bc) >= 2 else "home"
+        nav = {"screen": prev, **({"lang": ctx_lang} if prev in ("words", "lesson") and ctx_lang else {})}
+        say = {"words": f"{_lang_name(ctx_lang)} words. " + V.HINTS["words"], "learn": V.HINTS["learn"]}.get(
+            prev, f"Back. {V.HINTS.get(prev, V.HINTS['home'])}")
+    elif intent == "open":
+        scr = args["screen"]
+        nav = {"screen": scr}
+        if scr == "daily5":
+            d5 = memory.daily5()
+            first = d5[0] if d5 else None
+            args["items"] = d5
+            say = ("Your Daily 5. First: " + f"{first['meaning']} in {_lang_name(first['lang'])}. Say start."
+                   if first else V.HINTS["daily5"])
+        elif scr == "journal":
+            ent = memory.journal(limit=500)
+            ok = sum(1 for e in ent if e.get("correct"))
+            say = (f"Your journal: {len(ent)} tries, {ok} correct. " if ent else "Your journal is empty so far. ") + \
+                V.HINTS["journal"]
+        else:
+            say = {"learn": "Pick a language. ", "howto": "Here's what you can say. ", "name": "Write my name. ",
+                   "compose": "Help me write. "}.get(scr, "") + V.HINTS.get(scr, "")
+    elif intent == "learn":
+        lang = args["lang"]
+        if lang not in langs:
+            say = f"I don't have {_lang_name(lang)} lessons yet. " + V.HINTS["learn"]
+        else:
+            nav = {"screen": "words", "lang": lang}
+            words = ", ".join(i.get("meaning") or i["id"] for i in langs[lang]["items"])
+            say = f"{_lang_name(lang)}. Say a word: {words}. Or say back."
+            args["items"] = [{"id": i["id"], "text": i.get("text"), "meaning": i.get("meaning"),
+                              "romanization": i.get("romanization")} for i in langs[lang]["items"]]
+    elif intent == "select":
+        lang = args.get("lang") or ctx_lang
+        out_sess = _start_item(lang, args["item_id"], int(args.get("char_index") or 0), args.get("mode") or "write")
+        nav, say = _lesson_nav(out_sess), _lesson_say(out_sess)
+    elif intent == "next" and in_lesson and st.get("phase") in ("watch", "your_turn"):
+        # inside a lesson "next" moves watch → your turn → next stroke; the glasses do that themselves
+        nav, say = None, ""
+        args["local"] = True
+    elif intent in ("next", "skip", "previous"):
+        from_daily = screen == "daily5" or (in_lesson and "daily5" in (st.get("breadcrumb") or []) and intent != "previous")
+        if from_daily or (intent == "next" and args.get("start")):
+            d5 = memory.daily5()
+            k = 0 if (args.get("start") or screen == "daily5") else int(st.get("daily_index") or 0) + 1
+            if d5:
+                k %= len(d5)
+                d = d5[k]
+                out_sess = _start_item(d["lang"], d["item_id"], d["char_index"])
+                V.update_state({"daily_index": k}, source="backend")
+                nav, say = {**_lesson_nav(out_sess), "daily_index": k}, _lesson_say(out_sess, f"Daily {k + 1} of {len(d5)}. ")
+        elif sess and screen in ("lesson", "words"):
+            out_sess = _step(-1 if intent == "previous" else 1, from_agent=intent == "next")
+            if out_sess:
+                nav = _lesson_nav(out_sess)
+                say = _lesson_say(out_sess, "Skipped. " if intent == "skip" else "")
+        if not nav:
+            say = "There's nothing to move to here. " + V.HINTS.get(screen, V.HINTS["home"])
+    elif intent in ("repeat", "slower", "show_again"):
+        if in_lesson:
+            if intent == "slower":
+                args["speed"] = 0.5
+            args["audio_url"] = sess.get("audio_url")
+            say = {"repeat": _lesson_say(sess), "slower": "Slower. Watch each stroke.",
+                   "show_again": "Watch again."}[intent]
+            nav = {**_lesson_nav(sess)} if intent != "repeat" else None
+        else:
+            lv = st.get("last_voice") or {}
+            say = lv.get("say") or V.HINTS.get(screen, V.HINTS["home"])
+    elif intent == "check":
+        if sess:
+            args.update({"lang": sess["lang"], "char": sess["char"]})
+            say = "Hold the paper still. Checking."
+            nav = {**_lesson_nav(sess), "phase": "check"}
+        else:
+            say = "Pick a word first. " + V.HINTS["home"]
+    elif intent == "meaning":
+        if sess:
+            say = (f"{sess.get('text')} means {sess.get('meaning')}. It's said {sess.get('romanization')}. "
+                   f"You're writing letter {sess['char_index'] + 1} of {sess['total_chars']}.")
+            say = say.replace(f"{sess.get('text')} means", "This means") if not sess.get("text", "").isascii() else say
+        else:
+            say = "Pick a word first, then ask what it means. " + V.HINTS["home"]
+    elif intent == "compose":
+        lang, text = args.get("lang"), args["text"]
+        if not lang:
+            say = f'Which language? Say: how do I write {text} in Mandarin, or Hindi, Arabic, Russian, Hebrew, Greek.'
+            nav = {"screen": "compose"}
+        else:
+            lesson_hit = next((i for i in (langs.get(lang) or {}).get("items", [])
+                               if V.norm(i.get("meaning") or "") == V.norm(text)), None)
+            if lesson_hit:
+                intent = "select"
+                args = {"lang": lang, "item_id": lesson_hit["id"], "text": text}
+                out_sess = _start_item(lang, lesson_hit["id"])
+                nav, say = _lesson_nav(out_sess), _lesson_say(out_sess, "That's one of your lessons. ")
+            else:
+                try:
+                    res = await agent.run_compose(text, lang)
+                    iid = f"compose-{next(_compose_ids)}"
+                    _composed[iid] = {"lang": lang, "item": {
+                        "id": iid, "text": res["native"], "chars": res["chars"], "romanization": res["romanization"],
+                        "meaning": res["text"] if "text" in res else text,
+                        "back_translation": res["back_translation"], "note": res["note"]}}
+                    args.update({"result": res, "item_id": iid})
+                    nav = {"screen": "compose", "lang": lang, "item_id": iid}
+                    say = (f"In {_lang_name(lang)}, {text} is: {res['romanization']}. "
+                           f"{len(res['chars'])} to write. Say practice to write it, or ask for another phrase.")
+                except compose.ComposeError as e:
+                    nav, say = {"screen": "compose"}, f"{e} " + V.HINTS["compose"]
+                except llm.LLMError:
+                    nav, say = {"screen": "compose"}, "I can't translate right now. Try a lesson word instead."
+    elif intent == "write_name":
+        try:
+            res, meta = await compose.name(args["name"])
+            args["result"] = {**res, "model": meta.get("model")}
+            nav = {"screen": "name", "name": args["name"]}
+            say = f"Here's {args['name']} in five scripts. Say another name, or home."
+        except compose.ComposeError as e:
+            nav, say = {"screen": "name"}, f"{e} " + V.HINTS["name"]
+        except llm.LLMError:
+            nav, say = {"screen": "name"}, "I couldn't spell that name right now. Try again in a moment."
+    elif intent == "help":
+        nav = None
+        say = "You can say: " + V.HINTS.get(screen, V.HINTS["howto"]).removeprefix("Say ")
+    else:
+        if args.get("reason") == "silence":
+            say = "I didn't hear anything. " + V.HINTS.get(screen, V.HINTS["home"])
+        else:
+            say = "I didn't catch that. " + V.HINTS.get(screen, V.HINTS["home"])
+
+    # "practice" on the compose screen writes the composed message
+    if intent == "practice":
+        last = ((st.get("last_voice") or {}).get("args") or {})
+        iid = last.get("item_id") or st.get("item_id")
+        lang = last.get("lang") or st.get("lang")
+        if iid in _composed and lang:
+            intent, args = "select", {"lang": lang, "item_id": iid, "mode": "compose"}
+            out_sess = _start_item(lang, iid, 0, "compose")
+            nav, say = _lesson_nav(out_sess), _lesson_say(out_sess)
+        else:
+            intent, say = "unknown", "Ask for a phrase first. " + V.HINTS["compose"]
+    if intent in ("retry", "faster"):
+        if in_lesson:
+            args["speed"] = 1.5 if intent == "faster" else 1.0
+            nav = {**_lesson_nav(sess), "phase": "your_turn" if intent == "retry" else "watch"}
+            say = "Okay, again. Write it when you're ready." if intent == "retry" else "Faster."
+        else:
+            say = V.HINTS.get(screen, V.HINTS["home"])
+    return {"intent": intent, "args": args, "say": say, "nav": nav, "session": out_sess, "matcher": p.get("matcher")}
+
+
+@app.post("/voice")
+async def post_voice(audio: UploadFile | None = File(None), screen: str | None = Form(None),
+                     text: str | None = Form(None)):
+    """Glasses mic → {heard, intent, args, say, say_url, nav, hint, session?, ms}. `text` skips speech-to-text."""
+    t0 = time.perf_counter()
+    stt_ms = None
+    if text is not None and text.strip():
+        heard = text.strip()[:300]
+    elif audio is not None:
+        raw = await audio.read()
+        t1 = time.perf_counter()
+        try:
+            heard = await asyncio.to_thread(V.transcribe, raw, audio.filename or "audio.wav")
+        except V.STTError as e:
+            log.warning("stt: %s", e)
+            heard = ""
+        stt_ms = round((time.perf_counter() - t1) * 1000)
+    else:
+        raise HTTPException(400, "Send audio (or text).")
+    try:
+        r = await _do_voice(heard, screen)
+    except HTTPException as e:
+        r = {"intent": "unknown", "args": {}, "say": f"{e.detail} " + V.HINTS.get(screen or "home", ""), "nav": None,
+             "session": None}
+    ms = round((time.perf_counter() - t0) * 1000)
+    new_screen = (r["nav"] or {}).get("screen") or screen or V.get_state().get("screen")
+    hint = V.HINTS.get(new_screen, V.HINTS["home"])
+    out = {"heard": heard, **r, "say_url": f"/say?text={quote(r['say'])}" if r["say"] else None, "hint": hint,
+           "ms": ms, "stt_ms": stt_ms, "ts": time.time()}
+    voice_rec = {k: out[k] for k in ("heard", "intent", "args", "say", "nav", "ms", "ts")}
+    voice_rec["args"] = {k: v for k, v in (r["args"] or {}).items() if k not in ("items",)}
+    nav = r["nav"] or {}
+    V.update_state({"screen": new_screen, "last_heard": heard, "last_voice": voice_rec, "listening": False,
+                    "hint": hint, **{k: nav[k] for k in ("lang", "item_id", "char_index", "phase") if k in nav}},
+                   source="voice")
+    LIVE.last_heard = heard or LIVE.last_heard
+    LIVE.listening = False
+    LIVE.add_event("voice", {"heard": heard, "intent": r["intent"], "say": r["say"], "ms": ms, "stt_ms": stt_ms})
+    log.info("voice [%s] %r → %s %s (%d ms)", screen, heard, r["intent"], nav.get("screen"), ms)
+    return out
+
+
+@app.get("/say")
+async def get_say(text: str = Query(..., min_length=1, max_length=400)):
+    """Any line as speech: 16 kHz mono 16-bit WAV (macOS say), cached. The glasses have no TTS."""
+    try:
+        f = await asyncio.to_thread(V.say_file, text)
+    except Exception as e:
+        raise HTTPException(503, f"I can't speak right now ({e}).")
+    return FileResponse(f, media_type="audio/wav", headers={"Cache-Control": "public, max-age=86400"})
+
+
+class AppStateIn(BaseModel):
+    model_config = {"extra": "allow"}
+    screen: str | None = None
+
+
+@app.post("/app-state")
+def post_app_state(s: AppStateIn):
+    """The glasses report where they are: {screen, breadcrumb, hint, phase, listening, last_heard, lang, ...}."""
+    fields = s.model_dump(exclude_none=True)
+    st = V.update_state(fields, source="glasses")
+    if "listening" in fields:
+        LIVE.listening = bool(fields["listening"])
+    if fields.get("last_heard"):
+        LIVE.last_heard = fields["last_heard"]
+    LIVE.glasses.update({"connected": True, "last_seen": time.time(), "screen": st.get("screen")})
+    LIVE.add_event("app_state", {k: fields[k] for k in ("screen", "phase") if k in fields})
+    return {"ok": True, **st}
+
+
+@app.get("/app-state")
+def get_app_state():
+    st = V.get_state()
+    s = LIVE.session or {}
+    st.update({"listening": LIVE.listening or st.get("listening", False),
+               "last_heard": st.get("last_heard") or LIVE.last_heard,
+               "hint": st.get("hint") or V.HINTS.get(st.get("screen") or "home"),
+               "session": LIVE.session, "last_result": LIVE.result,
+               **{k: s.get(k) for k in ("lang_name", "char", "total_chars", "romanization", "meaning", "text",
+                                        "stroke_count", "stroke_url", "audio_url", "mode") if s},
+               "glasses": LIVE.glasses})
+    if s and not st.get("lang"):
+        st.update({"lang": s.get("lang"), "item_id": s.get("item_id"), "char_index": s.get("char_index")})
+    return st

@@ -12,6 +12,7 @@ dependencies = [
     "numpy>=2.5.5",
     "regex>=2026.11.19",
     "pypinyin>=0.55.0",
+    "faster-whisper>=1.2.1",
 ]
 
 [dependency-groups]
