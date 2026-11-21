@@ -51,5 +51,5 @@ If there's time, the strongest extra beat is **Arabic مرحبا**: isolated let
 - Don't run `check_content.py` (it changes the session).
 - Don't restart Ollama (models take ~30 s to load).
 - Don't pick Arabic/Hebrew first if the learner isn't comfortable writing right to left. Mandarin is the safe opener.
-- **Don't demo Hebrew שלום** (or any item with ש): the vision model misreads ש as ע or ב about half the time. For Hebrew, use מים (water) or חבר (friend).
+- **Lead with Hebrew מים (water) or חבר (friend), not שלום.** The vision model alone misread ש as ע or ב about half the time. A now settles look-alikes with the stroke templates (14/14 right and 14/14 wrong letters on real paper), but ש is still the riskiest Hebrew letter on stage.
 - Grading takes ~2–3 s with the GPU quiet (the tutor's decide step is capped at 4.5 s). Fill the pause: "it's reading my handwriting right now, all on this laptop."

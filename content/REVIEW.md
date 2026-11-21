@@ -7,6 +7,10 @@ Things to check: the native text, the romanization, the meaning, the one-line no
 (`content/audio/{lang}/{id}.m4a`, macOS text-to-speech). For Hindi, Arabic, Russian, Hebrew and Greek, also check the
 **suggested** stroke order in `content/review/strokes_{lang}.png` (Mandarin uses standard data).
 
+**Stroke shapes also affect grading:** the backend compares handwriting against these templates to settle
+look-alike misreads (ש vs ע, ر vs ن). A letter whose template doesn't look like normal handwriting can get
+correct writing rejected (the old Greek γ was Y-shaped). Flag any letter whose shape looks off, not only its order.
+
 ## Mandarin Chinese · Simplified characters (logographic)
 
 _Each character is one syllable with its own meaning. Pinyin with tone marks shows the sound._  Stroke order: **standard** (hanzi-writer-data (Make Me a Hanzi)).

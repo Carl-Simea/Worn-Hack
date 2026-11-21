@@ -12,7 +12,10 @@ out = ["# Worn content review", "",
        "in the Notes column (or tell agent C). **If anything is wrong and there's no time to fix it, we cut that item.**", "",
        "Things to check: the native text, the romanization, the meaning, the one-line notes, and the audio",
        "(`content/audio/{lang}/{id}.m4a`, macOS text-to-speech). For Hindi, Arabic, Russian, Hebrew and Greek, also check the",
-       "**suggested** stroke order in `content/review/strokes_{lang}.png` (Mandarin uses standard data).", ""]
+       "**suggested** stroke order in `content/review/strokes_{lang}.png` (Mandarin uses standard data).", "",
+       "**Stroke shapes also affect grading:** the backend compares handwriting against these templates to settle",
+       "look-alike misreads (ש vs ע, ر vs ن). A letter whose template doesn't look like normal handwriting can get",
+       "correct writing rejected (the old Greek γ was Y-shaped). Flag any letter whose shape looks off, not only its order.", ""]
 for lang in LANGS:
     L = json.loads((C / f"{lang}.json").read_text(encoding="utf-8"))
     out += [f"## {L['name']} · {L['script']} ({L['script_type']}{', right to left' if L['rtl'] else ''})", "",
