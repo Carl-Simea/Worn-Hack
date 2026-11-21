@@ -19,6 +19,7 @@
     font-family:"Inter", "WornScript", "Roboto", sans-serif; -webkit-font-smoothing:antialiased; }
   .title, .brand span, #splash span { font-family:"Newsreader", "WornScript", Georgia, serif !important; }
   [dir=rtl], .rtl { direction:rtl; unicode-bidi:isolate; }
+  #strip .gap { display:inline-block; width:.45em; }
   #strip .word { font-size:.62em; color:var(--blue); letter-spacing:0; margin:0 6px; }
   #strip .word.cur { color:var(--fg); }
   .glyph { position:absolute; left:0; top:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center;
@@ -595,10 +596,15 @@
     // strip of characters, current underlined
     var chars = (s.item && s.item.chars) || [s.char];
     $("strip").setAttribute("dir", s.rtl ? "rtl" : "ltr");
-    $("strip").innerHTML = chars.map(function (ch, i) {
+    var fullText = String((s.item && s.item.text) || s.text || "");
+    // word gaps where the text has spaces (γεια σου); B's WornInk.segments when present, else every char
+    var segs = window.WornInk && WornInk.segments ? WornInk.segments(fullText, chars) : chars.map(function (c, i) { return { c: c, i: i }; });
+    $("strip").innerHTML = segs.map(function (g) {
+      if (g.gap) return "<span class='gap'>&nbsp;</span>";
+      var ch = g.c, i = g.i;
       var cls = i < st.charIdx ? "done" : i === st.charIdx ? "cur" : "";
       // only the joined-word step (Arabic: the char equals the whole text) is "+ word"; Hindi aksharas (स्ते) are real steps
-      var many = chars.length > 1 && ch === String((s.item && s.item.text) || s.text || "").replace(/\s/g, "");
+      var many = chars.length > 1 && ch === fullText.replace(/\s/g, "");
       return many ? "<span class='word " + cls + "'>" + (i === st.charIdx ? esc(ch) : "<bdi dir='ltr'>+ word</bdi>") + "</span>" : "<span class='" + cls + "'>" + esc(ch) + "</span>";
     }).join("");
     $("rom").textContent = s.char_romanization || s.romanization || "";
