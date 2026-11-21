@@ -19,6 +19,9 @@ dark mode), `worn-ink.js` (stroke renderer for hanzi-writer-data and the centerl
 loop, follow-the-glasses sync, static partial and word-gap helpers), `worn-confetti.js`, `worn-sfx.js` (C's
 `content/sfx` sounds picked by `content/reactions.json`).
 
+Fonts: Inter and Newsreader are self-hosted in `web/fonts/` (`fonts.css`), so the brand survives a venue network
+without internet. The Noto script faces come from Google Fonts and fall back to the system's fonts offline.
+
 Query params on every page: `?api=http://IP:8000` (talk to another server), `?theme=dark|light`.
 
 ## Dev tools (`web/dev/`)

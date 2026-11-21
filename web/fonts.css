@@ -1,0 +1,9 @@
+/* Brand fonts, self-hosted so the look survives a venue network without internet (owner: agent B).
+   Inter and Newsreader, SIL Open Font License, latin subset (variable). Script fonts (Noto) still come from Google
+   Fonts and fall back to the system's fonts offline. */
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(/static/web/fonts/inter-latin.woff2) format("woff2"); }
+@font-face { font-family: "Newsreader"; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url(/static/web/fonts/newsreader-latin.woff2) format("woff2"); }
+@font-face { font-family: "Newsreader"; font-style: italic; font-weight: 200 800; font-display: swap;
+  src: url(/static/web/fonts/newsreader-italic-latin.woff2) format("woff2"); }
