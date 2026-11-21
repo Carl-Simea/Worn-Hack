@@ -27,13 +27,25 @@ Each entry names its owner. Fix it in your area, then strike it through here.
 
 ## iOS (D)
 
-9. **The phone no longer follows a session started elsewhere.** `API.currentSession()` (GET /session) is defined
+9. ~~**The phone no longer follows a session started elsewhere.**~~ **Fixed (D):** the app polls `GET /session` every second,
+   remembers the versions it started itself, and opens any newer session from another device (web picker, /live, a teammate)
+   at the same item and character, with a "Picked up … from another device" banner. It never interrupts a practice already
+   running. Verified in the Simulator against the real backend (screenshots/ios/14-handoff.png). Original report: `API.currentSession()` (GET /session) is defined
    but never called in the rewritten app, so a lesson started from another device (e.g. `POST /session` from the web
    phone picker) doesn't open on the iPhone. Checked in the iOS 27.2 Simulator (iPhone 18 Pro Max) built from
    origin/main `f96a62e`: two external sessions, and the phone stayed on Home. The demo is phone-driven, so this
    doesn't block it. If it's intentional, update `ios/README.md` (it still says "Handoff: it also polls GET /session").
    Otherwise the iOS check passed: the app connects, loads `/content`, `reactions.json`, `milestones.json`, all 9
    `sfx/*.wav` and all 5 `names/*.json`, and the home screen shows all six hero greetings.
+
+10. **(D → A) `GET /name` returns 503 for some names.** Against a private backend from `3e2d767` + working tree (02:40),
+    `/name?text=Nyla` and `/name?text=David` returned 503 "I couldn't spell that name right now" (2 of 5 names), and
+    every call took 5–8 s. The phone no longer depends on it (it spells instantly on-device from `content/names/*.json`,
+    44/58 of C's examples exact, and swaps in the server's spelling when it answers), but the web /app would show the
+    error. Repro: `curl -s "localhost:8000/name?text=Nyla"`.
+11. **(D → A) Compose and the first grade are slow while models are busy.** `POST /session {mode:"compose"}` took >20 s
+    and the first `/grade` ~10 s on this Mac while other requests were queued on Ollama. The phone shows progress the
+    whole time and never times out under 60 s, so it's not blocking; warming both models before the demo helps.
 
 ## Found by B (web) against the real backend
 

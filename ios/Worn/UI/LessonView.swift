@@ -7,6 +7,8 @@ struct PracticeLaunch: Identifiable {
     let mode: PracticeMode
     let title: String
     var isName = false
+    /// Opened because another device started this session (don't re-post the first /session).
+    var adoptedVersion: Int?
 }
 
 struct LessonView: View {

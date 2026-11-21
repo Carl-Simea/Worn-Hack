@@ -60,6 +60,12 @@ final class AppModel {
     let voice = VoiceListener()
     private(set) var api: API?
     private var pollTask: Task<Void, Never>?
+    private var handoffTask: Task<Void, Never>?
+    /// Session versions this phone started; anything newer is a handoff from another device.
+    private var ownVersions: Set<Int> = []
+    private var lastSessionVersion: Int?
+    /// Shown briefly when a lesson arrives from another device.
+    private(set) var handoffNote: String?
     private var strokeCache: [String: StrokeData] = [:]
     private var strokeMisses: Set<String> = []
 
@@ -140,6 +146,14 @@ final class AppModel {
         do { api = try API(baseString: serverAddress) } catch { api = nil; link = .down(error.localizedDescription); return }
         Sounds.shared.api = api
         strokeCache = [:]; strokeMisses = []
+        lastSessionVersion = nil
+        handoffTask?.cancel()
+        handoffTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.checkHandoff()
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refresh()
@@ -214,6 +228,30 @@ final class AppModel {
         }
         strokeMisses.insert(key)
         return nil
+    }
+
+    // MARK: handoff (a lesson started on another device opens here)
+
+    func noteOwnSession(_ s: SessionState) {
+        if let v = s.version { ownVersions.insert(v); lastSessionVersion = max(lastSessionVersion ?? v, v) }
+    }
+
+    private func checkHandoff() async {
+        guard let api, !lessons.isEmpty, let s = try? await api.currentSession(), let v = s.version else { return }
+        guard let last = lastSessionVersion else { lastSessionVersion = v; return }   // first look: just remember
+        guard v > last else { return }
+        lastSessionVersion = v
+        guard !ownVersions.contains(v) else { return }
+        // Don't yank an active practice away; only follow when the phone is free.
+        if let p = practice, p.phase != .finished { report("handoff.ignored", ["reason": "practicing", "char": .opt(s.char)]); return }
+        guard let phrase = lesson(s.lang)?.phrases.first(where: { $0.id == s.id }) ?? s.asPhrase, phrase.canWrite else { return }
+        let start = min(max(0, s.charIndex), phrase.chars.count - 1)
+        let items = Array(PracticeItem.all(lang: s.lang, phrase: phrase).dropFirst(start))
+        let mode: PracticeMode = PracticeMode(rawValue: s.mode ?? "write") ?? .write
+        handoffNote = "Picked up \(phrase.meaning ?? phrase.text) from another device"
+        report("handoff", ["lang": .string(s.lang), "item": .string(phrase.id), "char_index": .int(start), "version": .int(v)])
+        pendingLaunch = PracticeLaunch(items: items, mode: mode, title: phrase.meaning ?? phrase.text, adoptedVersion: v)
+        Task { try? await Task.sleep(for: .seconds(4)); handoffNote = nil }
     }
 
     // MARK: events (the judge site mirrors these)

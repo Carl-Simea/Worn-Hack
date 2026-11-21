@@ -74,8 +74,11 @@ final class PracticeEngine {
     /// "Write your name" run (for the first_name milestone).
     let isName: Bool
 
-    init(app: AppModel, items: [PracticeItem], mode: PracticeMode, title: String, isName: Bool = false) {
+    private var adoptedFirst: Bool
+
+    init(app: AppModel, items: [PracticeItem], mode: PracticeMode, title: String, isName: Bool = false, adopted: Bool = false) {
         self.isName = isName
+        adoptedFirst = adopted
         self.app = app
         self.queue = items
         self.mode = mode
@@ -128,9 +131,14 @@ final class PracticeEngine {
         // Tell the backend: the glasses page and the live view follow /session.
         // Ad-hoc items (a name spelled on the phone) aren't on the server; they're reported as events instead.
         var hint = item.phrase.strokeURL(at: item.charIndex)
-        if let api = app.api, !item.adHoc {
+        if adoptedFirst && i == 0 {
+            adoptedFirst = false   // the other device already started this exact session
+        } else if let api = app.api, !item.adHoc {
             let req = SessionRequest(lang: item.lang, itemId: item.phrase.id, charIndex: item.charIndex, mode: mode)
-            if let s = try? await api.startSession(req) { hint = s.strokeUrl ?? hint }
+            if let s = try? await api.startSession(req) {
+                app.noteOwnSession(s)
+                hint = s.strokeUrl ?? hint
+            }
         }
         strokes = await app.strokes(lang: item.lang, char: item.char, hint: hint)
         guard running, index == i else { return }

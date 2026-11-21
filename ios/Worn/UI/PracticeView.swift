@@ -18,7 +18,8 @@ struct PracticeView: View {
         }
         .onAppear {
             guard engine == nil else { return }
-            let e = PracticeEngine(app: app, items: launch.items, mode: launch.mode, title: launch.title, isName: launch.isName)
+            let e = PracticeEngine(app: app, items: launch.items, mode: launch.mode, title: launch.title,
+                                   isName: launch.isName, adopted: launch.adoptedVersion != nil)
             engine = e
             e.start()
         }
@@ -59,6 +60,17 @@ private struct PracticeContent: View {
             }
         }
         .overlay { ConfettiView(trigger: engine.confettiBurst).ignoresSafeArea() }
+        .overlay(alignment: .top) {
+            if let note = app.handoffNote {
+                Label(note, systemImage: "arrow.triangle.2.circlepath")
+                    .font(Theme.sans(13, weight: .semibold)).foregroundStyle(.white)
+                    .padding(.horizontal, 14).padding(.vertical, 9)
+                    .background(Theme.ink.opacity(0.88), in: Capsule())
+                    .padding(.top, 58)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: app.handoffNote)
         .overlay(alignment: .top) {
             if let m = engine.newMilestone { MilestoneBanner(milestone: m).padding(.top, 60).transition(.move(edge: .top).combined(with: .opacity)) }
         }

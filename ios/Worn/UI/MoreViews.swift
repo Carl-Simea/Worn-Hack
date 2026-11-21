@@ -98,6 +98,7 @@ struct ComposeView: View {
         Task {
             do {
                 let s = try await api.startSession(SessionRequest(composing: t, lang: lang))
+                app.noteOwnSession(s)
                 session = s
                 result = ComposeResult(session: s)
             } catch {
