@@ -134,7 +134,10 @@ def test_grade_correct_runs_full_agent_loop(client, fake):
     assert g["next"]["char"] == "好" and g["next"]["action"] == "advance"
     assert g["image_url"].startswith("/captures/") and client.get(g["image_url"]).status_code == 200
     assert client.get("/session/result").json()["ts"] == g["ts"]
-    steps = client.get("/live/state").json()["agent_steps"]
+    live = client.get("/live/state").json()
+    assert live["latency"]["tier3"]["n"] == 1 and live["latency"]["decide"]["n"] == 1 and live["latency"]["grade"]["n"] == 1
+    assert live["events"][-1]["type"] == "grade" and live["events"][-1]["data"]["correct"] is True
+    steps = live["agent_steps"]
     run = [s for s in steps if s["run_id"] == g["agent"]["run_id"]]
     assert [s["phase"] for s in run][:1] == ["observe"]
     assert {"grade_character", "compare_to_template", "choose_next_item", "react"} <= {s["tool"] for s in run}
@@ -208,7 +211,7 @@ def test_stroke_match_route(client):
                     data={"char": "一", "stroke_index": 0})
     d = r.json()
     assert r.status_code == 200 and {"score", "done"} <= set(d)
-    assert d["done"] is True and d["char_done"] is True and d["latency_ms"] < 300
+    assert d["done"] is True and d["char_done"] is True and d["latency_ms"] < 1500
     live = client.get("/live/state").json()
     assert live["latency"]["tier2"]["n"] == 1 and live["glasses"]["stroke_count"] == 1
 

@@ -171,7 +171,8 @@ async def run_grade(jpeg: bytes, char: str, lang: str, session: dict | None, ima
     mem = memory.char_stats(lang, char, user)
 
     # OBSERVE
-    run.step("observe", f"Photo for {char} ({lang})" + (f", item {meaning}" if meaning else "")
+    lang_name = config.LANGS.get(lang, {}).get("name", lang)
+    run.step("observe", f"Photo of {char} ({lang_name})" + (f", item {meaning}" if meaning else "")
              + (f"; memory: {mem.get('attempts', 0)} tries, {mem.get('fails', 0)} misses" if mem else "; first try ever"),
              data={"char": char, "lang": lang, "item_id": item_id, "char_index": char_index,
                    "image_url": image_url, "memory": {k: mem.get(k) for k in ("attempts", "fails", "streak")}})
@@ -222,6 +223,7 @@ async def run_grade(jpeg: bytes, char: str, lang: str, session: dict | None, ima
     except llm.LLMError as e:
         dec, dmeta, via = rule_policy(correct, tries_after, bool(weak)), {"model": "rules"}, f"rules ({e})"
     decide_ms = (time.perf_counter() - t) * 1000
+    LIVE.latency("decide", decide_ms)
     dec, guard = guardrails(dec, correct, tries_after)
     run.step("decide", f"{dec['action'].upper()}: {dec['thought'] or 'decided'}" + (f" [guardrail: {guard}]" if guard else ""),
              ms=decide_ms, model=via, data={"action": dec["action"], "mood": dec["mood"], "guardrail": guard,
@@ -269,6 +271,7 @@ async def run_grade(jpeg: bytes, char: str, lang: str, session: dict | None, ima
                            "score": result["score"], "correct": correct, "feedback": result["feedback"],
                            "seen": result["seen"], "image_url": image_url,
                            "mode": (session or {}).get("mode", "write")}, user)
+    LIVE.latency("grade", result["latency_ms"])
     run.step("act", f"Done in {result['latency_ms']} ms", ms=result["latency_ms"])
     return result
 

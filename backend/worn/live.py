@@ -35,7 +35,9 @@ class Live:
             self.demo_mode = False
             self.events: deque = deque(maxlen=MAX_EVENTS)
             self.steps: deque = deque(maxlen=MAX_STEPS)
-            self.lat: dict[str, deque] = {t: deque(maxlen=50) for t in ("tier1", "tier2", "tier3")}
+            # tier1 ink diff, tier2 stroke match, tier3 vision read, decide = tutor LLM step,
+            # grade = whole /grade (vision + decide + act)
+            self.lat: dict[str, deque] = {t: deque(maxlen=50) for t in ("tier1", "tier2", "tier3", "decide", "grade")}
             self.tries = 0  # consecutive misses on the current char
 
     def bump(self) -> int:
@@ -67,6 +69,8 @@ class Live:
             self.glasses.update({"showing": "result", "phase": "result"})
             if r.get("image_url"):
                 self.latest_photo_url = r["image_url"]
+            self.add_event("grade", {"char": r.get("char"), "correct": r.get("correct"), "score": r.get("score"),
+                                     "reaction": r.get("reaction")}, bump=False)
             self.bump()
 
     def set_photo(self, url: str) -> None:
@@ -185,7 +189,7 @@ class Live:
                 "next": self.next,
                 "agent_steps": list(self.steps)[-steps:],
                 "events": list(self.events)[-events:],
-                "latency": {t: self._lat(t) for t in ("tier1", "tier2", "tier3")},
+                "latency": {t: self._lat(t) for t in self.lat},
                 "progress": progress or {},
                 "listening": self.listening,
                 "last_heard": self.last_heard,

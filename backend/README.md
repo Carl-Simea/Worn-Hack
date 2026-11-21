@@ -33,7 +33,7 @@ Errors are JSON `{"detail", "message"}`. `message` is a friendly sentence you ca
 | `POST /compose` | `{text, lang}`. Returns `{native, romanization, back_translation, chars[], note, model, fallback}`. 422 + friendly message if the text is too long, unsuitable or untranslatable |
 | `GET /name?text=` | `{devanagari, arabic, cyrillic, hebrew, greek, note, model}` (approximate, by sound) |
 | `POST /event` | `{type, data}`. The iOS dotted names (`glasses.status`, `glasses.show`, `ink`, `voice`, `mode.demo`, `grade.start`, ...) and the generic ones (`glasses`, `phase`, `stroke`, `tier1`, `listening_start/stop`) update the state; every event is logged |
-| `GET /live/state` | `{version, session, glasses{connected,showing,phase,stroke,stroke_count,status}, latest_photo_url, last_result, next, agent_steps[], events[], latency{tier1,tier2,tier3:{last_ms,avg_ms,p95_ms,n}}, progress, listening, last_heard, demo_mode, tries}`. `?since=<version>` returns `{unchanged:true}` when nothing moved |
+| `GET /live/state` | `{version, session, glasses{connected,showing,phase,stroke,stroke_count,status}, latest_photo_url, last_result, next, agent_steps[], events[], latency{tier1,tier2,tier3,decide,grade:{last_ms,avg_ms,p95_ms,n}} (tier3 = vision read, decide = tutor LLM, grade = whole /grade), progress, listening, last_heard, demo_mode, tries}`. `?since=<version>` returns `{unchanged:true}` when nothing moved |
 | `GET /journal?lang=` | `{entries[] newest first, chars[] per-char stats, total, correct}` |
 | `GET /review` | Daily 5: `{title, items[{lang,item_id,char_index,char,meaning,romanization,reason,weakness}], count, message}`. Weakest characters first, then new ones; never empty |
 | `GET /agent/tools` | the agent's tool catalog + models |
