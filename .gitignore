@@ -1,6 +1,7 @@
-Microlumin_Ship/
-.venv/
 __pycache__/
-backend/captures/
 .DS_Store
 .env
+.venv/
+backend/captures/
+backend/data/
+Microlumin_Ship/
