@@ -16,7 +16,7 @@
      Polls GET /live/state every 500 ms. If the backend doesn't have it yet, falls back to /session + /session/result. -->
 <style>
   html, body { height: 100%; }
-  body { --u: clamp(13px, 1.05vw + .35vh, 30px); font-size: var(--u); overflow: hidden; }
+  body { --u: clamp(14px, 1.15vw + .55vh, 32px); font-size: var(--u); overflow: hidden; }
   .app { --pad: calc(var(--u) * 1.6); --gap: calc(var(--u) * 1.1);
     --sq: min(calc((100vw - 2 * var(--pad) - 2 * var(--gap)) / 3), 54vh);
     height: 100%; display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: calc(var(--u) * .9);
@@ -120,7 +120,7 @@
   .box .cap { margin-bottom: .4em; }
   .stream { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
     -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28%); mask-image: linear-gradient(to bottom, transparent, #000 28%); }
-  .stream li { display: grid; grid-template-columns: 1.5em minmax(0, 1fr) auto; align-items: baseline; gap: .55em; padding: .22em 0; font-size: .86em;
+  .stream li { display: grid; grid-template-columns: 1.5em minmax(0, 1fr) auto; align-items: baseline; gap: .55em; padding: .18em 0; font-size: .9em;
     animation: rise .45s var(--ease) both; }
   .stream li .k { color: var(--ink-3); text-align: center; font-weight: 700; }
   .stream li .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -514,8 +514,10 @@
     setText($("brainCap"), lastStep && lastStep.model ? "local · " + lastStep.model : "local · on this laptop");
   }
 
+  function iso(x) { return "\u2068" + (x === undefined || x === null ? "" : x) + "\u2069"; } // keep RTL letters from reordering the line
   function eventText(e) {
-    var d = e.data || {};
+    var d0 = e.data || {}, d = {};
+    for (var k in d0) d[k] = (k === "char" || k === "text" || k === "heard" || k === "shown" || k === "line") && d0[k] ? iso(d0[k]) : d0[k];
     switch (e.type) {
       case "session": return "Lesson: " + (d.char || "") + (d.mode && d.mode !== "write" ? " · " + d.mode : "") + (typeof d.char_index === "number" ? " (" + (d.char_index + 1) + ")" : "");
       case "photo": return "Photo from the glasses";
@@ -567,7 +569,7 @@
     renderStream(list, ev.filter(function (e) { return !QUIET[e.type]; }), seenEvents, 8, function (x) {
       var li = document.createElement("li");
       li.className = "e-" + (x.type || "");
-      li.innerHTML = '<span class="ts">' + clock(x && x.ts) + '</span><span class="t">' + esc(eventText(x)) + "</span>";
+      li.innerHTML = '<span class="ts">' + clock(x && x.ts) + '</span><span class="t" dir="ltr">' + esc(eventText(x)) + "</span>";
       return li;
     });
   }

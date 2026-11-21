@@ -324,6 +324,8 @@
       if (at >= 0 && /^[\s\u00a0.,!?;:¿¡،؟।'"\-]*$/.test(text.slice(pos, at))) {
         if (at > pos && /\s/.test(text.slice(pos, at))) out.push({ gap: " " });
         pos = at + c.length;
+      } else if (out.length && c.length > 1) {
+        out.push({ gap: " " }); // the joined word after its letters
       }
       out.push({ c: c, i: i });
     });
