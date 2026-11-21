@@ -39,7 +39,7 @@
 ## Known limits
 - Fonts come from Google Fonts. Without internet, pages fall back to system fonts (still readable; stroke data is
   local, so the animations don't change).
-- `sim_glasses.py` draws Greek in Helvetica, so its γ photos look like "Y" and fail grading. That's a test-tool limit only.
-  I also asked C to give the γ stroke file its descender, because the current one teaches a "Y".
+- `sim_glasses.py` renders its "handwriting" with system fonts. A lone ι in Times reads as "l" and fails, which is a
+  test-tool limit only. C redrew γ with its descender (it used to teach a "Y"); γ and ε now pass at 95 on the real backend.
 - I couldn't run the iOS simulator: Xcode's license isn't accepted on this Mac (BUGS.md #8). git works via
   `/Library/Developer/CommandLineTools/usr/bin/git`.

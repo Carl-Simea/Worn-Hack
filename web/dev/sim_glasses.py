@@ -17,7 +17,7 @@ FONTS = {
     "arabic": "/System/Library/Fonts/GeezaPro.ttc",
     "hebrew": "/System/Library/Fonts/ArialHB.ttc",
     "russian": "/System/Library/Fonts/Helvetica.ttc",
-    "greek": "/System/Library/Fonts/Helvetica.ttc",
+    "greek": "/System/Library/Fonts/Supplemental/Times New Roman.ttf",
 }
 
 
