@@ -72,8 +72,10 @@ save("slide", tone(lambda t: 700 * math.exp(-2.2 * t) + 180, 0.5, "rich", r=0.15
 roll, n = [], int(1.4 * SR)
 for i in range(n):
     t = i / SR
-    hit = (t * 28) % 1.0                               # 28 hits per second
-    roll.append(rnd.uniform(-1, 1) * math.exp(-hit * 9) * (0.25 + 0.75 * t / 1.4))
+    hit = (t * 34) % 1.0                               # 34 hits per second, alternating sticks
+    stick = 1.0 if int(t * 34) % 2 == 0 else 0.8
+    snare = rnd.uniform(-1, 1) * (math.exp(-hit * 3.5) * 0.8 + 0.2)   # hits overlap into a roll
+    roll.append(snare * stick * (0.2 + 0.8 * (t / 1.4) ** 1.5))       # crescendo
 crash = [rnd.uniform(-1, 1) * math.exp(-3.2 * i / SR) for i in range(int(1.0 * SR))]
 crash = [a - b for a, b in zip(crash, lowpass(crash, 0.25))]    # keep the hiss, lose the thud
 save("drumroll", mix((roll, 0), (crash, 1.4)), peak=0.7)
