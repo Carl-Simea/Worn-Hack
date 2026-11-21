@@ -25,12 +25,13 @@ log = logging.getLogger("worn.voice")
 
 # ------------------------------------------------------------------ app state (what the glasses show)
 
-SCREENS = ("home", "learn", "words", "lesson", "name", "compose", "daily5", "journal", "howto")
+SCREENS = ("home", "learn", "words", "lesson", "name", "compose", "daily5", "journal", "howto", "idle")
 SCREEN_ALIASES = {"daily": "daily5", "daily_5": "daily5", "help": "howto", "how_to": "howto", "howtouse": "howto",
                   "review": "daily5", "languages": "learn", "word": "words", "write_name": "name"}
 OPEN_SCREENS = ("learn", "journal", "daily5", "howto", "name", "compose")
 
 HINTS = {
+    "idle": 'Say "Hey Scribi" anytime.',
     "home": 'Say "learn Mandarin", "daily five", "journal", "write my name", or "help".',
     "learn": 'Say a language: Mandarin, Hindi, Arabic, Russian, Hebrew or Greek. Or "back".',
     "words": 'Say a word: hello, thank you, water, friend or one. Or "back".',
@@ -70,7 +71,7 @@ def breadcrumb(scr: str, old: str | None, old_bc: list) -> list:
             (s for s in ("daily5", "compose") if s in old_bc), "words")
         return {"daily5": ["home", "daily5", "lesson"], "compose": ["home", "compose", "lesson"]}.get(
             origin, ["home", "learn", "words", "lesson"])
-    return {"home": ["home"], "learn": ["home", "learn"], "words": ["home", "learn", "words"]}.get(scr, ["home", scr])
+    return {"home": ["home"], "idle": ["idle"], "learn": ["home", "learn"], "words": ["home", "learn", "words"]}.get(scr, ["home", scr])
 
 
 def update_state(fields: dict, source: str = "glasses") -> dict:

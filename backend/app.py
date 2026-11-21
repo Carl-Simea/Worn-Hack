@@ -463,6 +463,7 @@ def page_glasses():
 # ------------------------------------------------------------------ voice (glasses are voice-first)
 
 from worn import voice as V  # noqa: E402
+from worn import voice_agent as VA  # noqa: E402
 
 
 def _lang_name(lang: str | None) -> str:
@@ -508,15 +509,21 @@ def _step(delta: int, *, from_agent: bool) -> dict | None:
     return _start_item(s["lang"], ids[j], ci)
 
 
-async def _do_voice(heard: str, screen: str | None) -> dict:
+def _voice_ctx(screen: str | None) -> tuple[dict, str, dict, dict]:
     st = V.get_state()
     screen = V.norm_screen(screen or st.get("screen"))
     langs = content.load()
-    sess = LIVE.session
-    ctx_lang = st.get("lang") or (sess or {}).get("lang")
+    ctx_lang = st.get("lang") or (LIVE.session or {}).get("lang")
     ctx = {"lang": ctx_lang, "items": (langs.get(ctx_lang) or {}).get("items") or [], "langs": langs}
-    p = V.parse_any(heard, screen, ctx)
-    intent, args = p["intent"], dict(p["args"])
+    return st, screen, langs, ctx
+
+
+async def _act(intent: str, args: dict, screen: str | None, heard: str) -> dict:
+    """Execute one intent server-side (session, compose, name, ...) → {intent, args, say, nav, session}."""
+    st, screen, langs, ctx = _voice_ctx(screen)
+    sess = LIVE.session
+    ctx_lang = ctx["lang"]
+    args = dict(args or {})
     nav: dict | None = None
     say = ""
     out_sess = None
@@ -676,7 +683,75 @@ async def _do_voice(heard: str, screen: str | None) -> dict:
             say = "Okay, again. Write it when you're ready." if intent == "retry" else "Faster."
         else:
             say = V.HINTS.get(screen, V.HINTS["home"])
-    return {"intent": intent, "args": args, "say": say, "nav": nav, "session": out_sess, "matcher": p.get("matcher")}
+    if intent == "exit":
+        nav, say = {"screen": "idle"}, f"Bye! Say 'Hey {V.ASSISTANT}' anytime."
+    elif intent == "wake":
+        nav, say = {"screen": "home"}, f"Hi, I'm {V.ASSISTANT}. What would you like to do?"
+    return {"intent": intent, "args": args, "say": say, "nav": nav, "session": out_sess}
+
+
+def _action(r: dict) -> dict | None:
+    """One executed step as an absolute action the glasses can apply (never relative, so nothing runs twice)."""
+    i, a, nav = r["intent"], r.get("args") or {}, r.get("nav") or {}
+    if i == "home":
+        return {"tool": "go_home", "args": {}}
+    if i == "exit":
+        return {"tool": "exit_app", "args": {}}
+    if i == "wake":
+        return {"tool": "wake", "args": {}}
+    if r.get("session") and nav.get("screen") == "lesson":
+        s = r["session"]
+        return {"tool": "open_word", "args": {"lang": s["lang"], "item_id": s["item_id"], "char_index": s["char_index"]}}
+    if i == "next" and a.get("local"):
+        return {"tool": "next_stroke", "args": {}}
+    if i == "learn" and nav:
+        return {"tool": "learn_language", "args": {"lang": nav.get("lang")}}
+    if i in ("open", "back") and nav:
+        return {"tool": "open_screen", "args": {k: v for k, v in nav.items() if k in ("screen", "lang")}}
+    if i in ("compose", "write_name") and a.get("result"):
+        return {"tool": i, "args": {k: a[k] for k in ("text", "lang", "name", "result", "item_id") if k in a}}
+    if i == "repeat":
+        return {"tool": "repeat", "args": {"url": a.get("audio_url")}}
+    if i in ("slower", "faster", "show_again", "check", "meaning", "help", "retry", "skip", "previous"):
+        return {"tool": i, "args": {k: a[k] for k in ("speed", "lang", "char") if k in a}}
+    return None
+
+
+async def _do_voice(heard: str, screen: str | None) -> dict:
+    run = agent.Run("voice")
+    st, scr, langs, ctx = _voice_ctx(screen)
+    p = await VA.plan(heard, scr, st, ctx)
+    tools = p.get("tools")
+    run.step("decide", f'Heard "{heard[:60]}" → ' + (", ".join(f"{t['tool']}{t['args'] or ''}" for t in tools)
+             if tools else ", ".join(i["intent"] for i in p["intents"]) or "nothing")
+             + (f" (confidence {p['confidence']:.1f})" if p.get("confidence") is not None else ""),
+             tool="understand", ms=p["ms"], model=VA.MODEL if p["via"] == "model" else p["via"],
+             data={"via": p["via"], "heard": heard, "intents": p["intents"], "error": p.get("error")})
+    results, cur = [], scr
+    for step in p["intents"]:
+        t = time.perf_counter()
+        r = await _act(step["intent"], step["args"], cur, heard)
+        results.append(r)
+        nav = r["nav"] or {}
+        if nav.get("screen"):
+            cur = V.norm_screen(nav["screen"]) if nav["screen"] != "idle" else "idle"
+            V.update_state({"screen": cur, **{k: nav[k] for k in ("lang", "item_id", "char_index", "phase") if k in nav}},
+                           source="voice")
+        run.step("act", f"{r['intent']}: {(r['say'] or '')[:70]}", tool=r["intent"], ms=(time.perf_counter() - t) * 1000)
+    with V._state_lock:
+        V.STATE["pending"] = p.get("pending")  # one open question at a time; any answer clears it
+    last = results[-1] if results else {"intent": "unknown", "args": {}, "say": "", "nav": None, "session": None}
+    said = next((r["say"] for r in reversed(results) if r["say"]), "")
+    say = " ".join(x for x in (said, p.get("say") or "") if x).strip()
+    nav = next((r["nav"] for r in reversed(results) if r["nav"]), None)
+    sess = next((r["session"] for r in reversed(results) if r["session"]), None)
+    intent = "ask" if (p.get("pending") and not results) else last["intent"]
+    args = last.get("args") or {}
+    VA.remember(heard, p["intents"], say)
+    return {"intent": intent, "args": args, "say": say, "nav": nav, "session": sess, "matcher": p["via"],
+            "actions": [a for a in (_action(r) for r in results) if a], "steps": [
+                {"intent": r["intent"], "args": {k: v for k, v in (r["args"] or {}).items() if k != "items"},
+                 "nav": r["nav"]} for r in results], "pending": p.get("pending"), "understand_ms": p["ms"]}
 
 
 @app.post("/voice")

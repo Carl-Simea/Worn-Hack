@@ -9,13 +9,36 @@ from pathlib import Path
 import pytest
 
 from test_routes import fake  # noqa: F401  (fixture: models mocked)
-from worn import compose, voice as V
+from worn import compose, voice as V, voice_agent as VA
 
 REPO = Path(__file__).resolve().parents[2]
 
 
+class FakeNLU:
+    """Stands in for qwen2.5:7b: maps a heard phrase to the model's one-line reply. Unknown → model down."""
+
+    def __init__(self):
+        self.replies: dict[str, str] = {}
+        self.calls: list[str] = []
+
+    async def __call__(self, prompt: str):
+        heard = prompt.rsplit('"', 2)[-2]
+        self.calls.append(heard)
+        if heard not in self.replies:
+            raise TimeoutError("model down (test)")
+        return VA.parse_lines(self.replies[heard])
+
+
 @pytest.fixture
-def vc(client):
+def nlu(monkeypatch):
+    f = FakeNLU()
+    monkeypatch.setattr(VA, "_ask_model", f)
+    VA.HISTORY.clear()
+    return f
+
+
+@pytest.fixture
+def vc(client, nlu):
     V.reset_state()
     return client
 
