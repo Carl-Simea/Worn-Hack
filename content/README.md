@@ -11,7 +11,8 @@ Lesson JSON, audio, and stroke data. The backend re-reads these on every request
 - `strokes/{lang}/{codepoint hex}.{json|svg}`: this follows agent A's `stroke_url()` convention.
   - mandarin `*.json`: hanzi-writer-data 2.0.1 (from Make Me a Hanzi, Arphic license). True stroke order.
   - japanese `*.svg`: KanjiVG stroke centerlines (CC BY-SA 3.0, Ulrich Apel). True stroke order, numbered. **Attribution must appear in the demo credits.**
-  - hindi, arabic, russian: no stroke-order data. The glasses page traces the font outline and labels it "trace the shape". It does not claim stroke order.
+  - russian, arabic, hindi `*.svg`: hand-made by the team in the same KanjiVG format, built by `python3 content/tools/make_strokes.py` (edit the table there, not the SVGs). `worn-strokes.js` animates them like Japanese. Traced over Noto fonts and ordered by standard handwriting rules (Russian: printed letters; Arabic: isolated forms, body right to left, dots and hamza last; Hindi: body, then stem, then headline last). **Needs a native writer's check.**
+  - Hindi conjuncts and syllables with top marks (स्ते न्य हाँ हीं शौ है) are left out on purpose, so they still fall back to "trace the shape" and never show a guessed stroke order.
 
 ## web/glasses.html (served at GET /glasses)
 - 640×480 on a black background (black is transparent on the optics). Polls `GET /session` and `GET /session/result` every 600 ms.
@@ -42,6 +43,12 @@ the char, romanization and meaning, the latest handwriting photo, and the grade 
 Served at `GET /mirror`. The photo is `result.image_url` if present, else A's `GET /capture/latest` (cache-busted by the grade's `ts`).
 
 ASL was cut on 2026-11-20. The backend still lists `"asl"` in LANG_ORDER and the mode literal, which is harmless.
+
+## web/map.html: phrase map + QA board
+All 5 languages × 5 phrases in one grid, coverage per language, every character animated with `worn-strokes.js` (same as the glasses),
+audio, QA checkboxes and notes (saved in the browser), and Export QA (Markdown).
+- Through the backend: `http://<laptop-ip>:8000/static/web/map.html`. "Glasses" / "Start on glasses" POST `/session`, so it doubles as a test controller.
+- Without the backend: `python3 -m http.server 8080` from the repo root, then open `http://localhost:8080/web/map.html`.
 
 ## web/stroke-test.html: pre-demo stroke check
 Open `http://<laptop-ip>:8000/static/web/stroke-test.html` on any device, ideally the glasses' WebView. It animates every

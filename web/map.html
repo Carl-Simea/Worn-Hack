@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Worn · Phrase Map</title>
+<!-- Phrase map + content QA board (owner: Favor).
+     With the backend:  http://<laptop-ip>:8000/static/web/map.html   (tap a character to send it to the glasses)
+     Without it:        python3 -m http.server 8080   (from the repo root)  ->  http://localhost:8080/web/map.html
+     QA checkmarks and notes are saved in this browser (localStorage). "Export QA" copies a Markdown report. -->
+<style>
+  :root { --bg:#07090c; --panel:#10141a; --card:#151a21; --line:#232a33; --fg:#eef1f5; --dim:#8a93a0;
+          --accent:#5cd6ff; --ok:#3ef08a; --warn:#ffc23d; --bad:#ff6b6b; --ghost:#2a313b; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; background:var(--bg); color:var(--fg);
+    font:15px/1.45 -apple-system, system-ui, "Segoe UI", Roboto, "Noto Sans", "Noto Sans CJK SC", "Noto Sans Devanagari", "Noto Naskh Arabic", sans-serif; }
+  a { color:var(--accent); }
+  .wrap { max-width:1320px; margin:0 auto; padding:24px 24px 80px; }
+
+  header { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:20px; }
+  .brand { display:flex; align-items:center; gap:14px; }
+  .logo { width:44px; height:44px; border-radius:12px; border:2px solid var(--accent); display:grid; place-items:center;
+          font-size:24px; color:var(--accent); font-family:"Noto Serif CJK SC", "Songti SC", serif; }
+  h1 { margin:0; font-size:26px; letter-spacing:.5px; }
+  .sub { color:var(--dim); font-size:14px; }
+  .conn { font-size:13px; padding:6px 12px; border-radius:999px; border:1px solid var(--line); color:var(--dim); }
+  .conn.live { color:var(--ok); border-color:#1f5a3a; }
+  .conn.off { color:var(--warn); border-color:#5a4a1f; }
+  .btn { font:inherit; font-size:14px; color:var(--fg); background:var(--card); border:1px solid var(--line);
+         border-radius:10px; padding:8px 14px; cursor:pointer; }
+  .btn:hover { border-color:var(--accent); }
+  .btn.primary { background:var(--accent); color:#04121a; border-color:var(--accent); font-weight:600; }
+  .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+  h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); margin:34px 0 12px; font-weight:600; }
+
+  /* coverage */
+  .cov { display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:10px; }
+  .covc { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; cursor:pointer; }
+  .covc.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .covc .n { font-weight:600; font-size:16px; }
+  .covc .meta { color:var(--dim); font-size:12.5px; margin-top:2px; }
+  .bar { height:6px; border-radius:3px; background:var(--ghost); margin-top:10px; overflow:hidden; display:flex; }
+  .bar i { display:block; height:100%; }
+  .bar .s { background:var(--ok); } .bar .t { background:var(--warn); }
+  .legend { color:var(--dim); font-size:12.5px; margin-top:8px; display:flex; gap:16px; flex-wrap:wrap; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+
+  /* phrase map matrix */
+  .matrix { width:100%; border-collapse:separate; border-spacing:0; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .matrix th, .matrix td { padding:12px 14px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+  .matrix tr:last-child td { border-bottom:none; }
+  .matrix th { font-size:12px; letter-spacing:1.5px; text-transform:uppercase; color:var(--dim); font-weight:600; background:#0c1015; }
+  .matrix td.ph { color:var(--dim); white-space:nowrap; font-weight:600; }
+  .cell { cursor:pointer; border-radius:8px; }
+  .cell:hover { background:#18202a; }
+  .cell .tx { font-size:22px; line-height:1.25; }
+  .cell .rm { color:var(--accent); font-size:13px; }
+  .cell.rtl .tx { direction:rtl; text-align:right; }
+
+  /* language detail */
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .tab { font:inherit; font-size:14px; border:1px solid var(--line); background:var(--panel); color:var(--fg);
+         border-radius:999px; padding:8px 16px; cursor:pointer; }
+  .tab.on { background:var(--accent); color:#04121a; border-color:var(--accent); font-weight:600; }
+  .phrase { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:14px; }
+  .phrase.flash { animation:flash 1.2s ease-out; }
+  @keyframes flash { from { box-shadow:0 0 0 3px var(--accent); } to { box-shadow:0 0 0 0 transparent; } }
+  .ptop { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+  .pt { font-size:34px; line-height:1.2; }
+  .pt.rtl { direction:rtl; }
+  .pr { color:var(--accent); font-size:16px; font-weight:600; }
+  .pm { color:var(--dim); }
+  .tiles { display:flex; flex-wrap:wrap; gap:12px; margin-top:16px; }
+  .tiles.rtl { flex-direction:row-reverse; justify-content:flex-end; }
+  .tile { width:168px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px; }
+  .tile.qa { border-color:#1f5a3a; }
+  .stage { position:relative; width:146px; height:146px; border:1px solid var(--ghost); border-radius:10px; background:#000; overflow:hidden; }
+  .stage::before, .stage::after { content:""; position:absolute; background:var(--ghost); pointer-events:none; }
+  .stage::before { left:50%; top:0; bottom:0; width:1px; } .stage::after { top:50%; left:0; right:0; height:1px; }
+  .stage svg, .stage .hw { position:absolute; left:0; top:0; width:146px; height:146px; }
+  .stage video { width:146px; height:146px; object-fit:cover; }
+  .tmeta { display:flex; justify-content:space-between; align-items:center; margin-top:8px; gap:6px; }
+  .ch { font-size:22px; }
+  .badge { font-size:11px; font-weight:600; letter-spacing:.5px; padding:3px 8px; border-radius:999px; white-space:nowrap; }
+  .b-s { background:#123524; color:var(--ok); } .b-t { background:#3a3013; color:var(--warn); } .b-x { background:#3a1717; color:var(--bad); }
+  .tfoot { display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:12.5px; color:var(--dim); }
+  .tfoot label { display:flex; align-items:center; gap:5px; cursor:pointer; }
+  .tfoot button { font:inherit; font-size:12px; color:var(--accent); background:none; border:1px solid var(--line); border-radius:8px; padding:3px 8px; cursor:pointer; }
+  .tfoot button:disabled { color:var(--dim); cursor:default; }
+  .strokes { font-size:12px; color:var(--dim); margin-top:2px; min-height:18px; }
+  textarea { width:100%; margin-top:14px; min-height:44px; background:var(--card); color:var(--fg); border:1px solid var(--line);
+             border-radius:10px; padding:8px 10px; font:inherit; font-size:14px; resize:vertical; }
+  .note { color:var(--dim); font-size:13px; margin-top:6px; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--accent); color:#04121a;
+           padding:10px 18px; border-radius:999px; font-weight:600; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.on { opacity:1; }
+  .credits { color:var(--dim); font-size:12.5px; margin-top:40px; border-top:1px solid var(--line); padding-top:16px; }
+  @media (max-width:900px) { .cov { grid-template-columns:repeat(3, minmax(0,1fr)); } .matrix { display:block; overflow-x:auto; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo">写</div>
+      <div>
+        <h1>Phrase Map</h1>
+        <div class="sub">5 phrases × 5 scripts + ASL · stroke order, audio and QA in one place</div>
+      </div>
+    </div>
+    <div class="actions">
+      <span id="conn" class="conn">connecting…</span>
+      <button class="btn" id="exportBtn">Export QA</button>
+      <button class="btn" id="resetBtn" title="Clear the QA checkmarks saved in this browser">Reset QA</button>
+    </div>
+  </header>
+
+  <h2>Coverage</h2>
+  <div class="cov" id="cov"></div>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--ok)"></i>True stroke order</span>
+    <span><i class="dot" style="background:var(--warn)"></i>Trace the shape only</span>
+    <span><i class="dot" style="background:var(--ghost)"></i>Missing</span>
+  </div>
+
+  <h2>The map</h2>
+  <table class="matrix" id="matrix"></table>
+
+  <h2>Characters to write</h2>
+  <div class="tabs" id="tabs"></div>
+  <div id="detail"></div>
+
+  <div class="credits">
+    Stroke data: Mandarin from hanzi-writer-data / Make Me a Hanzi (Arphic Public License).
+    Japanese from KanjiVG © Ulrich Apel (CC BY-SA 3.0).
+    Russian, Arabic and Hindi strokes hand-made by the Worn team (content/tools/make_strokes.py) and need a native writer’s check.
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="vendor/hanzi-writer.min.js"></script>
+<script>
+(function () {
+  "use strict";
+  var LANGS = ["mandarin", "hindi", "arabic", "russian", "japanese", "asl"];
+  var SHORT = { mandarin:"Mandarin", hindi:"Hindi", arabic:"Arabic", russian:"Russian", japanese:"Japanese", asl:"ASL" };
+  var PHRASES = ["hello", "thank_you", "yes", "no", "bathroom"];
+  var qs = new URLSearchParams(location.search);
+  var API = (qs.get("api") || "").replace(/\/$/, "");
+  var live = false;          // true when the backend answered /content
+  var ASSET = "../content/"; // switched to /static/content/ when live
+  var data = {};             // lang -> lesson json
+  var strokeCache = {};      // "lang/hex" -> {kind:'svg'|'json'|'gif'|'none', url, body}
+  var current = qs.get("lang") || "mandarin";
+  var QA_KEY = "worn-qa-v1";
+  var qa = load();
+
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]; }); }
+  function hex(ch) { return Array.from(ch).map(function (c) { return c.codePointAt(0).toString(16); }).join("-"); }
+  function asset(rel) { return rel ? (/^(https?:)?\//.test(rel) ? rel : ASSET + rel) : null; }
+  function load() { try { return JSON.parse(localStorage.getItem(QA_KEY)) || { chars:{}, notes:{} }; } catch (e) { return { chars:{}, notes:{} }; } }
+  function save() { try { localStorage.setItem(QA_KEY, JSON.stringify(qa)); } catch (e) {} }
+  function toast(msg) { var t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(function () { t.classList.remove("on"); }, 1800); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  // ---------------------------------------------------------------- loading
+  function getJSON(u) { return fetch(u, { cache:"no-store" }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); }
+
+  function loadContent() {
+    return getJSON(API + "/content").then(function (j) {
+      live = true; ASSET = API + "/static/content/";
+      j.langs.forEach(function (l) { data[l.lang] = l; });
+    }).catch(function () {
+      live = false; ASSET = "../content/";
+      return Promise.all(LANGS.map(function (l) {
+        return getJSON("../content/" + l + ".json").then(function (j) { data[l] = j; }).catch(function () {});
+      }));
+    });
+  }
+
+  // Same lookup order as backend stroke_url(): svg, gif, json (webm/mp4 not used yet).
+  function findStroke(lang, ch) {
+    var key = lang + "/" + hex(ch);
+    if (strokeCache[key]) return Promise.resolve(strokeCache[key]);
+    var exts = ["svg", "gif", "json"], i = 0;
+    function next() {
+      if (i >= exts.length) return Promise.resolve(strokeCache[key] = { kind:"none" });
+      var ext = exts[i++], u = ASSET + "strokes/" + key + "." + ext;
+      if (ext === "gif") {
+        return fetch(u, { method:"HEAD" }).then(function (r) { return r.ok ? (strokeCache[key] = { kind:"gif", url:u }) : next(); }).catch(next);
+      }
+      return fetch(u).then(function (r) {
+        if (!r.ok) return next();
+        return (ext === "json" ? r.json() : r.text()).then(function (body) { return (strokeCache[key] = { kind:ext, url:u, body:body }); });
+      }).catch(next);
+    }
+    return next();
+  }
+
+  // ---------------------------------------------------------------- coverage + matrix
+  function charsOf(lang) {
+    var out = [];
+    (data[lang] ? data[lang].phrases : []).forEach(function (p) { p.chars.forEach(function (c, i) { out.push({ p:p, c:c, i:i }); }); });
+    return out;
+  }
+
+  function renderCoverage() {
+    var cov = $("cov"); cov.innerHTML = "";
+    LANGS.forEach(function (lang) {
+      var d = data[lang], card = el("div", "covc" + (lang === current ? " on" : ""));
+      card.onclick = function () { select(lang); };
+      if (!d) { card.innerHTML = '<div class="n">' + SHORT[lang] + '</div><div class="meta">no content file</div>'; cov.appendChild(card); return; }
+      var meta = el("div", "meta"), bar = el("div", "bar");
+      card.appendChild(el("div", "n", esc(SHORT[lang])));
+      card.appendChild(meta); card.appendChild(bar);
+      cov.appendChild(card);
+      if (lang === "asl") {
+        Promise.all(d.phrases.map(function (p) {
+          return fetch(asset(p.asl), { method:"HEAD" }).then(function (r) { return r.ok; }).catch(function () { return false; });
+        })).then(function (ok) {
+          var n = ok.filter(Boolean).length;
+          meta.textContent = n + "/5 sign videos";
+          bar.innerHTML = '<i class="s" style="width:' + (n * 20) + '%"></i>';
+        });
+        return;
+      }
+      var list = charsOf(lang), uniq = [];
+      list.forEach(function (x) { if (uniq.indexOf(x.c) < 0) uniq.push(x.c); });
+      Promise.all(uniq.map(function (c) { return findStroke(lang, c); })).then(function (res) {
+        var s = res.filter(function (r) { return r.kind !== "none"; }).length, t = uniq.length - s;
+        var checked = list.filter(function (x) { return qa.chars[lang + "/" + x.p.id + "/" + x.i]; }).length;
+        meta.innerHTML = uniq.length + " characters · " + s + " stroke order<br>" + checked + "/" + list.length + " checked";
+        bar.innerHTML = '<i class="s" style="width:' + (100 * s / uniq.length) + '%"></i><i class="t" style="width:' + (100 * t / uniq.length) + '%"></i>';
+      });
+    });
+  }
+
+  function renderMatrix() {
+    var t = $("matrix"), h = "<tr><th>Phrase</th>";
+    LANGS.forEach(function (l) { h += "<th>" + SHORT[l] + "</th>"; });
+    h += "</tr>";
+    PHRASES.forEach(function (id) {
+      var meaning = "";
+      LANGS.forEach(function (l) { var p = find(l, id); if (p && !meaning) meaning = p.meaning; });
+      h += '<tr><td class="ph">' + esc(meaning || id) + "</td>";
+      LANGS.forEach(function (l) {
+        var p = find(l, id);
+        if (!p) { h += "<td>–</td>"; return; }
+        var rtl = data[l].rtl ? " rtl" : "";
+        h += '<td><div class="cell' + rtl + '" data-l="' + l + '" data-p="' + id + '"><div class="tx">' + esc(p.text) +
+             '</div><div class="rm">' + esc(p.romanization || (l === "asl" ? "sign" : "")) + "</div></div></td>";
+      });
+      h += "</tr>";
+    });
+    t.innerHTML = h;
+    Array.prototype.forEach.call(t.querySelectorAll(".cell"), function (c) {
+      c.onclick = function () { select(c.getAttribute("data-l"), c.getAttribute("data-p")); };
+    });
+  }
+  function find(l, id) { return data[l] ? data[l].phrases.filter(function (p) { return p.id === id; })[0] : null; }
+
+  // ---------------------------------------------------------------- detail
+  var animToken = 0;
+  function select(lang, phraseId) {
+    current = lang;
+    var u = new URL(location.href); u.searchParams.set("lang", lang); history.replaceState(null, "", u);
+    renderTabs(); renderDetail();
+    Array.prototype.forEach.call(document.querySelectorAll(".covc"), function (c, i) { c.classList.toggle("on", LANGS[i] === lang); });
+    if (phraseId) {
+      var target = document.getElementById("ph-" + phraseId);
+      if (target) { target.scrollIntoView({ behavior:"smooth", block:"center" }); target.classList.remove("flash"); void target.offsetWidth; target.classList.add("flash"); }
+    }
+  }
+  function renderTabs() {
+    var tabs = $("tabs"); tabs.innerHTML = "";
+    LANGS.forEach(function (l) {
+      if (!data[l]) return;
+      var b = el("button", "tab" + (l === current ? " on" : ""), esc(data[l].name || SHORT[l]));
+      b.onclick = function () { select(l); };
+      tabs.appendChild(b);
+    });
+  }
+
+  function renderDetail() {
+    var tok = ++animToken, d = data[current], box = $("detail");
+    box.innerHTML = "";
+    if (!d) { box.textContent = "No content for " + current; return; }
+    d.phrases.forEach(function (p) {
+      var card = el("div", "phrase"); card.id = "ph-" + p.id;
+      var top = el("div", "ptop");
+      var left = el("div");
+      left.appendChild(el("div", "pt" + (d.rtl ? " rtl" : ""), esc(p.text)));
+      left.appendChild(el("div", "pr", esc(p.romanization || "")));
+      left.appendChild(el("div", "pm", esc(p.meaning)));
+      top.appendChild(left);
+      var acts = el("div", "actions");
+      if (p.audio && current !== "asl") {
+        var play = el("button", "btn", "▶ Hear it");
+        play.onclick = function () { var a = new Audio(asset(p.audio)); a.play().catch(function () { toast("No audio file"); }); };
+        acts.appendChild(play);
+      }
+      var send = el("button", "btn primary", current === "asl" ? "Show sign on glasses" : "Start on glasses");
+      send.disabled = !live; if (!live) send.title = "Open this page through the backend to drive the glasses";
+      send.onclick = function () { sendToGlasses(current, p.id, 0); };
+      acts.appendChild(send);
+      top.appendChild(acts);
+      card.appendChild(top);
+
+      var tiles = el("div", "tiles" + (d.rtl ? " rtl" : ""));
+      if (current === "asl" || !p.chars.length) {
+        tiles.appendChild(aslTile(p));
+      } else {
+        p.chars.forEach(function (c, i) { tiles.appendChild(charTile(current, p, c, i, tok)); });
+      }
+      card.appendChild(tiles);
+
+      var nk = current + "/" + p.id, ta = el("textarea");
+      ta.placeholder = "QA notes for this phrase (wrong romanization, bad stroke, grader feedback…)";
+      ta.value = qa.notes[nk] || "";
+      ta.oninput = function () { qa.notes[nk] = ta.value; save(); };
+      card.appendChild(ta);
+      box.appendChild(card);
+    });
+  }
+
+  function aslTile(p) {
+    var t = el("div", "tile"), st = el("div", "stage");
+    var v = document.createElement("video");
+    v.src = asset(p.asl); v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true;
+    v.onerror = function () { st.innerHTML = '<div style="padding:14px;color:var(--warn);font-size:13px">Sign video not recorded yet<br><span style="color:var(--dim)">content/' + esc(p.asl) + "</span></div>"; };
+    st.appendChild(v); t.appendChild(st);
+    t.appendChild(el("div", "tmeta", '<span class="ch">' + esc(p.text) + "</span>"));
+    return t;
+  }
+
+  function charTile(lang, p, c, i, tok) {
+    var key = lang + "/" + p.id + "/" + i;
+    var t = el("div", "tile" + (qa.chars[key] ? " qa" : "")), st = el("div", "stage");
+    var meta = el("div", "tmeta"), badge = el("span", "badge", "…"), strokes = el("div", "strokes");
+    meta.appendChild(el("span", "ch", esc(c))); meta.appendChild(badge);
+    t.appendChild(st); t.appendChild(meta); t.appendChild(strokes);
+    var foot = el("div", "tfoot");
+    var lab = el("label"), cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!qa.chars[key];
+    cb.onchange = function () { if (cb.checked) qa.chars[key] = true; else delete qa.chars[key]; save(); t.classList.toggle("qa", cb.checked); renderCoverage(); };
+    lab.appendChild(cb); lab.appendChild(document.createTextNode("Checked"));
+    var go = el("button", null, "Glasses"); go.disabled = !live;
+    go.onclick = function () { sendToGlasses(lang, p.id, i); };
+    foot.appendChild(lab); foot.appendChild(go); t.appendChild(foot);
+
+    findStroke(lang, c).then(function (s) {
+      if (tok !== animToken) return;
+      if (s.kind === "svg") { badge.className = "badge b-s"; badge.textContent = "stroke order"; animSvg(st, s.body, strokes, tok); }
+      else if (s.kind === "json") { badge.className = "badge b-s"; badge.textContent = "stroke order"; animHanzi(st, c, s.body, strokes, tok); }
+      else if (s.kind === "gif") { badge.className = "badge b-s"; badge.textContent = "stroke gif"; st.innerHTML = '<img src="' + s.url + '" style="width:146px;height:146px">'; }
+      else { badge.className = "badge b-t"; badge.textContent = "trace only"; animGlyph(st, c, data[lang].rtl, strokes, tok); }
+    });
+    return t;
+  }
+
+  // KanjiVG-format SVG (Japanese + our hand-made Russian/Arabic/Hindi): same look as web/glasses.html
+  function animSvg(stage, txt, label, tok) {
+    var src = new DOMParser().parseFromString(txt, "image/svg+xml");
+    var ds = Array.prototype.map.call(src.getElementsByTagName("path"), function (p) { return p.getAttribute("d"); });
+    var NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", "0 0 109 109");
+    var ghost = document.createElementNS(NS, "g"), ink = document.createElementNS(NS, "g"), nums = document.createElementNS(NS, "g");
+    [[ghost, "#2f3540"], [ink, "#ffffff"]].forEach(function (g) {
+      g[0].setAttribute("fill", "none"); g[0].setAttribute("stroke", g[1]); g[0].setAttribute("stroke-width", "5");
+      g[0].setAttribute("stroke-linecap", "round"); g[0].setAttribute("stroke-linejoin", "round");
+    });
+    svg.appendChild(ghost); svg.appendChild(ink); svg.appendChild(nums); stage.appendChild(svg);
+    var strokes = ds.map(function (d, i) {
+      var g = document.createElementNS(NS, "path"); g.setAttribute("d", d); ghost.appendChild(g);
+      var p = document.createElementNS(NS, "path"); p.setAttribute("d", d); ink.appendChild(p);
+      var len = p.getTotalLength(); p.style.strokeDasharray = len; p.style.strokeDashoffset = len;
+      var s0 = p.getPointAtLength(0), n = document.createElementNS(NS, "text");
+      n.setAttribute("x", s0.x - 6); n.setAttribute("y", s0.y - 3); n.setAttribute("font-size", "9"); n.setAttribute("fill", "#5cd6ff");
+      n.textContent = String(i + 1); n.style.opacity = 0; nums.appendChild(n);
+      return { p:p, len:len, n:n };
+    });
+    (async function loop() {
+      while (tok === animToken) {
+        strokes.forEach(function (s) { s.p.style.strokeDashoffset = s.len; s.n.style.opacity = 0; });
+        for (var i = 0; i < strokes.length && tok === animToken; i++) {
+          label.textContent = "stroke " + (i + 1) + " of " + strokes.length;
+          await draw(strokes[i], 300 + strokes[i].len * 8, tok);
+          await sleep(150);
+        }
+        label.textContent = strokes.length + (strokes.length === 1 ? " stroke" : " strokes");
+        await sleep(1600);
+      }
+    })();
+  }
+  function draw(st, ms, tok) {
+    return new Promise(function (res) {
+      var t0 = null; st.n.style.opacity = 1;
+      (function step(ts) {
+        if (tok !== animToken) return res();
+        if (t0 === null) t0 = ts;
+        var k = Math.min(1, (ts - t0) / ms);
+        st.p.style.strokeDashoffset = st.len * (1 - k);
+        if (k < 1) requestAnimationFrame(step); else res();
+      })(performance.now());
+    });
+  }
+
+  function animHanzi(stage, ch, json, label, tok) {
+    if (!window.HanziWriter) { animGlyph(stage, ch, false, label, tok); return; }
+    var div = el("div", "hw"); div.id = "hw-" + Math.random().toString(36).slice(2); stage.appendChild(div);
+    var w = HanziWriter.create(div.id, ch, {
+      width:146, height:146, padding:8, showOutline:true, showCharacter:false,
+      strokeColor:"#ffffff", outlineColor:"#2f3540", radicalColor:null,
+      strokeAnimationSpeed:1.1, delayBetweenStrokes:180, delayBetweenLoops:1600,
+      charDataLoader:function (c, done) { done(json); }
+    });
+    label.textContent = json.strokes.length + " strokes";
+    w.loopCharacterAnimation();
+  }
+
+  function animGlyph(stage, ch, rtl, label, tok) {
+    var NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", "0 0 300 300");
+    var t = document.createElementNS(NS, "text");
+    t.setAttribute("x", "150"); t.setAttribute("y", "150"); t.setAttribute("text-anchor", "middle"); t.setAttribute("dominant-baseline", "central");
+    t.setAttribute("font-size", Array.from(ch).length > 2 ? "140" : "190");
+    t.setAttribute("stroke", "#ffffff"); t.setAttribute("stroke-width", "2.5"); t.setAttribute("fill", "#ffffff");
+    if (rtl) t.setAttribute("direction", "rtl");
+    t.textContent = ch; svg.appendChild(t); stage.appendChild(svg);
+    label.textContent = "trace the shape";
+    var L = 2400; t.style.strokeDasharray = L;
+    (async function loop() {
+      while (tok === animToken) {
+        var t0 = performance.now(), dur = 2400;
+        while (tok === animToken) {
+          var k = Math.min(1, (performance.now() - t0) / dur);
+          t.style.strokeDashoffset = L * (1 - k); t.style.fillOpacity = Math.max(0, (k - 0.7) / 0.3);
+          if (k >= 1) break;
+          await new Promise(requestAnimationFrame);
+        }
+        await sleep(1600);
+      }
+    })();
+  }
+
+  // ---------------------------------------------------------------- glasses
+  function sendToGlasses(lang, phraseId, idx) {
+    if (!live) { toast("Open through the backend to drive the glasses"); return; }
+    fetch(API + "/session", { method:"POST", headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({ lang:lang, phrase_id:phraseId, char_index:idx, mode:lang === "asl" ? "asl" : "write" }) })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); toast("Sent to glasses"); })
+      .catch(function (e) { toast("Backend error " + e.message); });
+  }
+
+  // ---------------------------------------------------------------- QA export
+  function exportQA() {
+    var lines = ["# Worn content QA", "", "Exported " + new Date().toLocaleString(), ""];
+    LANGS.forEach(function (lang) {
+      var d = data[lang]; if (!d) return;
+      lines.push("## " + (d.name || SHORT[lang]));
+      d.phrases.forEach(function (p) {
+        var marks = p.chars.map(function (c, i) { return (qa.chars[lang + "/" + p.id + "/" + i] ? "✓" : "☐") + c; }).join(" ");
+        lines.push("- **" + p.meaning + "**: " + p.text + (p.romanization ? " (" + p.romanization + ")" : "") + (marks ? "  " + marks : ""));
+        var n = qa.notes[lang + "/" + p.id]; if (n) lines.push("  - Note: " + n.replace(/\n/g, " "));
+      });
+      lines.push("");
+    });
+    var md = lines.join("\n");
+    (navigator.clipboard ? navigator.clipboard.writeText(md) : Promise.reject()).then(function () { toast("QA report copied"); }).catch(function () {
+      var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([md], { type:"text/markdown" })); a.download = "worn-qa.md"; a.click();
+    });
+  }
+  $("exportBtn").onclick = exportQA;
+  $("resetBtn").onclick = function () { if (confirm("Clear all QA checkmarks and notes in this browser?")) { qa = { chars:{}, notes:{} }; save(); renderCoverage(); renderDetail(); } };
+
+  // ---------------------------------------------------------------- go
+  loadContent().then(function () {
+    var c = $("conn");
+    c.className = "conn " + (live ? "live" : "off");
+    c.textContent = live ? "● Live: backend connected" : "● Offline: reading repo files";
+    if (!data[current]) current = "mandarin";
+    renderCoverage(); renderMatrix(); renderTabs(); renderDetail();
+  });
+})();
+</script>
+</body>
+</html>
