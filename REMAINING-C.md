@@ -18,7 +18,7 @@
   mishearings ("Czech" → check, "Indy" → Hindi, "necks" → next), fillers, and aliases for languages, words and
   screens (including the native romanizations: "shalom", "namaste", "xie xie"). `screens.json` gives every glasses
   screen and lesson phase its on-screen "say …" hint (≤ 40 chars, checked), the line spoken on entry and the
-  suggestions that "what can I say" reads out. There are 6 How-to-use pages. `tests.json` holds 88 heard → intent cases.
+  suggestions that "what can I say" reads out. There are 6 How-to-use pages. `tests.json` holds 91 heard → intent cases.
   `content/tools/voice_match.py` is the reference matcher (0 failing); D ports it to JS for the glasses, and A
   can import it for `POST /voice`. Regenerate with `python3 content/tools/make_voice.py`.
   Screen ids agreed with D: home, learn, words, lesson (watch|your_turn|check|result), name, compose, daily5,

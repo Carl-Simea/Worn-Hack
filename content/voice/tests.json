@@ -626,6 +626,26 @@
   },
   {
    "screen": "home",
+   "heard": "Hey Scribi, learn Greek",
+   "intent": "learn",
+   "args": {
+    "language": "greek"
+   }
+  },
+  {
+   "screen": "lesson",
+   "heard": "Scribi, I'm done",
+   "intent": "check",
+   "args": {}
+  },
+  {
+   "screen": "lesson",
+   "heard": "hey scribe next",
+   "intent": "next",
+   "args": {}
+  },
+  {
+   "screen": "home",
    "heard": "learn klingon",
    "intent": null,
    "args": {}

@@ -3,7 +3,7 @@
  "screens": {
   "home": {
    "title": "Worn",
-   "say": "Hi! Say learn, write my name, or help.",
+   "say": "Hi, I'm Scribi! Say learn, write my name, or help.",
    "hint": "Say “learn”, “daily five” or “help”",
    "suggestions": [
     "learn Mandarin",
@@ -209,12 +209,12 @@
    "hint": "Say “next” or “home”",
    "pages": [
     {
-     "title": "Just talk",
+     "title": "Just talk to Scribi",
      "lines": [
-      "Say what you want.",
-      "“Learn Greek”, “home”, “back”."
+      "Scribi is your tutor. Say what",
+      "you want: “learn Greek”, “back”."
      ],
-     "say": "Just talk. Say what you want, like learn Greek, home, or back."
+     "say": "Just talk to Scribi, your tutor. Say what you want, like learn Greek, home, or back."
     },
     {
      "title": "Watch, then write",

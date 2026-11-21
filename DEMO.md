@@ -4,22 +4,22 @@ Track 02 · Seamless Handoff. Demo Sat 2:15pm at our table. Submissions close 2:
 
 **Roles:** one person wears the glasses, writes and **talks** ("the learner"). A second person drives the laptop and watches `/live` on the iPad (it mirrors the real glasses display).
 
-The wearer controls everything by speaking. Every glasses screen shows what to say next, and "what can I say" reads the options aloud. The button is a backup only (press = next or open the highlighted item, hold = check, double tap = back). Every phrase and hint: `content/voice/commands.json` and `screens.json`.
+The wearer controls everything by talking to **Scribi**, the tutor inside Worn. Every glasses screen shows what to say next, and "what can I say" reads the options aloud. The button is a backup only (press = next or open the highlighted item, hold = check, double tap = back). Every phrase and hint: `content/voice/commands.json` and `screens.json`.
 
 ## The 60 seconds (voice-first)
 
 | Time | Wearer says | Glasses show / say | Narrate |
 |---|---|---|---|
-| 0:00 | (Home) | 你好 · नमस्ते · مرحبا · Привет · שלום · Γεια σου, *Say "learn", "daily five" or "help"* | "Six scripts most Americans can't read. Worn teaches you to **write** them on real paper, hands-free." |
-| 0:06 | **"Learn Mandarin."** | Word list, *Say a word, like "hello"* | "No phone, no taps. I just talk to my glasses." |
+| 0:00 | (Home) | 你好 · नमस्ते · مرحبا · Привет · שלום · Γεια σου. Scribi: *"Hi, I'm Scribi! Say learn, write my name, or help."* | "Six scripts most Americans can't read. Worn teaches you to **write** them on real paper, hands-free." |
+| 0:06 | **"Learn Mandarin."** | Word list, *Say a word, like "hello"* | "No phone, no taps. I just talk to Scribi, the tutor in my glasses." |
 | 0:10 | **"Hello."** | 你 animates stroke by stroke, says *nǐ hǎo* | "Stroke order, sound and meaning." |
-| 0:16 | (writes 你 with the marker) **"I'm done."** | *Checking your writing…*, then a check, a ding and a goofy line | "A local vision model and a tutor agent grade my pen on paper in a couple of seconds." |
+| 0:16 | (writes 你 with the marker) **"I'm done."** | *Checking your writing…*, then a check, a ding and a goofy line | "Scribi, a tutor agent running on this laptop with a local vision model, grades my pen on paper in a couple of seconds." |
 | 0:28 | **"Next."** then writes 好, **"I'm done."** | Ta-da, rainbow confetti: **"Your first word in Mandarin!"** | "My first word." |
 | 0:40 | **"Write my name, Maria."** then **"Greek."** | **Μαρία** (also मारिया / Мария) | "Everyone's favourite: your own name in a new script." |
 | 0:50 | **"How do I write good morning in Greek?"** | **Καλημέρα** with its romanization | "Or anything you want to say." |
 | 0:56 | Point at the laptop. | | "No cloud: the photos never leave this laptop. Worn: wear it, write it." |
 
-If a command isn't heard, say it again in fewer words ("next", "check", "home"). If the room is too loud, use the button (press = next, hold = check, double tap = back) and keep narrating.
+"Hey Scribi" in front of a command is optional. If a command isn't heard, say it again in fewer words ("next", "check", "home"). If the room is too loud, use the button (press = next, hold = check, double tap = back) and keep narrating.
 
 If there's time, the strongest extra beat is **"Learn Arabic." → "Hello."**: isolated letters first, then the joined word, all right to left.
 
@@ -46,7 +46,7 @@ If there's time, the strongest extra beat is **"Learn Arabic." → "Hello."**: i
 | Voice isn't heard (noisy room) | Use the button: press = next / open, hold = check, double tap = back. Speak close and short: "next", "check", "home". |
 | Glasses won't connect or the camera fails | In the iOS app, turn on **Demo Mode (phone camera)**: same lesson, the phone grades with its own camera. Keep `/live` on the iPad as the "glasses view". |
 | Nothing can drive the glasses, but you need `/live` to move | From the laptop: `uv run --with pillow python web/dev/sim_glasses.py http://127.0.0.1:8000 --lang mandarin --item hello`. It posts what the iPhone + glasses would (strokes, photos, grade, confetti) and `/live` shows it all. Say it's a replay. |
-| Grading feels slow (>5 s) | Quit Xcode, the Simulator and anything else using the GPU. The tutor falls back to rules after 4.5 s, so it always answers. |
+| Grading feels slow (>5 s) | Quit Xcode, the Simulator and anything else using the GPU. Scribi (the tutor) falls back to rules after 4.5 s, so it always answers. |
 | Vision model is slow or down | Restart the backend with `WORN_FAKE_GRADE=1` (a canned pass instead of an error). Say "the model is warming up" and keep going. |
 | iPhone app misbehaves | Open `http://<laptop-ip>:8000/app` in Safari on any phone: the whole learner flow on the web, same lesson and handoff (the glasses follow it). **Check with phone camera** grades a photo if the glasses camera fails. |
 | Venue wifi drops | Put the laptop, phone and iPad on the laptop's hotspot (or a phone hotspot), then use the new laptop IP. |
