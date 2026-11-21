@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f6f2ea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0e" media="(prefers-color-scheme: dark)">
+<title>Worn Live</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231b1a17'/%3E%3Cpath d='M14 22c6 18 9 24 12 24s5-14 6-14 3 14 6 14 6-8 12-24' fill='none' stroke='%23f6f2ea' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Noto+Serif+SC:wght@500&family=Noto+Serif+JP:wght@500&family=Noto+Serif+Devanagari:wght@500&family=Noto+Naskh+Arabic:wght@500&family=Noto+Serif:wght@500&display=swap">
+<link rel="stylesheet" href="/static/web/worn.css">
+<!-- The judge site (owner: agent B). Served at GET /live and GET /mirror. Readable from 2 m on an iPad or a big screen.
+     Polls GET /live/state every 500 ms. If the backend doesn't have it yet, falls back to /session + /session/result. -->
+<style>
+  html, body { height: 100%; }
+  body { --u: clamp(13px, 1.05vw + .35vh, 30px); font-size: var(--u); overflow: hidden; }
+  .app { --pad: calc(var(--u) * 1.6); --gap: calc(var(--u) * 1.1);
+    --sq: min(calc((100vw - 2 * var(--pad) - 2 * var(--gap)) / 3), 54vh);
+    height: 100%; display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: calc(var(--u) * .9);
+    padding: max(calc(var(--u) * 1.1), env(safe-area-inset-top)) max(calc(var(--u) * 1.6), env(safe-area-inset-right))
+             max(calc(var(--u) * 1.1), env(safe-area-inset-bottom)) max(calc(var(--u) * 1.6), env(safe-area-inset-left)); }
+
+  /* ---------- header */
+  header { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--u); }
+  .brand { display: flex; align-items: baseline; gap: .7em; min-width: 0; }
+  .brand .wordmark { font-size: 2.1em; line-height: 1; }
+  .brand .eyebrow { font-size: .62em; }
+  .lesson { text-align: center; min-width: 0; }
+  .lesson .eyebrow { font-size: .62em; display: block; margin-bottom: .35em; }
+  .chars { display: flex; justify-content: center; gap: .18em; font-size: 2.05em; line-height: 1.2; white-space: nowrap; }
+  .chars span { color: var(--ink-3); padding: 0 .06em; border-bottom: .08em solid transparent; transition: color .3s, border-color .3s; }
+  .chars span.done { color: var(--ink); }
+  .chars span.cur { color: var(--accent); border-bottom-color: var(--accent); }
+  .status { display: flex; justify-content: flex-end; align-items: center; gap: .55em; flex-wrap: nowrap; min-width: 0; }
+  .pill { display: inline-flex; align-items: center; gap: .5em; height: 2.1em; padding: 0 .85em; border-radius: 999px;
+    background: var(--card); border: 1px solid var(--rule); font: 600 .66em/1 var(--ui); color: var(--ink-2); white-space: nowrap; }
+  .pill .dot { width: .75em; height: .75em; }
+  .pill b { color: var(--ink); font-weight: 700; }
+  #listen { visibility: hidden; color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, var(--rule)); }
+  #listen.on { visibility: visible; }
+  .bars { display: inline-flex; gap: 2px; align-items: center; height: 1em; }
+  .bars i { width: 3px; height: 40%; border-radius: 2px; background: currentColor; animation: bar 1s var(--ease) infinite; }
+  .bars i:nth-child(2) { animation-delay: .15s; } .bars i:nth-child(3) { animation-delay: .3s; } .bars i:nth-child(4) { animation-delay: .45s; }
+  @keyframes bar { 0%, 100% { height: 30%; } 50% { height: 100%; } }
+  .lat { display: inline-flex; gap: .3em; }
+  .lat .pill { gap: .35em; padding: 0 .7em; }
+  .lat .pill small { font-weight: 600; color: var(--ink-3); letter-spacing: .06em; }
+  .lat .pill b { min-width: 3.2em; text-align: right; }
+  .lat .pill.fresh b { color: var(--accent); }
+
+  /* ---------- three panels */
+  main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(var(--u) * 1.1); min-height: 0; }
+  .panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .cap { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .55em; gap: 1em; }
+  .cap .eyebrow { font-size: .62em; }
+  .cap .tnum { font: 600 .7em/1 var(--ui); color: var(--ink-2); white-space: nowrap; }
+  .square { position: relative; width: 100%; aspect-ratio: 1 / 1; max-height: 100%; margin: 0 auto; flex: none; }
+  .fit { display: flex; justify-content: center; }
+  .fit .square { width: var(--sq); height: var(--sq); }
+
+  #lens { border-radius: var(--radius); }
+  #ink { position: absolute; inset: 9%; }
+  #lensLabel { position: absolute; left: 0; right: 0; bottom: 4.5%; text-align: center; font: 600 .78em/1 var(--ui); color: #aab4ff;
+    letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+  #lensPhase { position: absolute; left: 5%; top: 4.5%; font: 600 .56em/1 var(--ui); letter-spacing: .14em; text-transform: uppercase; color: #6d7280; }
+  #lensOff { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #6d7280; font-size: .8em;
+    text-align: center; padding: 12%; opacity: 0; transition: opacity .4s; pointer-events: none; }
+  #lens.off #lensOff { opacity: 1; } #lens.off #ink, #lens.off #lensLabel { opacity: .15; }
+
+  #paper { border-radius: var(--radius); background: var(--paper-2); border: 1px solid var(--rule); overflow: hidden; }
+  #paper img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .5s var(--ease); }
+  #paper img.show { opacity: 1; }
+  #paperEmpty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6em;
+    color: var(--ink-3); font-size: .78em; text-align: center; padding: 12%; transition: opacity .4s; }
+  #paperEmpty svg { width: 2.6em; height: 2.6em; opacity: .6; }
+  #paper.has #paperEmpty { opacity: 0; }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  #flash.go { animation: flash .5s ease-out; }
+  @keyframes flash { 0% { opacity: .65; } 100% { opacity: 0; } }
+
+  #tutor { border-radius: var(--radius); background: var(--card); border: 1px solid var(--rule); box-shadow: var(--shadow);
+    display: flex; flex-direction: column; justify-content: center; padding: 9%; overflow: hidden; }
+  .scoreRow { display: flex; align-items: center; gap: .5em; min-height: 3.6em; }
+  #score { font-family: var(--display); font-size: 3.9em; line-height: .9; letter-spacing: -.03em; font-variant-numeric: tabular-nums; transition: color .3s; }
+  #score small { font: 500 .22em/1 var(--ui); letter-spacing: 0; color: var(--ink-3); margin-left: .25em; }
+  #check { width: 3.1em; height: 3.1em; margin-left: auto; flex: none; }
+  #check circle { fill: var(--accent); transform-origin: 50% 50%; transform: scale(0); transition: transform .45s cubic-bezier(.3, 1.6, .5, 1); }
+  #check path { fill: none; stroke: var(--on-accent); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 40; stroke-dashoffset: 40;
+    transition: stroke-dashoffset .4s .25s var(--ease); }
+  #check.on circle { transform: scale(1); } #check.on path { stroke-dashoffset: 0; }
+  #check.retry circle { fill: var(--warn); transform: scale(1); }
+  #check.retry path { stroke-dashoffset: 0; }
+  #feedback { font-family: var(--display); font-size: 1.45em; line-height: 1.22; margin-top: .55em; min-height: 3.66em; letter-spacing: -.01em; }
+  #reaction { margin-top: .7em; font-size: .78em; color: var(--ink-2); min-height: 1.5em; display: flex; gap: .5em; align-items: center; }
+  #reaction .chip { font-size: .8em; height: 1.9em; color: var(--accent); background: var(--accent-soft); border-color: transparent; }
+  .waiting #score { color: var(--ink-ghost); }
+  .swap { transition: opacity .25s var(--ease); }
+  .swap.out { opacity: 0; }
+
+  /* ---------- bottom: agent brain + timeline */
+  .lower { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--gap); min-height: 0; }
+  .box { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: .9em 1.1em; display: flex; flex-direction: column; min-height: 0; }
+  .box .cap { margin-bottom: .4em; }
+  .stream { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28%); mask-image: linear-gradient(to bottom, transparent, #000 28%); }
+  .stream li { display: grid; grid-template-columns: 1.5em minmax(0, 1fr) auto; align-items: baseline; gap: .55em; padding: .22em 0; font-size: .86em;
+    animation: rise .45s var(--ease) both; }
+  .stream li .k { color: var(--ink-3); text-align: center; font-weight: 700; }
+  .stream li .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stream li .t em { font-style: normal; color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stream li .ts { font: 500 .78em/1 var(--mono); color: var(--ink-3); }
+  .stream li:last-child .t { font-weight: 600; }
+  .stream li.k-react .k, .stream li.k-grade .k { color: var(--accent); }
+  @keyframes rise { from { opacity: 0; transform: translateY(.6em); } to { opacity: 1; transform: none; } }
+  #timeline li { grid-template-columns: 3.6em minmax(0, 1fr); font-size: .78em; }
+  #timeline li .ts { text-align: left; }
+  .empty-note { color: var(--ink-3); font-size: .8em; }
+
+  /* idle */
+  #idle { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6em;
+    background: var(--paper); transition: opacity .5s var(--ease); z-index: 5; }
+  #idle.hide { opacity: 0; pointer-events: none; }
+  #idle .wordmark { font-size: 5.5em; line-height: 1; }
+  #idle p { color: var(--ink-2); font-size: 1.1em; margin: 0; }
+  #idle .scripts { display: flex; gap: 1em; font-size: 1.6em; color: var(--ink-3); margin-top: .8em; }
+
+  /* narrow / portrait: stack and allow scrolling */
+  @media (max-width: 900px), (orientation: portrait) and (max-width: 1100px) {
+    body { overflow: auto; --u: clamp(13px, 2.4vw, 22px); }
+    .app { height: auto; min-height: 100%; grid-template-rows: auto auto auto; }
+    header { grid-template-columns: 1fr auto; grid-template-areas: "brand status" "lesson lesson"; row-gap: .8em; }
+    .brand { grid-area: brand; } .status { grid-area: status; } .lesson { grid-area: lesson; }
+    .lat { display: none; }
+    main { grid-template-columns: 1fr 1fr; }
+    .panel.tutorP { grid-column: 1 / -1; }
+    .fit .square { width: 100%; height: auto; aspect-ratio: 1 / 1; }
+    #tutor { aspect-ratio: auto; padding: 1.4em; }
+    .lower { grid-template-columns: 1fr; height: auto; }
+    .stream { height: 11em; flex: none; }
+    #timeline { height: 7em; }
+  }
+  @media (max-width: 520px) {
+    body { --u: 14px; }
+    main { grid-template-columns: 1fr; }
+    .brand .eyebrow { display: none; }
+    .chars { font-size: 1.7em; }
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div class="brand"><span class="wordmark">Worn</span><span class="eyebrow">Live from the glasses</span></div>
+    <div class="lesson" id="lesson">
+      <span class="eyebrow" id="langName">&nbsp;</span>
+      <div class="chars script" id="chars" dir="auto">&nbsp;</div>
+    </div>
+    <div class="status">
+      <span class="pill" id="listen" title="Voice is on"><span class="bars"><i></i><i></i><i></i><i></i></span>Listening</span>
+      <span class="lat" id="lat">
+        <span class="pill" data-t="tier1"><small>INK</small><b class="tnum">–</b></span>
+        <span class="pill" data-t="tier2"><small>VISION</small><b class="tnum">–</b></span>
+        <span class="pill" data-t="tier3"><small>TUTOR</small><b class="tnum">–</b></span>
+      </span>
+      <span class="pill" id="conn"><span class="dot" id="connDot"></span><span id="connText">Glasses</span></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="cap"><span class="eyebrow">On the glasses</span><span class="tnum" id="romCap">&nbsp;</span></div>
+      <div class="fit"><div class="square lens" id="lens">
+        <div class="grid" style="position:absolute;inset:0"></div>
+        <div id="ink"></div>
+        <div id="lensPhase">&nbsp;</div>
+        <div id="lensLabel">&nbsp;</div>
+        <div id="lensOff">Glasses not connected</div>
+      </div></div>
+    </section>
+
+    <section class="panel">
+      <div class="cap"><span class="eyebrow">On paper</span><span class="tnum" id="photoCap">&nbsp;</span></div>
+      <div class="fit"><div class="square" id="paper">
+        <img id="imgA" alt=""><img id="imgB" alt="">
+        <div id="paperEmpty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span>The glasses camera will show the paper here</span></div>
+        <div id="flash"></div>
+      </div></div>
+    </section>
+
+    <section class="panel tutorP">
+      <div class="cap"><span class="eyebrow">Tutor</span><span class="tnum" id="meaningCap">&nbsp;</span></div>
+      <div class="fit"><div class="square waiting" id="tutor">
+        <div class="scoreRow">
+          <div id="score" class="tnum">–</div>
+          <svg id="check" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="24"/><path id="checkPath" d="M14 25l7 7 13-15"/></svg>
+        </div>
+        <div id="feedback" class="swap">Watching the pen…</div>
+        <div id="reaction">&nbsp;</div>
+      </div></div>
+    </section>
+  </main>
+
+  <section class="lower">
+    <div class="box">
+      <div class="cap"><span class="eyebrow">Agent brain</span><span class="tnum" id="brainCap">&nbsp;</span></div>
+      <ul class="stream" id="brain"></ul>
+    </div>
+    <div class="box">
+      <div class="cap"><span class="eyebrow">Timeline</span><span class="tnum" id="progressCap">&nbsp;</span></div>
+      <ul class="stream" id="timeline"></ul>
+    </div>
+  </section>
+</div>
+
+<div id="idle">
+  <span class="wordmark">Worn</span>
+  <p id="idleText">Waiting for the first lesson</p>
+  <div class="scripts" aria-hidden="true"><span class="script" data-lang="mandarin">你好</span><span class="script" data-lang="japanese">こんにちは</span><span class="script" data-lang="hindi">नमस्ते</span><span class="script" data-lang="arabic">مرحبا</span><span class="script" data-lang="russian">Привет</span></div>
+</div>
+
+<script src="/static/web/worn-ink.js"></script>
+<script src="/static/web/worn-confetti.js"></script>
+<script>
+(function () {
+  "use strict";
+  var qs = new URLSearchParams(location.search);
+  var API = (qs.get("api") || "").replace(/\/$/, "");
+  if (qs.get("theme")) document.documentElement.setAttribute("data-theme", qs.get("theme"));
+  var $ = function (id) { return document.getElementById(id); };
+  var ink = WornInk.create($("ink"), { theme: "glasses", label: $("lensLabel"), api: API });
+
+  var useLive = true, failCount = 0, lessonKey = "", inkReady = false, lastResultTs = null, firstPoll = true;
+  var celebrated = {}, shownPhoto = "", imgFront = "imgA", seenSteps = {}, seenEvents = {}, lastLat = {};
+
+  function url(p) { return !p ? p : /^(https?:|data:|blob:)/.test(p) ? p : API + p; }
+  function get(p) {
+    return fetch(url(p), { cache: "no-store" }).then(function (r) {
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(p + " " + r.status);
+      return r.json();
+    });
+  }
+  function setText(el, t) { if (el.textContent !== t) el.textContent = t; }
+
+  // ---------------------------------------------------------------- data
+  function fetchState() {
+    if (useLive) {
+      return get("/live/state").then(function (st) {
+        if (st === null) { useLive = false; return fetchState(); }
+        return st;
+      });
+    }
+    // fallback: compose a state from the basic endpoints
+    return Promise.all([get("/session"), get("/session/result")]).then(function (a) {
+      var s = a[0], r = a[1];
+      return { session: s, glasses: { connected: null, phase: r ? "result" : "demo" }, last_result: r,
+               latest_photo_url: r ? (r.image_url || "/capture/latest?ts=" + r.ts) : null, agent_steps: [], events: [], latency: {} };
+    });
+  }
+
+  function poll() {
+    fetchState().then(function (st) {
+      failCount = 0;
+      render(st || {});
+    }).catch(function () {
+      failCount++;
+      if (failCount > 3) offline();
+    }).then(function () { setTimeout(poll, 500); });
+  }
+
+  // ---------------------------------------------------------------- render
+  function render(st) {
+    var s = st.session, g = st.glasses || {};
+    $("idle").classList.toggle("hide", !!s);
+    renderConn(g.connected, true);
+    renderListen(!!st.listening);
+    renderLatency(st.latency || {});
+    if (!s) { firstPoll = false; return; }
+    renderLesson(s);
+    renderLens(s, g);
+    renderPhoto(st.latest_photo_url || (st.last_result && st.last_result.image_url), s);
+    renderResult(st.last_result, s, g);
+    renderSteps(st.agent_steps || []);
+    renderEvents(st.events || []);
+    renderProgress(st.progress, s);
+    maybeCelebrate(st);
+    firstPoll = false;
+  }
+
+  function offline() { renderConn(false, false); }
+
+  function renderConn(c, serverOk) {
+    var dot = $("connDot"), t;
+    if (!serverOk) { dot.className = "dot off"; t = "Server offline"; }
+    else if (c === true) { dot.className = "dot on pulse"; t = "Glasses connected"; }
+    else if (c === false) { dot.className = "dot off"; t = "Glasses offline"; }
+    else { dot.className = "dot"; t = "Glasses"; }
+    setText($("connText"), t);
+    $("lens").classList.toggle("off", c === false || !serverOk);
+  }
+
+  function renderListen(on) { $("listen").classList.toggle("on", on); }
+
+  function fmtMs(v) {
+    if (v && typeof v === "object") v = v.ms !== undefined ? v.ms : v.last;
+    if (typeof v !== "number" || !isFinite(v)) return "–";
+    return v < 1000 ? Math.round(v) + " ms" : (v / 1000).toFixed(v < 10000 ? 1 : 0) + " s";
+  }
+  function renderLatency(l) {
+    Array.prototype.forEach.call(document.querySelectorAll("#lat .pill"), function (p) {
+      var k = p.getAttribute("data-t"), txt = fmtMs(l[k]);
+      var b = p.querySelector("b");
+      if (b.textContent !== txt) {
+        b.textContent = txt;
+        if (lastLat[k] !== undefined) { p.classList.add("fresh"); setTimeout(function () { p.classList.remove("fresh"); }, 1200); }
+      }
+      lastLat[k] = txt;
+    });
+  }
+
+  function chars(s) {
+    var c = window.__wornChars && window.__wornChars[s.lang + "/" + s.phrase_id];
+    return c || (s.text ? null : [s.char]);
+  }
+  function renderLesson(s) {
+    var key = [s.version, s.lang, s.phrase_id, s.char_index].join("|");
+    if (key === lessonKey) return;
+    var phraseChanged = lessonKey.split("|").slice(1, 3).join("|") !== [s.lang, s.phrase_id].join("|");
+    lessonKey = key;
+    document.body.setAttribute("data-lang", s.lang);
+    setText($("langName"), (s.lang_name || s.lang) + (s.meaning ? "  ·  “" + s.meaning + "”" : ""));
+    var box = $("chars"), list = chars(s) || [s.char];
+    box.setAttribute("dir", s.rtl ? "rtl" : "ltr");
+    if (phraseChanged || box.children.length !== list.length) {
+      box.innerHTML = "";
+      list.forEach(function (c) { var sp = document.createElement("span"); sp.textContent = c; box.appendChild(sp); });
+    }
+    Array.prototype.forEach.call(box.children, function (sp, i) {
+      sp.className = i < s.char_index ? "done" : i === s.char_index ? "cur" : "";
+    });
+    setText($("romCap"), s.romanization || "");
+    setText($("meaningCap"), (s.char_index + 1) + " of " + s.total_chars);
+    // new char -> new ink
+    inkReady = false;
+    ink.load(s).then(function () { inkReady = true; ink.sync(1, "demo"); lastSync = ""; });
+    lastResultTs = firstPoll ? lastResultTs : lastResultTs; // keep; results are matched by char below
+  }
+
+  var lastSync = "";
+  function renderLens(s, g) {
+    var phase = g.phase || "demo";
+    var label = { demo: "showing", writing: "writing", checking: "checking", celebrate: "celebrating", retry: "try again", result: "result", idle: "idle" }[phase] || phase;
+    setText($("lensPhase"), label);
+    if (!inkReady) return;
+    var k = [g.stroke, phase].join("|");
+    if (k === lastSync) return;
+    lastSync = k;
+    if (phase === "demo" || !g.stroke) ink.sync(1, "demo");
+    else ink.sync(g.stroke, phase);
+  }
+
+  function renderPhoto(p, s) {
+    if (!p) {
+      if (shownPhoto) { $("paper").classList.remove("has"); $(imgFront).classList.remove("show"); shownPhoto = ""; }
+      setText($("photoCap"), "");
+      return;
+    }
+    if (p === shownPhoto) return;
+    shownPhoto = p;
+    var back = imgFront === "imgA" ? "imgB" : "imgA", img = $(back);
+    img.onload = function () {
+      if (shownPhoto !== p) return;
+      img.classList.add("show");
+      $(imgFront).classList.remove("show");
+      imgFront = back;
+      $("paper").classList.add("has");
+      var f = $("flash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go");
+      setText($("photoCap"), new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }));
+    };
+    img.onerror = function () { if (shownPhoto === p) shownPhoto = ""; };
+    img.src = url(p);
+  }
+
+  var shownResultKey = "";
+  function renderResult(r, s, g) {
+    var tutor = $("tutor"), fb = $("feedback");
+    var matches = r && (!r.char || r.char === s.char) && (!r.lang || r.lang === s.lang);
+    var phase = g.phase || "";
+    var key;
+    if (matches) key = "r" + r.ts;
+    else if (/check/.test(phase)) key = "checking";
+    else key = "wait|" + (g.stroke || 0) + "|" + phase + "|" + s.char;
+    if (key === shownResultKey) return;
+    shownResultKey = key;
+    var check = $("check");
+    if (matches) {
+      tutor.classList.remove("waiting");
+      setText($("score"), String(r.score));
+      $("score").innerHTML = r.score + "<small>/100</small>";
+      check.classList.toggle("on", !!r.correct);
+      check.classList.toggle("retry", !r.correct);
+      $("checkPath").setAttribute("d", r.correct ? "M14 25l7 7 13-15" : "M24 14v13M24 34v.5");
+      swapText(fb, r.feedback || (r.correct ? "Nice!" : "Try again"));
+      var line = r.reaction_line || r.reaction_text || "";
+      var rx = r.reaction ? '<span class="chip">' + esc(r.reaction) + "</span>" : "";
+      $("reaction").innerHTML = rx + (line ? "<span>" + esc(line) + "</span>" : "") || "&nbsp;";
+    } else {
+      tutor.classList.add("waiting");
+      $("score").innerHTML = "–";
+      check.classList.remove("on", "retry");
+      var n = ink.count(), k = g.stroke || 0;
+      var t = /check/.test(phase) ? "Checking the whole character…" :
+              k && n > 1 ? "Writing stroke " + k + " of " + n + "…" : "Watching the pen…";
+      swapText(fb, t);
+      $("reaction").innerHTML = "&nbsp;";
+    }
+  }
+  function swapText(el, t) {
+    if (el.textContent === t) return;
+    el.classList.add("out");
+    setTimeout(function () { el.textContent = t; el.classList.remove("out"); }, 200);
+  }
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  var KIND = { observe: "◉", match: "≈", advance: "→", grade: "✓", react: "♪", plan: "◇", speak: "♫", listen: "◐", error: "!" };
+  function stepText(x) { return typeof x === "string" ? x : (x.text || x.msg || x.step || x.action || JSON.stringify(x)); }
+  function stepKind(x, t) {
+    if (x && x.kind) return x.kind;
+    if (/observ|ink/.test(t)) return "observe";
+    if (/match/.test(t)) return "match";
+    if (/advanc|next/.test(t)) return "advance";
+    if (/grad|score/.test(t)) return "grade";
+    if (/react|cheer|celebr/.test(t)) return "react";
+    return "plan";
+  }
+  function hi(t) { return esc(t).replace(/(\d+(?:\.\d+)?)/g, "<em>$1</em>"); }
+  function clock(ts) {
+    if (!ts) return "";
+    var d = new Date(ts > 1e12 ? ts : ts * 1000);
+    return d.toLocaleTimeString([], { hour12: false, minute: "2-digit", second: "2-digit" });
+  }
+  function renderStream(listEl, items, seen, max, row) {
+    var added = false;
+    items.forEach(function (x, i) {
+      var t = stepText(x), id = (x && x.id) || ((x && x.ts) || i) + "|" + t;
+      if (seen[id]) return;
+      seen[id] = 1;
+      listEl.appendChild(row(x, t));
+      added = true;
+    });
+    while (listEl.children.length > max) listEl.removeChild(listEl.firstChild);
+    return added;
+  }
+  function renderSteps(steps) {
+    var added = renderStream($("brain"), steps, seenSteps, 12, function (x, t) {
+      var li = document.createElement("li"), k = stepKind(x, t);
+      li.className = "k-" + k;
+      li.innerHTML = '<span class="k">' + (KIND[k] || "·") + '</span><span class="t">' + hi(t) + '</span><span class="ts">' + clock(x && x.ts) + "</span>";
+      return li;
+    });
+    if (added) setText($("brainCap"), "local · on this laptop");
+    if (!steps.length && !$("brain").children.length) $("brain").innerHTML = '<li class="empty-note"><span></span><span class="t">The tutor’s steps stream here.</span><span></span></li>';
+    else { var e = $("brain").querySelector(".empty-note"); if (e && steps.length) e.remove(); }
+  }
+  function renderEvents(ev) {
+    renderStream($("timeline"), ev, seenEvents, 8, function (x, t) {
+      var li = document.createElement("li");
+      li.innerHTML = '<span class="ts">' + clock(x && x.ts) + '</span><span class="t">' + esc(t) + "</span>";
+      return li;
+    });
+  }
+  function renderProgress(p, s) {
+    var t = "";
+    if (p && typeof p === "object") {
+      var bits = [];
+      if (p.today !== undefined) bits.push(p.today + " today");
+      if (p.streak) bits.push(p.streak + "-day streak");
+      t = bits.join(" · ");
+    }
+    setText($("progressCap"), t);
+  }
+
+  function maybeCelebrate(st) {
+    var r = st.last_result, g = st.glasses || {};
+    var key = null;
+    if (r && r.correct && r.ts) key = "r" + r.ts;
+    (st.events || []).forEach(function (e) { if (e && /celebr|confetti/.test(e.type || "") && e.ts) key = "e" + e.ts; });
+    if (!key && g.phase === "celebrate" && r && r.ts) key = "r" + r.ts;
+    if (!key || celebrated[key]) return;
+    celebrated[key] = 1;
+    if (firstPoll) return; // don't celebrate something that happened before the page opened
+    var rect = $("lens").getBoundingClientRect();
+    WornConfetti.burst({ x: (rect.left + rect.width / 2) / innerWidth, y: (rect.top + rect.height * 0.45) / innerHeight, count: 140 });
+    var t = $("tutor").getBoundingClientRect();
+    setTimeout(function () { WornConfetti.burst({ x: (t.left + t.width / 2) / innerWidth, y: (t.top + t.height * 0.3) / innerHeight, count: 110, power: .9 }); }, 180);
+  }
+
+  // phrase chars for the header strip
+  get("/content").then(function (c) {
+    var m = {};
+    ((c && c.langs) || []).forEach(function (l) { l.phrases.forEach(function (p) { if (p.chars) m[l.lang + "/" + p.id] = p.chars; }); });
+    window.__wornChars = m;
+    lessonKey = "";
+  }).catch(function () {}).then(poll);
+})();
+</script>
+</body>
+</html>
