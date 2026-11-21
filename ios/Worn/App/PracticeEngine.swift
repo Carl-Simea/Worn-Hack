@@ -180,6 +180,22 @@ final class PracticeEngine {
         beginWriting()
     }
 
+    /// The dashed writing box as the preview shows it. The preview is 4:3 and fills its card, so on a portrait
+    /// frame it shows only the middle slice of the height; the box is 60 % of that view.
+    private func writingBox(for img: CGImage) -> CGRect {
+        guard source == .phone else { return CGRect(x: 0.2, y: 0.2, width: 0.6, height: 0.6) }
+        let visibleH = min(1, (CGFloat(img.width) * 0.75) / CGFloat(img.height))
+        let bh = 0.6 * visibleH
+        return CGRect(x: 0.2, y: 0.5 - bh / 2, width: 0.6, height: bh)
+    }
+
+    private static func cropped(_ img: CGImage, box: CGRect, grow: CGFloat) -> Data? {
+        let w = CGFloat(img.width), h = CGFloat(img.height)
+        let b = box.insetBy(dx: -box.width * grow, dy: -box.height * grow).intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
+        guard let c = img.cropping(to: CGRect(x: b.minX * w, y: b.minY * h, width: b.width * w, height: b.height * h).integral) else { return nil }
+        return PhoneCamera.jpeg(c, quality: 0.9)
+    }
+
     private func resetPacer(speed: Double) {
         let count = mode == .dictation ? 1 : max(1, strokes?.count ?? 1)
         pacer = Pacer(strokeCount: count, now: Date(), speed: speed)
@@ -253,7 +269,7 @@ final class PracticeEngine {
             lastPhoto = frame
             lastPhotoAt = t0
             let t1 = Date()
-            let r = ink.process(frame)
+            let r = ink.process(frame, box: writingBox(for: frame))
             let diffMs = Self.ms(since: t1)
             app.recordLatency(.inkDiff, ms: diffMs)
             lastInk = r
@@ -463,6 +479,10 @@ final class PracticeEngine {
             } else {
                 jpeg = try? await app.glasses.takePhoto().0
             }
+        }
+        if jpeg == nil, source == .phone, !app.camera.usesSimulatedPage, let f = app.camera.frame() ?? lastPhoto {
+            // Send only what the dashed box (plus a margin) shows, not the table, the margin line or the hand around it.
+            jpeg = Self.cropped(f, box: writingBox(for: f), grow: 0.15)
         }
         if jpeg == nil { jpeg = app.camera.jpeg() ?? lastPhoto.flatMap { PhoneCamera.jpeg($0) } }
         guard let jpeg, let api = app.api else {

@@ -50,7 +50,7 @@ private struct PracticeContent: View {
                         CharacterCard(engine: engine, item: item)
                         StatusPanel(engine: engine, item: item)
                         HStack(alignment: .top, spacing: 12) {
-                            GlassesMirror(engine: engine, item: item)
+                            if engine.source == .glasses { GlassesMirror(engine: engine, item: item) }
                             if engine.source == .phone { CameraCard(engine: engine) }
                         }
                     }
