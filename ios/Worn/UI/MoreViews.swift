@@ -27,11 +27,9 @@ struct ComposeView: View {
                     .onSubmit(compose)
                     .card()
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(suggestions, id: \.self) { s in
-                            Button(s) { text = s; compose() }.buttonStyle(QuietButtonStyle())
-                        }
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    ForEach(suggestions, id: \.self) { s in
+                        Button { text = s; compose() } label: { Text(s).frame(maxWidth: .infinity) }.buttonStyle(QuietButtonStyle())
                     }
                 }
 
@@ -126,27 +124,21 @@ struct LangPicker: View {
     @Binding var selection: String
 
     var body: some View {
-        ScrollViewReader { proxy in
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(app.lessons) { l in
-                    Button { withAnimation(.snappy) { selection = l.lang } } label: {
-                        VStack(spacing: 2) {
-                            Text(ScriptInfo.hero(l.lang)).font(Theme.script(l.lang, size: 16)).lineLimit(1)
-                            Text(l.name).font(Theme.sans(11, weight: .medium))
-                        }
-                        .padding(.horizontal, 12).padding(.vertical, 8)
-                        .foregroundStyle(selection == l.lang ? .white : Theme.ink)
-                        .background(selection == l.lang ? Theme.accent : Theme.card, in: RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.hairline, lineWidth: selection == l.lang ? 0 : 1))
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
+            ForEach(app.lessons) { l in
+                let on = selection == l.lang
+                Button { withAnimation(.snappy) { selection = l.lang } } label: {
+                    VStack(spacing: 4) {
+                        Text(ScriptInfo.hero(l.lang)).font(Theme.script(l.lang, size: 20)).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(l.name).font(Theme.sans(14, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
                     }
-                    .buttonStyle(PressableStyle())
-                    .id(l.lang)
+                    .frame(maxWidth: .infinity, minHeight: 64)
+                    .foregroundStyle(on ? .white : Theme.ink)
+                    .background(on ? Theme.accent : Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.hairline, lineWidth: on ? 0 : 1))
                 }
+                .buttonStyle(PressableStyle())
             }
-        }
-        .onAppear { proxy.scrollTo(selection, anchor: .center) }
-        .onChange(of: selection) { _, new in withAnimation(.snappy) { proxy.scrollTo(new, anchor: .center) } }
         }
     }
 }

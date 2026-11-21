@@ -46,12 +46,13 @@ struct HomeView: View {
         .background(Theme.paper.ignoresSafeArea())
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                HStack(spacing: 8) {
-                    ScribiMark().fill(Theme.ink).frame(width: 30, height: 11)
-                    Text("Scribi").font(Theme.display(22, weight: .medium)).foregroundStyle(Theme.ink)
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("Scribi")
+                ScribiMark().fill(Theme.ink)
+                    .frame(width: 24, height: 9)
+                    .offset(y: 1)  // the mark's weight sits in its top bar; nudge so it reads optically centred
+                    .frame(width: 40, height: 40)
+                    .background(Theme.card, in: Circle())
+                    .overlay(Circle().strokeBorder(Theme.hairline))
+                    .accessibilityLabel("Scribi")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(value: Route.connect) { StatusPill() }
