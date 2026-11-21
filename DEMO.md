@@ -13,7 +13,7 @@ Track 02 · Seamless Handoff. Demo Sat 2:15pm at our table. Submissions close 2:
 | 0:18 | Write 你 on paper with the marker, then tap the glasses (or press **Grade** in Demo Mode). | "I write it for real, with a pen." |
 | 0:24 | Check + ding + a goofy line ("Chef's kiss!"). The phone jumps to 好 on its own, and `/live` shows the three perception tiers with their latency. | "A local vision model and a tutor agent grade my handwriting in about a second. On a miss I'd get one specific fix, like 'add the dot on top'." |
 | 0:34 | Write 好. Ta-da plus sparkle: **"Your first word in Mandarin!"** | "Two characters and I've written my first word." |
-| 0:42 | Phone: **Write your name**, type *Maria*, get **Μαρία / मारिया / מריה**. Write one. | "And everyone's favourite: your own name in a new script." |
+| 0:42 | Phone: **Write your name**, type *Maria* (a checked name: instant, works offline), get **Μαρία / मारिया / מריה**. Write one. | "And everyone's favourite: your own name in a new script." |
 | 0:55 | Point at the laptop. | "No cloud: the photos of your handwriting never leave this laptop. Worn: wear it, write it." |
 
 If there's time, the strongest extra beat is **Arabic مرحبا**: isolated letters first, then the joined word, all right to left. It shows the "how this script works" line on screen.
@@ -39,6 +39,7 @@ If there's time, the strongest extra beat is **Arabic مرحبا**: isolated let
 | Vision model is slow or down | Restart the backend with `WORN_FAKE_GRADE=1` (a canned pass instead of an error). Say "the model is warming up" and keep going. |
 | iPhone app misbehaves | Open `http://<laptop-ip>:8000/static/web/phone.html` on any phone: a web phone picker with the same handoff. |
 | Venue wifi drops | Put the laptop, phone and iPad on the laptop's hotspot (or a phone hotspot), then use the new laptop IP. |
+| "Write your name" is slow or errors | Use a **checked name**: Maria, John, Emma, Anna, Sam, Mike, Lisa, Lina, Adam, David. They answer instantly from `content/names/examples.json`, even with the model off. |
 | Something looks wrong in a script | Switch to Mandarin 你好 (the most tested path). |
 | Everything is down | Show `content/review/strokes_*.png` (every character, stroke by stroke, all 6 scripts) and talk through the flow. |
 
