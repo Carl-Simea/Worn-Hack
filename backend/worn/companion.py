@@ -31,12 +31,13 @@ from .live import LIVE
 
 log = logging.getLogger("worn.companion")
 
-MODEL = config.TUTOR_MODEL  # qwen2.5:14b
+MODEL = __import__("os").environ.get("SCRIBI_CHAT_MODEL", config.TUTOR_FALLBACK)  # qwen2.5:7b for speed
 FIRST_TOKEN_S = float(__import__("os").environ.get("WORN_CHAT_FIRST_TOKEN", "2.5"))
-TOTAL_S = float(__import__("os").environ.get("WORN_CHAT_TOTAL", "7"))
+TOTAL_S = float(__import__("os").environ.get("WORN_CHAT_TOTAL", "3"))
+ENABLED = __import__("os").environ.get("SCRIBI_CHAT", "0") == "1"
 
 PERSONA = """You are Scribi, the voice companion inside Worn, smart glasses that teach English speakers to handwrite Mandarin, Hindi, Arabic, Russian, Hebrew and Greek on paper.
-Personality: warm, quick and funny, like a hype friend who is also a great teacher. You speak out loud, so replies are SHORT: 1-2 sentences, no lists, no emoji, no markdown.
+Personality: warm, quick and funny, like a hype friend who is also a great teacher. You speak out loud, so replies are SHORT: one sentence (two only if asked a question), no lists, no emoji, no markdown.
 Humor comes from CONTEXT: their streak, a wobbly stroke ("that stroke said 'I'm going home early'"), a great score, taking a while, switching languages, callbacks to earlier jokes. Teasing is playful and never mean. Never joke about the person's looks, culture or intelligence, and never about the languages or cultures being taught. No religion, politics or slang lessons.
 Facts: say facts about characters ONLY from FACTS below. If a fact isn't there, say you're not sure. Never invent translations: to teach a word or phrase, call a tool and the tool will say the details, so keep your own line short.
 You can act. Tools: go_home, go_back, exit_app, open_screen {"name": learn|journal|daily5|howto|name|compose}, start_lesson {"language", "word"?}, spell_word {"text", "language"}, compose {"text", "language"}, write_name {"name"?}, next, previous, repeat, slower, faster, show_again, check, skip, explain, help.
@@ -148,7 +149,7 @@ SENT_END = re.compile(r"(.+?[.!?…])(\s+|$)")
 async def _stream_model(prompt: str) -> AsyncIterator[str]:
     """Token chunks from Ollama (streaming). Raises on transport errors."""
     body = {"model": MODEL, "prompt": prompt, "system": PERSONA, "stream": True, "keep_alive": config.KEEP_ALIVE,
-            "options": {"num_ctx": llm.num_ctx(MODEL), "num_predict": 110, "temperature": 0.7, "top_p": 0.9,
+            "options": {"num_ctx": llm.num_ctx(MODEL), "num_predict": 60, "temperature": 0.7, "top_p": 0.9,
                         "stop": ["\nUser:", "User:"]}}
     async with llm.client().stream("POST", "/api/generate", json=body, timeout=TOTAL_S) as r:
         r.raise_for_status()
@@ -231,3 +232,20 @@ def clean_reply(text: str) -> str:
 def facts_line(intent: str) -> bool:
     """Intents whose executor line carries facts (romanization, results) worth speaking after the chat line."""
     return intent in ("select", "compose", "write_name", "meaning", "learn", "ask")
+
+
+async def chat(heard: str, screen: str) -> tuple[list[dict], str]:
+    """One exchange (non-streaming to the caller): → (tool steps, spoken reply). Raises on timeout/error."""
+    learn_name(heard)
+    prompt = build_prompt(heard, screen)
+    turn = Turn()
+
+    async def run():
+        async for chunk in _stream_model(prompt):
+            turn.feed(chunk)
+    await asyncio.wait_for(run(), TOTAL_S)
+    tools_line, _ = turn.finish()
+    reply = clean_reply(turn.say)
+    if len(reply) > 220:
+        reply = reply[:220].rsplit(".", 1)[0] + "."
+    return parse_tools(turn.tools_line or tools_line), reply

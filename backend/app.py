@@ -760,10 +760,16 @@ async def _do_voice(heard: str, screen: str | None) -> dict:
         V.STATE["pending"] = p.get("pending")  # one open question at a time; any answer clears it
     last = results[-1] if results else {"intent": "unknown", "args": {}, "say": "", "nav": None, "session": None}
     said = next((r["say"] for r in reversed(results) if r["say"]), "")
+    if p.get("via") == "chat":  # Scribi's own line first, then the facts only a tool can give
+        from worn import companion
+        facts = next((r["say"] for r in reversed(results) if r["say"] and companion.facts_line(r["intent"])), "")
+        said = " ".join(x for x in (p.get("chat_say") or "", facts) if x).strip()
+        companion.remember(heard, said, [st["tool"] for st in (p.get("tools") or [])])
     say = " ".join(x for x in (said, p.get("say") or "") if x).strip()
     nav = next((r["nav"] for r in reversed(results) if r["nav"]), None)
     sess = next((r["session"] for r in reversed(results) if r["session"]), None)
-    intent = "ask" if (p.get("pending") and not results) else last["intent"]
+    intent = "ask" if (p.get("pending") and not results) else ("chat" if p.get("via") == "chat" and not results
+                                                                  else last["intent"])
     args = last.get("args") or {}
     VA.remember(heard, p["intents"], say)
     return {"intent": intent, "args": args, "say": say, "nav": nav, "session": sess, "matcher": p["via"],

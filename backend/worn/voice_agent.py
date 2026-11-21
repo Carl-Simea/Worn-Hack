@@ -336,6 +336,11 @@ async def plan(heard: str, screen: str, state: dict, ctx: dict) -> dict:
     if not t:
         return {"intents": [{"intent": "unknown", "args": {"reason": "silence"}}], "via": "fast", "ms": ms()}
 
+    try:
+        from . import companion
+        companion.learn_name(heard)  # "my name is Jordan" is remembered on every path
+    except Exception:
+        pass
     pending = state.get("pending")
     if pending:
         res = _resolve_pending(heard, pending, {**ctx, "screen": screen})
@@ -355,6 +360,22 @@ async def plan(heard: str, screen: str, state: dict, ctx: dict) -> dict:
         tools="; ".join(f"{k}({v})" if v else k for k, v in TOOLS.items()), screen=screen,
         lang=config.LANGS.get(ctx.get("lang") or "", {}).get("name", "none"), word=word,
         turns="\n".join(f'- "{h}" -> {tl} ("{sy}")' for h, tl, sy in HISTORY) or "- (none)", heard=heard)
+    from . import companion
+    if companion.ENABLED:  # SCRIBI_CHAT=1: one agent that chats and acts; any failure → the planner below
+        r = V.parse_any(heard, screen, ctx)
+        if (len(t.split()) <= 4 and r["intent"] not in ("unknown",) and gate([r], heard)
+                and (r["intent"] != "open" or re.search(r"\b(open|go to|show|take me)\b", t))):
+            return {"intents": [{"intent": r["intent"], "args": r["args"]}], "via": "fast", "ms": ms()}
+        try:
+            steps, reply = await companion.chat(heard, screen)
+            intents, ask = to_intents(steps, ctx, heard)
+            kept = gate(intents, heard)
+            if intents and not kept:
+                kept, reply = [], ""  # room speech: stay quiet
+            return {"intents": kept, **(ask or {}), "pending": (ask or {}).get("pending"), "via": "chat",
+                    "tools": steps, "chat_say": reply, "ms": ms()}
+        except Exception as e:
+            log.info("chat fallback (%s): %r", type(e).__name__, heard)
     try:
         data = await asyncio.wait_for(_ask_model(prompt), BUDGET_S + 0.2)
     except (asyncio.TimeoutError, llm.LLMError, Exception) as e:  # never break voice on the model
