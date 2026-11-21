@@ -29,8 +29,8 @@
   #heard { position:absolute; right:22px; bottom:12px; font-size:16px; color:var(--blue); max-width:300px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:0; transition:opacity .3s; }
   #heard.on { opacity:1; }
-  #toast { position:absolute; left:22px; right:22px; top:200px; text-align:center; font-size:26px; color:var(--fg);
-    background:rgba(0,0,0,.92); border:2px solid var(--blue); border-radius:16px; padding:18px; display:none; z-index:50; }
+  #toast { position:absolute; left:60px; right:60px; bottom:100px; text-align:center; font-size:21px; color:var(--fg);
+    background:rgba(0,0,0,.94); border:2px solid var(--blue); border-radius:14px; padding:9px 14px; display:none; z-index:50; }
 
   /* menus */
   .title { font-family:"Newsreader", Georgia, serif; font-size:40px; line-height:1.1; margin:4px 0 10px; }
@@ -78,8 +78,9 @@
   .muted { color:var(--dim); font-size:21px; line-height:1.35; }
   .say { color:var(--say); }
   .jgrid { display:flex; flex-wrap:wrap; gap:10px; }
-  .jgrid figure { width:140px; text-align:center; font-size:15px; color:var(--dim); }
-  .jgrid img { width:140px; height:105px; object-fit:cover; border-radius:8px; border:2px solid #222; }
+  .jgrid figure { width:139px; text-align:center; font-size:14px; color:var(--dim); line-height:22px; }
+  .jgrid img { width:139px; height:92px; object-fit:cover; border-radius:8px; border:2px solid #222; display:block; }
+  .jgrid b { font-size:18px !important; }
   .jgrid figure.ok img { border-color:var(--say); } .jgrid figure.no img { border-color:var(--acc); }
   .jgrid b { color:var(--fg); font-size:22px; margin-right:6px; }
   .cmds div { font-size:21px; height:33px; } .cmds b { color:var(--say); font-weight:600; }
@@ -127,12 +128,25 @@
   function later(name, ms, fn) { clear(name); timers[name] = setTimeout(function () { timers[name] = null; fn(); }, ms); }
   function clearAll() { Object.keys(timers).forEach(clear); }
 
-  function getJSON(p) { return fetch(p, { cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); }
-  function postJSON(p, body) {
-    return fetch(p, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok) { var e = new Error(j.message || j.detail || r.status); e.status = r.status; throw e; } return j; }); });
+  // Network drops (backend restarting, Wi-Fi ↔ USB switch) are retried for ~10 s; HTTP errors are not.
+  function retrying(make, left) {
+    return make().catch(function (e) {
+      if (e.status || left <= 0) throw e;
+      return new Promise(function (res) { setTimeout(res, 2000); }).then(function () { return retrying(make, left - 1); });
+    });
   }
-  function event(type, data) { postJSON("/event", { type: type, data: data || {} }).catch(function () {}); }
+  function getJSON(p) {
+    return retrying(function () {
+      return fetch(p, { cache: "no-store" }).then(function (r) { if (!r.ok) { var e = new Error(r.status); e.status = r.status; throw e; } return r.json(); });
+    }, 5);
+  }
+  function postJSON(p, body, noRetry) {
+    return retrying(function () {
+      return fetch(p, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+        .then(function (r) { return r.json().then(function (j) { if (!r.ok) { var e = new Error(j.message || j.detail || r.status); e.status = r.status; throw e; } return j; }); });
+    }, noRetry ? 0 : 5);
+  }
+  function event(type, data) { postJSON("/event", { type: type, data: data || {} }, true).catch(function () {}); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function langName(l) { return LANG_NAMES[l] || l; }
 
@@ -155,7 +169,7 @@
         mic: micState, phase: st.screen === "lesson" ? st.phase : null, lang: st.lang, item_id: st.screen === "lesson" ? s.item_id : null,
         char: st.screen === "lesson" ? s.char : null, char_index: st.screen === "lesson" ? st.charIdx : null,
         stroke: st.stroke, stroke_count: st.strokeCount, last_heard: lastHeard, via: N.via(), source: "glasses"
-      }).catch(function () {});
+      }, true).catch(function () {});
     }, 60);
   }
   function idTrail() {
@@ -716,7 +730,9 @@
     var intent = r.intent, args = r.args || {};
     // trust the backend's intent, but fill gaps with ours (and our list context)
     var mine = match(heard);
-    if (!intent || intent === "unknown") { intent = mine.intent; args = mine.args || {}; }
+    // The backend's matcher knows chatter from commands; ours only fills in when it gave no intent at all
+    // (backend down / old build), or for typed test phrases.
+    if (!intent || (intent === "unknown" && r.typed && !(r.args && r.args.reason))) { intent = mine.intent; args = mine.args || {}; }
     else if (intent === "select" && !args.item_id && !args.lang && mine.args) args = mine.args;
     event("voice", { heard: heard, intent: intent, args: args, screen: st.screen, source: "glasses" });
     console.log("voice heard=" + JSON.stringify(heard) + " -> " + intent + " " + JSON.stringify(args) + " on " + st.screen + " sel=" + st.sel);
@@ -729,7 +745,8 @@
     var nav = r.nav;
     // when the backend already started a lesson session for us, use it directly
     if (nav && nav.screen === "lesson" && r.session) {
-      st.from = st.screen === "daily5" ? "daily5" : "learn"; st.lang = r.session.lang;
+      if (st.screen !== "lesson") st.from = { daily5: "daily5", compose: "compose", name: "name" }[st.screen] || "learn";
+      st.lang = r.session.lang;
       go("lesson", { session: r.session, from: st.from }); if (r.say && !/^(okay|ok)\.?$/i.test(r.say)) say(r.say); return;
     }
     act(intent, args, nav);
@@ -746,7 +763,7 @@
     },
     voiceError: function (code) {
       setMic("listening");
-      if (code === 404 || code === 0) { var first = !voiceDown; voiceDown = true; setMic("listening"); if (first) toast("Voice server isn't up yet. The button works.", 3000); }
+      if (code === 404 || code === 0) { var first = !voiceDown; voiceDown = true; setMic("listening"); if (first) toast("Voice is reconnecting…", 2000); }
       else toast("I didn't catch that.", 1600);
     },
     heard: function (text) {
