@@ -21,10 +21,16 @@ _client: httpx.AsyncClient | None = None
 status: dict[str, Any] = {"warm": {}, "last": {}}  # surfaced by /health
 
 
+_client_loop = None
+
+
 def client() -> httpx.AsyncClient:
-    global _client
-    if _client is None or _client.is_closed:
+    """One pooled client per event loop (an AsyncClient must not cross loops)."""
+    global _client, _client_loop
+    loop = asyncio.get_running_loop()
+    if _client is None or _client.is_closed or _client_loop is not loop:
         _client = httpx.AsyncClient(base_url=config.OLLAMA_URL, timeout=60)
+        _client_loop = loop
     return _client
 
 
@@ -153,8 +159,8 @@ async def vision_json(prompt: str, jpeg_b64: str, *, validate: Callable[[dict], 
 
 # ------------------------------------------------------------------ warmth
 
-async def warm_once() -> None:
-    for model in (config.VISION_MODEL, config.TUTOR_MODEL, config.TUTOR_FALLBACK):
+async def warm_once(models: list[str] | None = None) -> None:
+    for model in models or (config.VISION_MODEL, config.TUTOR_MODEL, config.TUTOR_FALLBACK):
         t0 = time.perf_counter()
         try:
             r = await client().post("/api/generate", json={"model": model, "prompt": "", "keep_alive": config.KEEP_ALIVE,
@@ -166,10 +172,17 @@ async def warm_once() -> None:
             log.warning("could not warm %s: %s", model, e)
 
 
-async def keep_warm(interval: float = 600) -> None:
+async def keep_warm(interval: float = 60) -> None:
+    """Warm all models at startup, then every minute re-warm any model Ollama no longer has loaded
+    (e.g. after an Ollama restart), so a grade never pays a cold start."""
+    await warm_once()
     while True:
-        await warm_once()
         await asyncio.sleep(interval)
+        loaded = await loaded_models()
+        missing = [m for m in (config.VISION_MODEL, config.TUTOR_MODEL, config.TUTOR_FALLBACK) if m not in loaded]
+        if missing:
+            log.info("re-warming %s", missing)
+            await warm_once(missing)
 
 
 async def loaded_models() -> list[str]:
