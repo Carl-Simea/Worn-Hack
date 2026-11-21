@@ -24,9 +24,10 @@
   .cell { padding: 10px; }
   .cell .box { aspect-ratio: 1; position: relative; border-radius: 12px; }
   .cell .ink { position: absolute; inset: 10%; }
-  .meta { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 13px; gap: 6px; }
+  .meta { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 13px; gap: 6px; min-width: 0; }
+  .cell { min-width: 0; }
   .meta .script { font-size: 20px; }
-  .tag { font: 600 11px/1 var(--ui); letter-spacing: .06em; text-transform: uppercase; padding: 5px 7px; border-radius: 6px; background: var(--paper-2); color: var(--ink-2); white-space: nowrap; }
+  .tag { font: 600 11px/1 var(--ui); letter-spacing: .06em; text-transform: uppercase; padding: 5px 7px; border-radius: 6px; background: var(--paper-2); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .tag.ok { background: var(--ok-soft); color: var(--ok); }
   .tag.warn { background: var(--warn-soft); color: var(--warn); }
   .lbl { font-size: 12px; color: var(--ink-3); min-height: 1.2em; margin-top: 2px; }
