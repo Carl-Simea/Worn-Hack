@@ -64,6 +64,38 @@ final class CameraStream {
 
     void setRotation(int r) { rot = r; }
 
+    /** Backend base (http://host:port) for the clock offset when the server doesn't answer WS pings (A's /ws/camera). */
+    private volatile String httpBase;
+    void setHttpBase(String b) { httpBase = b; }
+
+    /** A's /ws/camera wants: text {ts (server epoch ms), seq, w, h} then the JPEG as its own binary message. */
+    private boolean plainMode() { String u = url; return u != null && u.contains("/ws/camera"); }
+
+    private long lastHttpSync;
+    /** Cristian's algorithm against GET /live/state?since=… (returns the server's ts cheaply). */
+    private void httpClockSync() {
+        String b = httpBase;
+        long now = System.currentTimeMillis();
+        if (b == null || now - lastHttpSync < 10000) return;
+        lastHttpSync = now;
+        try {
+            java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(b + "/live/state?since=999999999").openConnection();
+            c.setConnectTimeout(1500); c.setReadTimeout(1500);
+            long t0 = System.currentTimeMillis();
+            java.io.InputStream in = c.getInputStream();
+            byte[] buf = new byte[4096]; int n, tot = 0; ByteArrayOutputStream o = new ByteArrayOutputStream();
+            while ((n = in.read(buf)) > 0 && tot < 65536) { o.write(buf, 0, n); tot += n; }
+            long t1 = System.currentTimeMillis();
+            c.disconnect();
+            double ts = new JSONObject(o.toString("UTF-8")).getDouble("ts");
+            long est = (long) (ts * 1000) - (t0 + t1) / 2;
+            offsetMs = haveOffset ? (offsetMs * 3 + est) / 4 : est;
+            haveOffset = true;
+        } catch (Exception e) {
+            Log.d(TAG, "clock sync: " + e.getMessage());
+        }
+    }
+
     synchronized void start(String wsUrl) {
         if (running && wsUrl.equals(url)) return;
         stop();
@@ -136,7 +168,8 @@ final class CameraStream {
                 sock.connect(new InetSocketAddress(u.getHost(), port), 3000);
                 OutputStream os = sock.getOutputStream();
                 InputStream is = sock.getInputStream();
-                handshake(os, is, u.getHost() + ":" + port, (u.getRawPath() == null || u.getRawPath().isEmpty() ? "/" : u.getRawPath()));
+                handshake(os, is, u.getHost() + ":" + port, (u.getRawPath() == null || u.getRawPath().isEmpty() ? "/" : u.getRawPath())
+                        + (u.getRawQuery() != null ? "?" + u.getRawQuery() : ""));
                 Log.i(TAG, "connected " + url);
                 final Socket s = sock;
                 Thread reader = new Thread(() -> readLoop(s, is), "worn-stream-rd");
@@ -144,7 +177,8 @@ final class CameraStream {
                 long lastPing = 0;
                 while (running && !sock.isClosed()) {
                     long now = System.currentTimeMillis();
-                    if (now - lastPing > 2000) { lastPing = now; sendFrame(os, 0x1, ("{\"type\":\"ping\",\"t0\":" + now + "}").getBytes(StandardCharsets.UTF_8)); }
+                    if (plainMode()) httpClockSync();
+                    else if (now - lastPing > 2000) { lastPing = now; sendFrame(os, 0x1, ("{\"type\":\"ping\",\"t0\":" + now + "}").getBytes(StandardCharsets.UTF_8)); }
                     Frame f = mailbox.getAndSet(null);
                     if (f == null) { synchronized (mailbox) { mailbox.wait(200); } continue; }
                     JSONObject h = new JSONObject();
@@ -156,7 +190,12 @@ final class CameraStream {
                     System.arraycopy(hb, 0, msg, 2, hb.length);
                     System.arraycopy(f.jpeg, 0, msg, 2 + hb.length, f.jpeg.length);
                     long t0 = SystemClock.elapsedRealtime();
-                    sendFrame(os, 0x2, msg);                          // blocks while the socket is behind
+                    if (plainMode()) {
+                        JSONObject m = new JSONObject();
+                        m.put("ts", f.cap + (haveOffset ? offsetMs : 0)).put("seq", f.seq).put("w", f.w).put("h", f.h).put("rot", rot);
+                        sendFrame(os, 0x1, m.toString().getBytes(StandardCharsets.UTF_8));
+                        sendFrame(os, 0x2, f.jpeg);                   // blocks while the socket is behind
+                    } else sendFrame(os, 0x2, msg);
                     long ms = SystemClock.elapsedRealtime() - t0;
                     sentAt[f.seq & 255] = System.currentTimeMillis();
                     capAt[f.seq & 255] = f.cap;

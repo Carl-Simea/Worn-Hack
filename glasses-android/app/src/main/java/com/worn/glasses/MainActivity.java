@@ -515,15 +515,18 @@ public class MainActivity extends Activity {
     }
 
     /** Our page, with the backend as its origin (same-origin fetches, B's /static/web scripts). */
-    /** Live camera: --es camws ws://host:port/path, or "off"; default = the relay (port 8790) next to the backend. */
+    /** Live camera: --es camws ws://host:port/path, or "off"; default = the backend's /ws/camera (A).
+     *  The reference relay is --es camws ws://127.0.0.1:8790/glasses/camera/ws (tools/camera_relay.py). */
     private void startStream() {
         String u = camWs;
         if ("off".equals(u)) { camStream.stop(); return; }
+        if (api == null) return;
         if (u == null || u.isEmpty()) {
-            if (api == null) return;
+            // A's backend relay: WS /ws/camera?role=pub (feeds /live and the automatic grading)
             Uri b = Uri.parse(api);
-            u = "ws://" + b.getHost() + ":8790/glasses/camera/ws";
+            u = "ws://" + b.getHost() + ":" + (b.getPort() > 0 ? b.getPort() : 80) + "/ws/camera?role=pub";
         }
+        camStream.setHttpBase(api);
         camStream.start(u);
     }
 

@@ -571,6 +571,48 @@
     N.strokeShot(idx, s.char || "", s.lang || "");
   }
 
+  // ---- automatic grading (A: /app-state.grading from the live camera stream)
+  //  stroke_scored → ring + pops · capture_request (new id) → full-res still + /grade · analyzing → checklist · result → dial
+  function startAutoGrade(keep) {
+    clear("autograde");
+    if (!keep) { st.gBase = null; st.gActive = false; st.gScored = 0; }
+    (function poll() {
+      if (st.screen !== "lesson" || (st.phase !== "your_turn" && st.phase !== "check")) return;
+      getJSON("/app-state").then(function (a) { onGrading(a && a.grading); })
+        .catch(function () {}).then(function () { timers.autograde = setTimeout(poll, 350); });
+    })();
+  }
+  function onGrading(g) {
+    if (!g) { st.autoGrade = false; return; }
+    st.autoGrade = true;
+    var cap = g.capture_request && g.capture_request.id;
+    if (st.gBase === null) { st.gBase = { cap: cap, phase: g.phase }; return; }   // ignore what was there before
+    if (g.phase !== "result") st.gActive = true;
+    // strokes scored from the stream
+    var sc = g.stroke_scores || [];
+    if (st.phase === "your_turn" && sc.length > st.gScored) {
+      for (var i = st.gScored; i < sc.length; i++) {
+        var v = sc[i] == null ? null : Math.max(0, Math.min(100, Math.round(sc[i] > 1 ? sc[i] : sc[i] * 100)));
+        st.strokeScores[i] = v; popScore(v);
+      }
+      st.gScored = sc.length;
+      updateRing();
+      if (st.stroke < sc.length && sc.length <= st.strokeCount) { st.stroke = sc.length; showStroke("ink"); }
+    }
+    // the backend wants a sharp photo: take it (check() captures the full-res still and POSTs /grade)
+    if (cap && cap !== st.gBase.cap) {
+      st.gBase.cap = cap;
+      if (st.phase === "your_turn") { event("autograde.capture", { id: cap, reason: g.capture_request.reason, source: "glasses" }); check(); }
+    }
+    if (g.phase === "analyzing" && st.phase === "your_turn" && st.gActive) check();
+    if (g.phase === "analyzing" && st.phase === "check") {
+      var stp = g.step || 1;
+      tick(1, stp > 1 ? "ok" : "on"); tick(2, stp > 2 ? "ok" : stp === 2 ? "on" : ""); tick(3, stp >= 3 ? "on" : "");
+      if (g.step_label && $("ck" + Math.min(3, stp))) $("ck" + Math.min(3, stp)).lastChild.textContent = g.step_label;
+    }
+    if (g.phase === "result" && st.gActive && st.phase === "check") graded({ score: g.score, correct: g.correct, feedback: g.feedback });
+  }
+
   function watch(again) {
     st.phase = "watch"; clearLessonTimers(); hideRes();
     var s = st.session;
@@ -595,6 +637,7 @@
     st.stroke = 0;
     resetRing();
     N.watchInk(true);
+    startAutoGrade();
     say("Your turn. Stroke one.");
     // the strokes may still be loading (a multi-step reply can jump straight here)
     inkLoad().then(function () {
@@ -616,7 +659,7 @@
   }
   function nextStroke(trigger) {
     if (st.phase !== "your_turn") return;
-    if (trigger === "ink" || trigger === "voice") scoreStroke(st.stroke);
+    if ((trigger === "ink" || trigger === "voice") && !st.autoGrade) scoreStroke(st.stroke);
     else { if (!st.strokeScores) st.strokeScores = []; st.strokeScores[st.stroke] = null; updateRing(); }   // timer: not scored
     st.stroke++; showStroke(trigger);
   }
@@ -635,6 +678,7 @@
     if (st.screen !== "lesson" || st.phase === "check") return;
     clearLessonTimers();
     st.phase = "check";
+    if (st.autoGrade) startAutoGrade(true);   // keep following the backend's analyzing steps / result
     hideRes();
     if (ink) { ink.stop(); ink.full(); }
     $("scan").style.display = "block";
@@ -781,7 +825,7 @@
     })();
   }
   function clearLessonTimers() {
-    N.watchInk(false); ["watch", "watchBar", "stroke", "autocheck", "afterResult", "gradeTimeout", "steps", "ck2", "ck3", "toResult"].forEach(clear); }
+    N.watchInk(false); ["watch", "watchBar", "stroke", "autocheck", "afterResult", "gradeTimeout", "steps", "ck2", "ck3", "toResult", "autograde"].forEach(clear); }
   function leaveLesson() { if (st.screen === "lesson") { clearLessonTimers(); if (ink) ink.stop(); st.phase = null; } }
   function meaning() {
     var s = st.session;
