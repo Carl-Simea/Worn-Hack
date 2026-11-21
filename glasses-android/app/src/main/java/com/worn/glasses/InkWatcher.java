@@ -11,7 +11,7 @@ final class InkWatcher {
     interface Listener { void onNewStroke(float frac, int ms); }
 
     private static final int S = GlassesCamera.THUMB;
-    private static final float STROKE_MIN = 0.0035f;  // ≥ ~14 of 4096 pixels
+    private static final float STROKE_MIN = 0.006f;   // ≥ ~25 of 4096 pixels
     private static final float SCENE_CHANGE = 0.18f;  // more than this = the view moved, not a stroke
     private static final long COOLDOWN_MS = 900;
 
@@ -57,7 +57,7 @@ final class InkWatcher {
         for (int v = 0; v < 256; v++) { acc += hist[v]; if (acc >= target) { paper = v; break; } }
         int cut = (int) (paper * 0.62f);
         boolean[] m = new boolean[g.length];
-        if (paper < 60) return m;   // too dark to see a page
+        if (paper < 110) return m;  // too dark to be a lit page: no ink detection
         for (int i = 0; i < g.length; i++) m[i] = (g[i] & 0xff) < cut;
         return m;
     }

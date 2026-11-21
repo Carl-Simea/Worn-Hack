@@ -27,7 +27,7 @@ final class VoiceListener {
     static final int RATE = 16000;
     private static final int FRAME = 320;              // 20 ms
     private static final int START_FRAMES = 3;         // 60 ms of voice to start
-    private static final int END_FRAMES = 38;          // 760 ms of quiet to end
+    private static final int END_FRAMES = 30;          // 600 ms of quiet to end
     private static final int PREROLL_FRAMES = 20;      // 400 ms kept from before the start
     private static final int MIN_FRAMES = 18;          // 360 ms minimum
     private static final int MAX_FRAMES = 350;         // 7 s maximum
@@ -60,11 +60,17 @@ final class VoiceListener {
     boolean isRunning() { return running; }
 
     /** Mute while our own audio plays. */
-    void pause() { paused = true; }
+    void pause() { paused = true; pausedAt = System.currentTimeMillis(); }
+    private volatile long pausedAt;
     /** Unmute, after a short tail so the end of our audio isn't heard. */
     void resume(long tailMs) { mutedUntil = System.currentTimeMillis() + tailMs; paused = false; }
 
-    private boolean muted() { return paused || System.currentTimeMillis() < mutedUntil; }
+    private boolean muted() {
+        long now = System.currentTimeMillis();
+        // Watchdog: a clip that never reports "done" must not leave Worn deaf.
+        if (paused && now - pausedAt > 15000) { Log.w(TAG, "mute watchdog: unmuting"); paused = false; }
+        return paused || now < mutedUntil;
+    }
 
     private void setState(String s) {
         if (s.equals(state)) return;
@@ -98,6 +104,11 @@ final class VoiceListener {
         int voiced = 0, quiet = 0, frames = 0;
         boolean inSpeech = false;
         double loudSum = 0; int loudN = 0; float peak = 0;
+        float[] recent = new float[100];   // last 2 s of levels outside speech
+        int recentPos = 0, recentN = 0;
+        float[] sorted = new float[100];
+        float env = 0, peakEnv = 0;
+        float[] levels = new float[MAX_FRAMES + PREROLL_FRAMES + 2]; int levelN = 0;
         ByteArrayOutputStream pcm = new ByteArrayOutputStream(RATE * 2 * 4);
         long lastLevel = 0;
         setState("listening");
@@ -119,16 +130,22 @@ final class VoiceListener {
                 if (now - lastLevel > 1000) { lastLevel = now; cb.onLevel(rms, floor); }
 
                 float startT = Math.max(floor * 2.6f, 450f);
-                float keepT = Math.max(floor * 1.8f, 300f);
+                // The end of speech is judged against the speaker's own level too, so a noisy room
+                // (other people talking) can't hold an utterance open.
+                float speechMean = loudN == 0 ? 0 : (float) (loudSum / loudN);
+                float keepT = Math.max(Math.max(floor * 1.8f, 300f), speechMean * 0.33f);
                 if (!inSpeech) {
-                    // Track the room's noise floor while nobody is talking.
-                    floor = rms < floor ? floor * 0.9f + rms * 0.1f : floor * 0.995f + rms * 0.005f;
+                    // Noise floor = 25th percentile of the last 2 s: follows the room up and down.
+                    recent[recentPos] = rms; recentPos = (recentPos + 1) % recent.length; if (recentN < recent.length) recentN++;
+                    System.arraycopy(recent, 0, sorted, 0, recentN);
+                    java.util.Arrays.sort(sorted, 0, recentN);
+                    floor = Math.max(60f, sorted[recentN / 4]);
                     ring[ringPos] = frame.clone();
                     ringPos = (ringPos + 1) % PREROLL_FRAMES;
                     voiced = rms > startT ? voiced + 1 : 0;
                     if (voiced >= START_FRAMES) {
                         inSpeech = true;
-                        loudSum = 0; loudN = 0; peak = 0;
+                        loudSum = 0; loudN = 0; peak = 0; env = rms; peakEnv = rms; levelN = 0;
                         quiet = 0;
                         frames = 0;
                         pcm.reset();
@@ -141,19 +158,24 @@ final class VoiceListener {
                 } else {
                     write(pcm, frame, n);
                     frames++;
-                    quiet = rms > keepT ? 0 : quiet + 1;
-                    if (rms > keepT) { loudSum += rms; loudN++; }
+                    env = env * 0.75f + rms * 0.25f;          // ~80 ms smoothing
+                    if (env > peakEnv) peakEnv = env;
+                    if (levelN < levels.length) levels[levelN++] = rms;
+                    // Quiet = well below this speaker's own peak (or near the floor).
+                    quiet = env > Math.max(keepT, peakEnv * 0.22f) ? 0 : quiet + 1;
+                    if (rms > Math.max(floor * 1.8f, 300f)) { loudSum += rms; loudN++; }
                     if (rms > peak) peak = rms;
                     if (quiet >= END_FRAMES || frames >= MAX_FRAMES) {
                         inSpeech = false;
                         voiced = 0;
                         int speechFrames = frames - quiet - PREROLL_FRAMES;
                         setState("listening");
-                        int loud = loudN == 0 ? 0 : (int) (loudSum / loudN);
+                        java.util.Arrays.sort(levels, 0, levelN);
+                        int loud = levelN == 0 ? 0 : (int) levels[(int) (levelN * 0.8f)];   // 80th percentile
                         Log.i(TAG, "utterance " + (frames * 20) + "ms loud=" + loud + " peak=" + (int) peak + " floor=" + (int) floor
                                 + (loud < minLoud ? " (too quiet, ignored)" : ""));
                         if (loud < minLoud) { /* someone else talking nearby */ }
-                        else if (speechFrames >= MIN_FRAMES - PREROLL_FRAMES / 2) {
+                        else if (speechFrames >= 6) {          // ≥ 120 ms of actual voice ("help", "next")
                             byte[] raw = pcm.toByteArray();
                             cb.onUtterance(wav(raw), raw.length * 1000 / (RATE * 2));
                         } else {

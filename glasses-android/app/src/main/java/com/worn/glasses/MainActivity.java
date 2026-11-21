@@ -303,6 +303,7 @@ public class MainActivity extends Activity {
             mp.setOnCompletionListener(m -> finishPlayer(m));
             mp.setOnErrorListener((m, what, extra) -> { Log.w(TAG, "audio error " + what + " " + url); finishPlayer(m); return true; });
             mp.prepareAsync();
+            ui.postDelayed(() -> { if (player == mp && !mp.isPlaying()) { Log.w(TAG, "audio stuck, skipping " + url); finishPlayer(mp); } }, 8000);
         } catch (Exception e) {
             Log.w(TAG, "audio failed " + url, e);
             finishPlayer(mp);
@@ -481,7 +482,11 @@ public class MainActivity extends Activity {
             ui.post(() -> { if (on) startMic(); else mic.stop(); });
         }
         /** Watch the paper for new strokes (lesson "your turn"). */
-        @JavascriptInterface public void watchInk(boolean on) { inkWatch.enabled = on; if (on) inkWatch.reset(); }
+        @JavascriptInterface public void watchInk(boolean on) {
+            if (inkWatch.enabled != on) Log.i(TAG, "ink watch " + (on ? "on" : "off"));
+            inkWatch.enabled = on;
+            if (on) inkWatch.reset();
+        }
         @JavascriptInterface public void capture() { ui.post(MainActivity.this::capture); }
         @JavascriptInterface public String backend() { return api; }
         @JavascriptInterface public String via() { return api != null && api.equals(primary) ? "wifi" : "usb"; }

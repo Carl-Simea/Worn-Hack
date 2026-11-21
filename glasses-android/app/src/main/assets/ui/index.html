@@ -599,6 +599,7 @@
         if (args.lang) { startLang(args.lang); return; }
         startHere(); return;
       case "start": startHere(); return;
+      case "pick": if (args.ordinal) { if (st.screen === "lesson") return; pickNumber(args.ordinal); } return;
       case "compose":
         if (!args.text) { go("compose"); return; }
         var cl = args.lang || st.lang || "mandarin";
