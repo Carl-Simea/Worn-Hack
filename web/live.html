@@ -19,7 +19,7 @@
   body { --u: clamp(14px, 1.15vw + .55vh, 32px); font-size: var(--u); overflow: hidden; }
   .app { --pad: calc(var(--u) * 1.6); --gap: calc(var(--u) * 1.1);
     --sq: min(calc((100vw - 2 * var(--pad) - 2 * var(--gap)) / 3), 54vh);
-    height: 100%; display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: calc(var(--u) * .9);
+    height: 100%; display: grid; grid-template-rows: auto auto auto minmax(0, 1fr); gap: calc(var(--u) * .9);
     padding: max(calc(var(--u) * 1.1), env(safe-area-inset-top)) max(calc(var(--u) * 1.6), env(safe-area-inset-right))
              max(calc(var(--u) * 1.1), env(safe-area-inset-bottom)) max(calc(var(--u) * 1.6), env(safe-area-inset-left)); }
 
@@ -54,6 +54,35 @@
   .lat .pill b { min-width: 2.9em; text-align: right; }
   @media (max-width: 1280px) { .lat .pill small { letter-spacing: 0; } .lat .pill { padding: 0 .55em; } }
   .lat .pill.fresh b { color: var(--accent); }
+
+  /* ---------- voice bar: where the wearer is, what they said, what Worn answered, what to say next */
+  .app.hasVoice { --sq: min(calc((100vw - 2 * var(--pad) - 2 * var(--gap)) / 3), 47vh); }
+  #voice { display: none; grid-template-columns: auto minmax(0, 1.1fr) minmax(0, 1.5fr) minmax(0, 1.25fr); align-items: center; gap: 1em;
+    background: var(--card); border: 1px solid var(--rule); border-radius: 999px; padding: .5em 1.3em .5em .5em; min-height: 3.2em; }
+  .app.hasVoice #voice { display: grid; }
+  #mic { width: 2.3em; height: 2.3em; border-radius: 50%; display: grid; place-items: center; background: var(--paper-2); color: var(--ink-3);
+    position: relative; transition: background .3s, color .3s; }
+  #mic svg { width: 1.15em; height: 1.15em; }
+  #mic::after { content: ""; position: absolute; inset: -.3em; border-radius: 50%; border: .14em solid var(--accent); opacity: 0; }
+  #mic.on { background: var(--accent); color: var(--on-accent); }
+  #mic.on::after { animation: ring 1.3s ease-out infinite; }
+  @keyframes ring { 0% { opacity: .7; transform: scale(.85); } 100% { opacity: 0; transform: scale(1.35); } }
+  #crumbs { display: flex; align-items: baseline; gap: .35em; min-width: 0; white-space: nowrap; overflow: hidden; font-size: .86em; color: var(--ink-3); }
+  #crumbs b { color: var(--ink); font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
+  #crumbs .sep { opacity: .55; }
+  #said { display: flex; align-items: baseline; gap: .6em; min-width: 0; white-space: nowrap; }
+  #said .q { font-family: var(--display); font-style: italic; font-size: 1.18em; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  #said .intent { flex: none; font: 700 .58em/1 var(--ui); letter-spacing: .1em; text-transform: uppercase; color: var(--accent);
+    background: var(--accent-soft); padding: .45em .6em; border-radius: 6px; }
+  #said .reply { color: var(--ink-2); font-size: .8em; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  #said .ms { flex: none; font: 600 .62em/1 var(--mono); color: var(--ink-3); }
+  #said.fresh { animation: saidIn .5s var(--ease); }
+  @keyframes saidIn { from { opacity: 0; transform: translateY(.35em); } to { opacity: 1; transform: none; } }
+  #hint { display: flex; align-items: center; justify-content: flex-end; gap: .55em; min-width: 0; overflow: hidden; }
+  .app.hasVoice #listen { display: none; } /* the voice bar already shows what was heard */
+  #hint small { flex: none; font: 700 .58em/1 var(--ui); letter-spacing: .14em; color: var(--ink-3); }
+  #hint span { font-weight: 600; color: var(--accent); min-width: 0; line-height: 1.2; text-align: right; font-size: .92em;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
   /* ---------- three panels */
   main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(var(--u) * 1.1); min-height: 0; }
@@ -162,6 +191,9 @@
     header { grid-template-columns: 1fr auto; grid-template-areas: "brand status" "lesson lesson"; row-gap: .8em; }
     .brand { grid-area: brand; } .status { grid-area: status; } .lesson { grid-area: lesson; }
     .lat { display: none; }
+    #voice { grid-template-columns: auto minmax(0, 1fr); border-radius: var(--radius); row-gap: .5em; padding: .7em; }
+    #said, #hint { grid-column: 1 / -1; } #hint { justify-content: flex-start; } #hint span { text-align: left; }
+    #said { white-space: normal; flex-wrap: wrap; }
     main { grid-template-columns: 1fr 1fr; }
     .panel.tutorP { grid-column: 1 / -1; }
     .fit .square { width: 100%; height: auto; aspect-ratio: 1 / 1; }
@@ -197,6 +229,13 @@
       <span class="pill" id="conn"><span class="dot" id="connDot"></span><span id="connText">Glasses</span></span>
     </div>
   </header>
+
+  <section id="voice" aria-live="polite">
+    <div id="mic" title="Glasses microphone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+    <div id="crumbs"></div>
+    <div id="said"><span class="q" style="color:var(--ink-3);font-style:normal;font-family:var(--ui);font-size:.85em">Say “what can I say” to the glasses</span></div>
+    <div id="hint"><small>SAY</small><span id="hintText">&nbsp;</span></div>
+  </section>
 
   <main>
     <section class="panel" id="lensPanel">
@@ -264,7 +303,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var ink = WornInk.create($("ink"), { theme: "glasses", label: $("lensLabel"), api: API });
 
-  var screenOn = false, lastSession = false;
+  var screenOn = false, lastSession = false, appSeen = false;
   var useLive = true, failCount = 0, lessonKey = "", inkReady = false, firstPoll = true, version = null, last = null;
   var celebrated = {}, shownPhoto = "", imgFront = "imgA", seenSteps = {}, seenEvents = {}, lastLat = {};
 
@@ -312,7 +351,7 @@
   function render(st) {
     var s = st.session, g = st.glasses || {};
     lastSession = !!s;
-    $("idle").classList.toggle("hide", !!s || screenOn); // the real glasses view is worth showing even before a lesson
+    $("idle").classList.toggle("hide", !!s || screenOn || appSeen); // the real glasses view is worth showing even before a lesson
     renderConn(g.stale ? null : g.connected, true);
     renderLatency(st.latency || {});
     renderSteps(st.agent_steps || []);
@@ -321,6 +360,8 @@
     setText($("listenText"), typeof heard === "string" && heard ? "“" + heard.slice(0, 28) + "”" : "Listening");
     $("listen").classList.toggle("on", !!st.listening || (typeof heard === "string" && !!heard && st.last_heard.ts && Date.now() / 1000 - st.last_heard.ts < 8));
     $("demoTag").hidden = !st.demo_mode;
+    liveListening = !!st.listening;
+    if (st.app && !appOk) renderApp(st.app);
     if (!s) { firstPoll = false; return; }
     renderLesson(s);
     renderLens(s, g);
@@ -548,7 +589,7 @@
       case "glasses.status": return d.connected === false ? "Glasses disconnected" : "Glasses connected" + (d.battery !== undefined ? " · battery " + d.battery + "%" : "");
       case "glasses.show": return "Glasses show " + String(d.what || d.showing || d.char || "the lesson").replace(/_/g, " ");
       case "mode.demo": return d.on === false ? "Demo mode off" : "Demo mode on";
-      case "voice": return "Heard: “" + (d.heard || d.text || d.command || "") + "”";
+      case "voice": return "Heard “" + (d.heard || d.text || d.command || "") + "”" + (d.intent && d.intent !== "unknown" && d.intent !== "none" ? " → " + String(d.intent).replace(/_/g, " ") : "");
       case "practice.start": return "Practice started" + (d.mode ? " · " + d.mode : "");
       case "practice.stop": case "practice.finished": return "Practice finished" + (d.done || d.count ? " · " + (d.done || d.count) + " characters" : "");
       case "confetti": return "Confetti on the glasses";
@@ -615,6 +656,47 @@
     $("tutor").classList.remove("pop"); void $("tutor").offsetWidth; $("tutor").classList.add("pop");
   }
 
+  // ---------------------------------------------------------------- voice layer (GET /app-state; also accepts st.app from /live/state)
+  var VOICE_ICON = { learn: "Learn", open: "Open", how_write: "How to write", write_name: "Name", show_again: "Show again", check: "Check" };
+  var lastVoiceId = null, appOk = true, liveListening = false;
+  function renderApp(a) {
+    if (!a || (!a.screen && !a.last_voice && !a.hint)) return;
+    $("app").classList.add("hasVoice");
+    if (!appSeen) { appSeen = true; $("idle").classList.add("hide"); } // the wearer's menus are the show now, even before a lesson
+    var bc = Array.isArray(a.breadcrumb) ? a.breadcrumb : a.breadcrumb ? String(a.breadcrumb).split(/\s*[›>\/]\s*/) : [a.screen];
+    var html = bc.filter(Boolean).map(function (c, i, arr) {
+      return (i ? '<span class="sep">›</span>' : "") + (i === arr.length - 1 ? "<b>" + esc(iso(c)) + "</b>" : "<span>" + esc(iso(c)) + "</span>");
+    }).join("");
+    if ($("crumbs").getAttribute("data-h") !== html) { $("crumbs").innerHTML = html; $("crumbs").setAttribute("data-h", html); }
+    setText($("hintText"), (a.hint || "“what can I say”").replace(/^say\s+/i, ""));
+    var on = !!(a.listening || liveListening);
+    $("mic").classList.toggle("on", on);
+    var v = a.last_voice;
+    if (!v && a.last_heard && typeof a.last_heard === "string") v = { heard: a.last_heard, id: "h:" + a.last_heard };
+    if (v && (v.heard || v.say)) {
+      var id = v.id !== undefined ? v.id : v.ts !== undefined ? v.ts : v.heard + "|" + v.say;
+      if (id !== lastVoiceId) {
+        lastVoiceId = id;
+        var intent = v.intent && v.intent !== "unknown" && v.intent !== "none" ? (VOICE_ICON[v.intent] || String(v.intent).replace(/_/g, " ")) : "";
+        var arg = v.args && (v.args.lang || v.args.target || v.args.name || v.args.word);
+        var el = $("said");
+        el.innerHTML = (v.heard ? '<span class="q">“' + esc(iso(v.heard)) + '”</span>' : "") +
+          (intent ? '<span class="intent">' + esc(intent + (arg ? " · " + arg : "")) + "</span>" : "") +
+          (v.say ? '<span class="reply">' + esc(v.say) + "</span>" : "") +
+          (typeof v.ms === "number" ? '<span class="ms">' + Math.round(v.ms) + " ms</span>" : "");
+        el.classList.remove("fresh"); void el.offsetWidth; el.classList.add("fresh");
+      }
+    }
+  }
+  function pollApp() {
+    if (!appOk) return;
+    get("/app-state").then(function (a) {
+      if (a === null) { appOk = false; return; } // backend without the voice contract: the bar stays hidden
+      renderApp(a);
+    }).catch(function () {}).then(function () { if (appOk) setTimeout(pollApp, 500); });
+  }
+  pollApp();
+
   // ---------------------------------------------------------------- real glasses screen (adb MJPEG), ?screen=0 turns it off
   var BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
   function setScreen(on) {
@@ -623,7 +705,7 @@
     $("screen").src = on ? url("/glasses/screen.mjpg?t=" + Date.now()) : BLANK; // swapping src closes the old stream
     $("lens").classList.toggle("live", on);
     $("lensPanel").classList.toggle("live", on);
-    $("idle").classList.toggle("hide", lastSession || on);
+    $("idle").classList.toggle("hide", lastSession || on || appSeen);
   }
   $("screen").onerror = function () { if (screenOn) setScreen(false); };
   function watchScreen() {

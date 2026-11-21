@@ -107,6 +107,8 @@ class Live:
         self.steps: list[dict] = []
         self.lat = {"tier1": [], "tier2": [], "tier3": [], "decide": [], "grade": []}
         self.tries = 0
+        self.app = {"screen": "home", "breadcrumb": ["Home"], "hint": "Say “learn Mandarin”, or “what can I say”",
+                    "last_heard": None, "last_voice": None}
 
     def seed_journal(self):
         now = time.time()
@@ -191,7 +193,28 @@ class Live:
                     "latest_photo_url": self.photo, "last_result": self.result, "next": self.next,
                     "agent_steps": self.steps[-40:], "events": self.events[-30:],
                     "latency": {t: self.lat_out(t) for t in self.lat}, "progress": self.progress(),
-                    "listening": self.listening, "tries": self.tries}
+                    "listening": self.listening, "tries": self.tries,
+                    "last_heard": (self.app.get("last_voice") or {}).get("heard"), "app": dict(self.app)}
+
+    def app_state(self):
+        with self.lock:
+            out = dict(self.session or {})
+            out.update(self.app)
+            out.update({"version": self.version, "listening": self.listening, "phase": self.glasses.get("phase")})
+            return out
+
+    def voice(self, text, screen=None):
+        t0 = time.time()
+        v = mock_intent(text or "", screen or self.app.get("screen"))
+        with self.lock:
+            v.update({"id": next(IDS), "ts": time.time(), "ms": random.randint(180, 520) + int((time.time() - t0) * 1000)})
+            self.app["last_voice"] = v
+            self.app["last_heard"] = v["heard"]
+            nav = v.get("nav")
+            if nav:
+                self.app.update(nav_state(nav, self))
+            self.event("voice", {k: v.get(k) for k in ("heard", "intent", "args", "say", "ms")})
+            return v
 
     def choose_next(self, s, correct):
         items = self.content[s["lang"]]["items"]
@@ -259,15 +282,23 @@ class Demo(threading.Thread):
 
     def write_char(self, lang, iid, ci, fail_first=False):
         st = self.st
+        if ci == 0:
+            for said in ("home", f"learn {TITLE[lang]}"):
+                st.listening = True; st.bump(); time.sleep(0.8)
+                st.listening = False; st.voice(said); time.sleep(1.4)
         s = st.set_session(lang, iid, ci)
         n = s["stroke_count"]
-        st.listening = random.random() < 0.4
+        with st.lock:
+            st.app.update(nav_state("lesson", st))
+            st.bump()
         time.sleep(2.4)
         for k in range(n):
             with st.lock:
                 st.glasses.update(phase="write", stroke=k)
                 st.bump()
             time.sleep(1.0)
+            if k == 1:
+                st.voice("what does this mean")
             t1, t2 = random.randint(18, 60), random.randint(8, 30)
             with st.lock:
                 st.photo = photo_url(lang, s["char"], (k + 1) / n, ts=time.time())
@@ -283,6 +314,7 @@ class Demo(threading.Thread):
                     st.event("stroke", {"stroke": k + 1, "stroke_count": n})
             time.sleep(0.4)
         run = f"r{next(IDS)}"
+        st.voice("I'm done")
         with st.lock:
             st.glasses.update(phase="checking", showing="checking")
             st.step(run, "observe", "Photo of the whole character", tool="capture", ms=random.randint(80, 200))
@@ -315,6 +347,67 @@ class Demo(threading.Thread):
 
 
 ST = Live()
+
+# ---------------------------------------------------------------- voice (mock of A's POST /voice; real STT lives in the backend)
+LANG_WORDS = {"mandarin": "mandarin", "chinese": "mandarin", "hindi": "hindi", "arabic": "arabic", "russian": "russian",
+              "hebrew": "hebrew", "greek": "greek"}
+TITLE = {"mandarin": "Mandarin", "hindi": "Hindi", "arabic": "Arabic", "russian": "Russian", "hebrew": "Hebrew", "greek": "Greek"}
+SCREENS = {"learn": "learn", "journal": "journal", "daily five": "daily", "daily 5": "daily", "daily": "daily", "help": "howto",
+           "how to use": "howto", "write my name": "name", "my name": "name", "help me write": "compose", "home": "home"}
+HINTS = {"home": "Say “learn Mandarin”, “daily five” or “what can I say”", "learn": "Say a language, like “learn Greek”",
+         "words": "Say “next” to move, “open” to start, or a word", "lesson": "Say “next” after each stroke, “check” when you’re done",
+         "name": "Say “write my name, Anna”", "compose": "Say “how do I write thank you in Hebrew”",
+         "daily": "Say “start” for five quick characters", "journal": "Say “back” or “home”", "howto": "Say “home” when you’re ready"}
+
+
+def mock_intent(text, screen):
+    import re
+    t = re.sub(r"[^\w\s',]", "", text.lower()).strip()
+    lang = next((v for k, v in LANG_WORDS.items() if re.search(rf"\b{k}\b", t)), None)
+    def out(intent, say, nav=None, **args):
+        return {"heard": text, "intent": intent, "args": args, "say": say, "nav": nav}
+    if not t:
+        return out("none", "Sorry, I didn’t catch that. Say “what can I say” for ideas.")
+    if re.search(r"what can i say|^help$|help me$|commands", t):
+        return out("help", "You can say home, back, learn a language, next, repeat, check, or write my name.", "howto")
+    m = re.search(r"how (?:do|would) i (?:write|say) (.+?) in (\w+)", t)
+    if m:
+        lang = LANG_WORDS.get(m.group(2), lang or "mandarin")
+        return out("how_write", f"Here’s “{m.group(1)}” in {TITLE[lang]}.", "lesson", word=m.group(1), lang=lang)
+    m = re.search(r"(?:write my name|my name is)[, ]*(\w+)?", t)
+    if m:
+        name = (m.group(1) or "").title()
+        return out("write_name", f"Let’s write {name}." if name else "What’s your name?", "name", name=name)
+    if re.search(r"what does (this|it|that) mean|meaning", t):
+        it = (ST.session or {}).get("item") or {}
+        return out("meaning", f"It means “{it.get('meaning', 'hello')}”.")
+    if re.search(r"\b(open|go to|show)\b", t) or t in SCREENS:
+        tgt = next((v for k, v in SCREENS.items() if k in t), None)
+        if tgt:
+            return out("open", f"Opening {tgt}.", tgt, target=tgt)
+    if lang:
+        return out("learn", f"{TITLE[lang]}. Pick a word.", "words:" + lang, lang=lang)
+    for words, intent, say in ((("go home", "home", "main menu"), "home", "Home."), (("go back", "back"), "back", "Back."),
+                               (("show me again",), "show_again", "Watch again."), (("previous", "last one"), "previous", "Previous."),
+                               (("next",), "next", "Next."), (("repeat", "again"), "repeat", "Again."), (("slower", "slow down"), "slower", "Slower."),
+                               (("i'm done", "im done", "check", "done", "finished"), "check", "Checking your writing."),
+                               (("skip",), "skip", "Skipped.")):
+        if any(w in t for w in words):
+            return out(intent, say, {"home": "home"}.get(intent))
+    return out("unknown", f"I heard “{text}”. Say “what can I say” for ideas.")
+
+
+def nav_state(nav, st):
+    scr, _, arg = str(nav).partition(":")
+    crumbs = {"home": ["Home"], "learn": ["Home", "Learn"], "journal": ["Home", "Journal"], "daily": ["Home", "Daily 5"],
+              "name": ["Home", "Write my name"], "compose": ["Home", "Help me write"], "howto": ["Home", "How to use"]}
+    bc = crumbs.get(scr)
+    if scr == "words":
+        bc = ["Home", "Learn", TITLE.get(arg, arg)]
+    if scr == "lesson":
+        s = st.session or {}
+        bc = ["Home", "Learn", TITLE.get(s.get("lang"), "Lesson"), (s.get("item") or {}).get("text") or s.get("char", "")]
+    return {"screen": scr, "breadcrumb": bc or ["Home"], "hint": HINTS.get(scr, "Say “what can I say”")}
 
 
 def mock_compose(text, lang):
@@ -381,6 +474,8 @@ class H(BaseHTTPRequestHandler):
             if q.get("since") and int(q["since"]) == ST.version:
                 return self.send(200, {"unchanged": True, "version": ST.version})
             return self.send(200, ST.snapshot())
+        if path == "/app-state":
+            return self.send(200, ST.app_state())
         if path == "/glasses/screen/status":  # the mock has no adb: /live keeps its synthesized glasses view
             return self.send(200, {"connected": False, "error": "mock server", "fps": 5.0})
         if path == "/mock/photo.svg":
@@ -409,6 +504,22 @@ class H(BaseHTTPRequestHandler):
         if path == "/capture/latest":
             return self.send(404, {"detail": "No photos yet."})
         return self.send(404, {"detail": "not found"})
+
+    def form(self):
+        """Tiny multipart/form-data (or urlencoded) parser: text fields as str, file fields as bytes."""
+        from email.parser import BytesParser
+        from email.policy import default
+        ctype = self.headers.get("Content-Type", "")
+        raw = self.body()
+        if "multipart/form-data" not in ctype:
+            return {k: v[0] for k, v in parse_qs(raw.decode(errors="replace")).items()}
+        msg = BytesParser(policy=default).parsebytes(b"Content-Type: " + ctype.encode() + b"\r\n\r\n" + raw)
+        out = {}
+        for part in msg.iter_parts():
+            name = part.get_param("name", header="content-disposition")
+            data = part.get_payload(decode=True) or b""
+            out[name] = data if part.get_filename() else data.decode(errors="replace")
+        return out
 
     def body(self):
         n = int(self.headers.get("Content-Length") or 0)
@@ -450,6 +561,23 @@ class H(BaseHTTPRequestHandler):
                     ST.listening = d["type"] == "listening_start"
                 ST.event(d.get("type", "event"), d.get("data"))
             return self.send(200, {"ok": True, "version": ST.version})
+        if u.path == "/app-state":
+            d = json.loads(self.body() or b"{}")
+            with ST.lock:
+                if "listening" in d:
+                    ST.listening = bool(d.pop("listening"))
+                ST.app.update({k: v for k, v in d.items() if k in ("screen", "breadcrumb", "hint", "phase", "lang", "item_id")})
+                ST.bump()
+            return self.send(200, ST.app_state())
+        if u.path == "/voice":
+            f = self.form()
+            text = f.get("text") or ("" if "audio" in f else None)
+            if text is None:
+                return self.send(422, {"detail": "Send audio (wav/m4a) or text."})
+            if "audio" in f and not f.get("text"):
+                text = random.choice(["next", "learn Greek", "what can I say", "I'm done"])  # the mock has no speech-to-text
+            time.sleep(0.25)
+            return self.send(200, ST.voice(text, f.get("screen")))
         if u.path == "/reset":
             with ST.lock:
                 ST.reset()
