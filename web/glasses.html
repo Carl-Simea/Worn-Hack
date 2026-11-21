@@ -161,9 +161,11 @@
   function renderWrite(s) {
     var strip = $("strip"); strip.innerHTML = "";
     strip.setAttribute("dir", s.rtl ? "rtl" : "ltr");
-    var list = chars[s.lang + "/" + s.phrase_id] || [s.char];
-    list.forEach(function (c, i) {
-      var sp = document.createElement("span"); sp.textContent = c;
+    var list = (s.item && s.item.chars) || chars[s.lang + "/" + (s.item_id || s.phrase_id)] || [s.char];
+    WornInk.segments((s.item && s.item.text) || s.text, list).forEach(function (g) {
+      var sp = document.createElement("span");
+      if (g.gap) { sp.innerHTML = "&nbsp;"; strip.appendChild(sp); return; }
+      var i = g.i; sp.textContent = g.c;
       sp.className = list.length === 1 ? "cur" : i < s.char_index ? "done" : i === s.char_index ? "cur" : "";
       strip.appendChild(sp);
     });

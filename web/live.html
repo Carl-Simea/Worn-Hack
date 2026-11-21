@@ -33,6 +33,7 @@
   .chars span { color: var(--ink-3); padding: 0 .06em; border-bottom: .08em solid transparent; transition: color .3s, border-color .3s; }
   .chars span.done { color: var(--ink); }
   .chars span.cur { color: var(--accent); border-bottom-color: var(--accent); }
+  .chars span.gap { width: .35em; padding: 0; }
   .status { display: flex; justify-content: flex-end; align-items: center; gap: .55em; flex-wrap: nowrap; min-width: 0; }
   .pill { display: inline-flex; align-items: center; gap: .5em; height: 2.1em; padding: 0 .85em; border-radius: 999px;
     background: var(--card); border: 1px solid var(--rule); font: 600 .66em/1 var(--ui); color: var(--ink-2); white-space: nowrap; }
@@ -161,13 +162,13 @@
 <body>
 <div class="app" id="app">
   <header>
-    <div class="brand"><span class="wordmark">Worn</span><span class="eyebrow">Live from the glasses</span></div>
+    <div class="brand"><span class="wordmark">Worn</span><span class="eyebrow">Live from the glasses</span><span class="chip" id="demoTag" hidden>Demo mode</span></div>
     <div class="lesson" id="lesson">
       <span class="eyebrow" id="langName">&nbsp;</span>
       <div class="chars script" id="chars" dir="auto">&nbsp;</div>
     </div>
     <div class="status">
-      <span class="pill" id="listen" title="Voice is on"><span class="bars"><i></i><i></i><i></i><i></i></span>Listening</span>
+      <span class="pill" id="listen" title="Voice is on"><span class="bars"><i></i><i></i><i></i><i></i></span><span id="listenText">Listening</span></span>
       <span class="lat" id="lat">
         <span class="pill" data-t="tier1"><small>INK</small><b class="tnum">–</b></span>
         <span class="pill" data-t="tier2"><small>VISION</small><b class="tnum">–</b></span>
@@ -224,7 +225,7 @@
   </section>
 </div>
 
-<div id="idle">
+<div id="idle" class="hide">
   <span class="wordmark">Worn</span>
   <p id="idleText">Waiting for the first lesson</p>
   <div class="scripts" aria-hidden="true"><span class="script" data-lang="mandarin">你好</span><span class="script" data-lang="hindi">नमस्ते</span><span class="script" data-lang="arabic">مرحبا</span><span class="script" data-lang="russian">Привет</span><span class="script" data-lang="hebrew">שלום</span><span class="script" data-lang="greek">Γεια σου</span></div>
@@ -289,10 +290,13 @@
     var s = st.session, g = st.glasses || {};
     $("idle").classList.toggle("hide", !!s);
     renderConn(g.stale ? null : g.connected, true);
-    $("listen").classList.toggle("on", !!st.listening);
     renderLatency(st.latency || {});
     renderSteps(st.agent_steps || []);
     renderEvents(st.events || []);
+    var heard = st.last_heard && (st.last_heard.text || st.last_heard);
+    setText($("listenText"), typeof heard === "string" && heard ? "“" + heard.slice(0, 28) + "”" : "Listening");
+    $("listen").classList.toggle("on", !!st.listening || (typeof heard === "string" && !!heard && st.last_heard.ts && Date.now() / 1000 - st.last_heard.ts < 8));
+    $("demoTag").hidden = !st.demo_mode;
     if (!s) { firstPoll = false; return; }
     renderLesson(s);
     renderLens(s, g);
@@ -351,11 +355,17 @@
     setText($("langName"), (s.lang_name || s.lang) + script + (s.meaning ? "  ·  “" + s.meaning + "”" : ""));
     var box = $("chars"), list = charsOf(s);
     box.setAttribute("dir", s.rtl ? "rtl" : "ltr");
-    if (phraseChanged || box.children.length !== list.length) {
+    if (phraseChanged || box.getAttribute("data-n") !== String(list.length)) {
       box.innerHTML = "";
-      list.forEach(function (c) { var sp = document.createElement("span"); sp.textContent = c; box.appendChild(sp); });
+      box.setAttribute("data-n", list.length);
+      WornInk.segments((s.item && s.item.text) || s.text, list).forEach(function (g) {
+        var sp = document.createElement("span");
+        if (g.gap) { sp.className = "gap"; sp.innerHTML = "&nbsp;"; } else { sp.textContent = g.c; sp.setAttribute("data-i", g.i); }
+        box.appendChild(sp);
+      });
     }
-    Array.prototype.forEach.call(box.children, function (sp, i) {
+    Array.prototype.forEach.call(box.querySelectorAll("[data-i]"), function (sp) {
+      var i = +sp.getAttribute("data-i");
       sp.className = i < s.char_index ? "done" : i === s.char_index ? "cur" : "";
     });
     setText($("romCap"), s.char_romanization || s.romanization || "");
@@ -496,8 +506,12 @@
       case "glasses_disconnected": return "Glasses disconnected";
       case "listening_start": return "Listening for a voice command";
       case "listening_stop": return "Stopped listening";
-      case "voice": case "command": return "Heard: “" + (d.text || d.command || "") + "”";
-      case "tier1": return "Ink check on the phone";
+      case "command": return "Heard: “" + (d.text || d.command || "") + "”";
+      case "tier1": case "ink.tier1_ms": return "Ink check on the phone";
+      case "glasses.status": return d.connected === false ? "Glasses disconnected" : "Glasses connected" + (d.battery !== undefined ? " · battery " + d.battery + "%" : "");
+      case "glasses.show": return "Glasses show " + String(d.what || d.showing || d.char || "the lesson").replace(/_/g, " ");
+      case "mode.demo": return d.on === false ? "Demo mode off" : "Demo mode on";
+      case "voice": return "Heard: “" + (d.text || d.command || "") + "”";
       default: return String(e.type || "event").replace(/_/g, " ") + (d.text ? ": " + d.text : "");
     }
   }

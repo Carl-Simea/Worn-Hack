@@ -43,6 +43,7 @@ def load_content() -> dict:
         for p in items:
             a = p.get("audio")
             p["audio_url"] = f"/static/content/{a}" if a and (CONTENT / a).exists() else None
+            p["char_info"] = [{"char": c, "stroke_count": stroke_count(l, c), "stroke_url": stroke_url(l, c)} for c in p.get("chars") or []]
         d.update(items=items, phrases=items, script=d.get("script") or SCRIPT[l])
         out[l] = d
     return out

@@ -115,6 +115,7 @@
   .word span { color: var(--ink-3); border-bottom: 3px solid transparent; transition: color .3s, border-color .3s; padding: 0 .04em; }
   .word span.done { color: var(--ink); }
   .word span.cur { color: var(--accent); border-bottom-color: var(--accent); }
+  .word span.gap { width: .4em; }
   .roman { font-family: var(--display); font-size: clamp(26px, 2.8vw, 34px); line-height: 1.1; }
   .roman small { font-family: var(--ui); font-size: 15px; color: var(--ink-2); margin-left: 10px; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -518,9 +519,10 @@
       $("pLang").textContent = (s.lang_name || langName(s.lang)) + " · " + (s.script || scriptName(s.lang));
       var chars = (s.item && s.item.chars) || [s.char], w = $("pWord");
       w.setAttribute("dir", s.rtl ? "rtl" : "ltr");
-      w.innerHTML = chars.map(function (c, i) {
-        var hide = s.show_char === false && i >= s.char_index;
-        return '<span class="' + (i < s.char_index ? "done" : i === s.char_index ? "cur" : "") + '">' + esc(hide ? "＿" : c) + "</span>";
+      w.innerHTML = WornInk.segments((s.item && s.item.text) || s.text, chars).map(function (g) {
+        if (g.gap) return '<span class="gap">&nbsp;</span>';
+        var i = g.i, hide = s.show_char === false && i >= s.char_index;
+        return '<span class="' + (i < s.char_index ? "done" : i === s.char_index ? "cur" : "") + '">' + esc(hide ? "＿" : g.c) + "</span>";
       }).join("");
       $("pRoman").innerHTML = esc(s.romanization || "") + (s.meaning ? "<small>“" + esc(s.meaning) + "”</small>" : "");
       var note = s.note || (s.back_translation ? "Means: " + s.back_translation : "");

@@ -300,11 +300,35 @@
       })();
     }
 
+    /* Static: the first k strokes drawn, the rest ghosted (print worksheets). */
+    function upTo(k) {
+      token++; syncKey = "";
+      if (kind === "glyph") { say(""); return; }
+      for (var i = 0; i < nodes.length; i++) setStroke(i, i < k ? 1 : 0, i === k - 1 ? theme.cur : theme.done);
+      if (nodes.hint) nodes.hint.g.setAttribute("opacity", 0);
+    }
+
     function stop() { token++; syncKey = ""; }
 
-    return { load: load, loop: loop, sync: sync, full: full, stop: stop, count: count,
+    return { load: load, loop: loop, sync: sync, full: full, upTo: upTo, stop: stop, count: count,
              kind: function () { return kind; } };
   }
 
-  window.WornInk = { create: create, hexOf: hexOf };
+  /* Line the learner's chars up with the item text so word gaps survive (γεια σου).
+     -> [{c: "γ", i: 0}, ..., {gap: " "}, {c: "σ", i: 4}, ...]. Extra chars (a joined Arabic word) are appended. */
+  function segments(text, chars) {
+    var out = [], pos = 0;
+    text = text || "";
+    (chars || []).forEach(function (c, i) {
+      var at = text.indexOf(c, pos);
+      if (at >= 0 && /^[\s\u00a0.,!?;:¿¡،؟।'"\-]*$/.test(text.slice(pos, at))) {
+        if (at > pos && /\s/.test(text.slice(pos, at))) out.push({ gap: " " });
+        pos = at + c.length;
+      }
+      out.push({ c: c, i: i });
+    });
+    return out;
+  }
+
+  window.WornInk = { create: create, hexOf: hexOf, segments: segments };
 })();
