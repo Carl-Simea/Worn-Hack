@@ -6,11 +6,23 @@
 <title>Scribi</title>
 <link rel="stylesheet" href="/static/web/fonts.css">
 <style>
+  /* Bundled in the APK (served at /__app/ by MainActivity): Android 9 may lack these scripts. One family, split by
+     unicode-range, so Latin stays in Inter and every script gets a real Noto face. SIL OFL 1.1 (assets/fonts/OFL.txt). */
+  @font-face { font-family:"WornScript"; src:url("/__app/fonts/NotoSansDevanagari-Regular.ttf") format("truetype"); unicode-range:U+0900-097F, U+1CD0-1CFF, U+A8E0-A8FF, U+200C-200D, U+25CC; }
+  @font-face { font-family:"WornScript"; src:url("/__app/fonts/NotoNaskhArabic-Regular.ttf") format("truetype"); unicode-range:U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
+  @font-face { font-family:"WornScript"; src:url("/__app/fonts/NotoSansHebrew-Regular.ttf") format("truetype"); unicode-range:U+0590-05FF, U+FB1D-FB4F; }
+  @font-face { font-family:"WornScript"; src:url("/__app/fonts/NotoSans-Regular.ttf") format("truetype"); unicode-range:U+0370-03FF, U+1F00-1FFF, U+0400-04FF, U+0500-052F; }
   /* 640×480 waveguide: black is see-through. Bright text, one accent, big type. */
   :root { --fg:#f4f1ea; --dim:#8b909a; --faint:#3a3f48; --say:#5ef08a; --acc:#ff6a4d; --blue:#9fb4ff; --gold:#ffd23d; }
   * { box-sizing:border-box; margin:0; padding:0; }
   html, body { width:640px; height:480px; overflow:hidden; background:#000; color:var(--fg);
-    font-family:"Inter", "Roboto", sans-serif; -webkit-font-smoothing:antialiased; }
+    font-family:"Inter", "WornScript", "Roboto", sans-serif; -webkit-font-smoothing:antialiased; }
+  .title, .brand span, #splash span { font-family:"Newsreader", "WornScript", Georgia, serif !important; }
+  [dir=rtl], .rtl { direction:rtl; unicode-bidi:isolate; }
+  #strip .word { font-size:.62em; color:var(--blue); letter-spacing:0; margin:0 6px; }
+  #strip .word.cur { color:var(--fg); }
+  .glyph { position:absolute; left:0; top:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center;
+    font-family:"WornScript", "Inter", sans-serif; font-size:190px; line-height:1; color:var(--fg); }
   #top { position:absolute; left:0; right:0; top:34px; height:30px; padding:0 22px; display:flex; align-items:center;
     font-size:17px; color:var(--dim); white-space:nowrap; }
   /* simple: the screen title says where you are, so the breadcrumb isn't drawn (still reported to /app-state) */
@@ -583,7 +595,11 @@
     // strip of characters, current underlined
     var chars = (s.item && s.item.chars) || [s.char];
     $("strip").setAttribute("dir", s.rtl ? "rtl" : "ltr");
-    $("strip").innerHTML = chars.map(function (ch, i) { return "<span class='" + (i < st.charIdx ? "done" : i === st.charIdx ? "cur" : "") + "'>" + esc(ch) + "</span>"; }).join("");
+    $("strip").innerHTML = chars.map(function (ch, i) {
+      var cls = i < st.charIdx ? "done" : i === st.charIdx ? "cur" : "";
+      var many = Array.from ? Array.from(ch).length > 1 && chars.length > 1 : ch.length > 1;
+      return many ? "<span class='word " + cls + "'>" + (i === st.charIdx ? esc(ch) : "<bdi dir='ltr'>+ word</bdi>") + "</span>" : "<span class='" + cls + "'>" + esc(ch) + "</span>";
+    }).join("");
     $("rom").textContent = s.char_romanization || s.romanization || "";
     $("meaning").textContent = s.meaning ? "“" + s.meaning + "”" : "";
     watch();
@@ -597,7 +613,22 @@
     if (!ink) return Promise.resolve(0);
     if (st.inkFor === st.session && st.inkPromise) return st.inkPromise;
     st.inkFor = st.session;
-    st.inkPromise = ink.load(st.session).then(function (n) { if (n) st.strokeCount = n; return n; }).catch(function () { return 0; });
+    var sess = st.session;
+    st.noStrokes = false;
+    var g = $("glyphFallback"); if (g) g.parentNode.removeChild(g);
+    st.inkPromise = (sess.stroke_url ? ink.load(sess) : Promise.resolve(0)).catch(function (e) { console.log("ink load failed " + e); return 0; })
+      .then(function (n) {
+        if (st.session !== sess) return n;
+        if (n) { st.strokeCount = n; return n; }
+        // No stroke data (or it failed to load): show the whole glyph and make it one "write this shape" step.
+        st.noStrokes = true; st.strokeCount = 1;
+        if (ink) ink.stop();
+        var b = $("ink");
+        if (b) { var d = document.createElement("div"); d.id = "glyphFallback"; d.className = "glyph"; d.setAttribute("dir", sess.rtl ? "rtl" : "ltr");
+          d.textContent = sess.char || ""; if ((sess.char || "").length > 2) d.style.fontSize = "110px"; b.appendChild(d); }
+        console.log("no stroke data for " + sess.lang + " " + sess.char + ": showing the glyph");
+        return 1;
+      });
     return st.inkPromise;
   }
 
@@ -656,10 +687,19 @@
     if (!g) { st.autoGrade = false; return; }
     st.autoGrade = true;
     var cap = g.capture_request && g.capture_request.id;
-    if (st.gBase === null) { st.gBase = { cap: cap, phase: g.phase }; return; }   // ignore what was there before
+    if (st.gBase === null) {   // ignore what was there before this character
+      st.gBase = { cap: cap, phase: g.phase };
+      var pre = 0, all0 = g.stroke_scores || [];
+      while (pre < all0.length && all0[pre] != null) pre++;
+      st.gScored = g.phase === "result" ? pre : 0;
+      return;
+    }
     if (g.phase !== "result") st.gActive = true;
     // strokes scored from the stream
-    var sc = g.stroke_scores || [];
+    // stroke_scores is one slot per stroke with null for "not written yet": count the scored ones only
+    var all = g.stroke_scores || [], sc = [];
+    for (var k = 0; k < all.length && all[k] != null; k++) sc.push(all[k]);
+    if (g.stroke_count && st.strokeCount && g.stroke_count !== st.strokeCount) sc = [];   // another character's scores
     if (st.phase === "your_turn" && sc.length > st.gScored) {
       for (var i = st.gScored; i < sc.length; i++) {
         var v = sc[i] == null ? null : Math.max(0, Math.min(100, Math.round(sc[i] > 1 ? sc[i] : sc[i] * 100)));
@@ -672,9 +712,11 @@
     // the backend wants a sharp photo: take it (check() captures the full-res still and POSTs /grade)
     if (cap && cap !== st.gBase.cap) {
       st.gBase.cap = cap;
-      if (st.phase === "your_turn") { event("autograde.capture", { id: cap, reason: g.capture_request.reason, source: "glasses" }); check(); }
+      if (st.phase === "your_turn" && Date.now() - (st.turnStart || 0) > 1500) { event("autograde.capture", { id: cap, reason: g.capture_request.reason, source: "glasses" }); check(); }
     }
-    if (g.phase === "analyzing" && st.phase === "your_turn" && st.gActive) check();
+    // only an "analyzing" that belongs to this character, after the wearer had a moment to write
+    var mine = (!g.stroke_count || !st.strokeCount || g.stroke_count === st.strokeCount) && Date.now() - (st.turnStart || 0) > 2500;
+    if (g.phase === "analyzing" && st.phase === "your_turn" && st.gActive && mine) check();
     if (g.phase === "analyzing" && st.phase === "check") {
       var stp = g.step || 1;
       tick(1, stp > 1 ? "ok" : "on"); tick(2, stp > 2 ? "ok" : stp === 2 ? "on" : ""); tick(3, stp >= 3 ? "on" : "");
@@ -690,7 +732,7 @@
     chrome(lessonCrumbs(), "Say “next” when you're ready to write", "“what does this mean” · “slower” · “back”");
     inkLoad().then(function (n) {
       if (st.phase !== "watch") return;
-      if (ink) ink.loop();
+      if (ink && !st.noStrokes) ink.loop();
       var total = Math.min(16000, Math.max(5500, (n || 4) * 900 * st.speed + 1800));
       var t0 = Date.now();
       timers.watchBar = setInterval(function () { phaseUI("Watch", "Watch", Math.min(1, (Date.now() - t0) / total)); }, 200);
@@ -705,6 +747,7 @@
   function yourTurn() {
     st.phase = "your_turn"; clearLessonTimers();
     st.stroke = 0;
+    st.turnStart = Date.now();
     resetRing();
     N.watchInk(true);
     startAutoGrade();
@@ -720,6 +763,12 @@
     var n = st.strokeCount || 1;
     clear("stroke");
     if (st.stroke >= n) { lastStrokeDone(); return; }
+    if (st.noStrokes) {
+      phaseUI("Your turn", "Write this shape", 0);
+      chrome(lessonCrumbs(), "Write this shape · say “I'm done”", "“show me again” · “slower” · “skip”");
+      later("stroke", Math.round(9000 * st.speed), function () { nextStroke("timeout"); });
+      return;
+    }
     if (ink) ink.sync(st.stroke + 1, "write");
     phaseUI("Your turn", "Stroke " + (st.stroke + 1) + " of " + n, st.stroke / n);
     chrome(lessonCrumbs(), "Write stroke " + (st.stroke + 1) + " · say “next”", "“previous” · “show me again” · “slower” · “I'm done”");
@@ -759,7 +808,8 @@
     chrome(lessonCrumbs(), "Hold the paper still…", "");
     say("Let me look.");
     event("grade.start", { source: "glasses" });
-    N.capture();
+    var gs = st.session || {};
+    if (N.captureFor) N.captureFor(gs.char || "", gs.lang || ""); else N.capture();
     later("gradeTimeout", 45000, function () { if (st.phase === "check") gradeError("That took too long. Say check to try again."); });
     report();
   }
@@ -1129,7 +1179,8 @@
   }
   function speakReply(r) {
     var url = r.audio_url || r.say_url;
-    if (url && N.speakUrl) N.speakUrl(url, r.say || ""); else if (r.say) N.speak(r.say);
+    if (N.speakNow && (url || r.say)) N.speakNow(url || "", r.say || "");
+    else if (url && N.speakUrl) N.speakUrl(url, r.say || ""); else if (r.say) N.speak(r.say);
     if (r.mood === "laugh" || r.mood === "celebrate" || funny(r.say)) laugh(1600);
   }
   function applyReply(r, heard) {
@@ -1166,6 +1217,26 @@
       showHeard(heard);
       wake(!!(rest && real));
       if (!(rest && real)) return;
+    }
+    // "number two" / "option three" on a list means a position, never the word "two" (the backend can't tell).
+    if (/^\s*(number|option|item|no\.?)\s+\w+\s*$/i.test(heard)) {
+      var pos = match(heard);
+      if (pos.intent === "select" && pos.args && pos.args.n && { home: 1, learn: 1, words: 1, daily5: 1, name: 1 }[st.screen]) {
+        console.log("voice heard=" + JSON.stringify(heard) + " -> position " + pos.args.n + " on " + st.screen);
+        event("voice", { heard: heard, intent: "pick", args: { ordinal: pos.args.n }, screen: st.screen, source: "glasses" });
+        pickNumber(pos.args.n);
+        return;
+      }
+    }
+    // A language name we can hear for sure ("learn Mandarin") but the backend returned no language for: add it.
+    var mineL = match(heard);
+    if (mineL.intent === "learn" && mineL.args && mineL.args.lang && st.screen !== "name") {
+      var acts0 = r.actions || r.tools || r.steps || [];
+      var hasLang = (r.nav && r.nav.lang) || acts0.some(function (x) { return x && x.args && (x.args.lang || x.args.language); });
+      if (!hasLang && (!r.intent || r.intent === "open" || r.intent === "learn" || r.intent === "unknown" || acts0.length)) {
+        console.log("voice heard=" + JSON.stringify(heard) + " -> backend gave no language; using " + mineL.args.lang);
+        r = { heard: heard, actions: [{ tool: "learn_language", args: { lang: mineL.args.lang } }], nav: { screen: "words", lang: mineL.args.lang }, say: r.say, say_url: r.say_url, audio_url: r.audio_url };
+      }
     }
     if (r.actions || r.tools || r.steps || r.tool_calls) {
       console.log("voice heard=" + JSON.stringify(heard) + " -> tools " + JSON.stringify(r.actions || r.tools || r.steps || r.tool_calls) + " nav " + JSON.stringify(r.nav));
@@ -1231,7 +1302,7 @@
       nextStroke("ink");
     },
     talk: function (kind, text) {
-      if (kind === "start") { face.talking = true; if (text) caption(text); if (funny(text)) laugh(1500); }
+      if (kind === "start") { face.talking = true; if (text && st.phase !== "result" && st.phase !== "check") caption(text); if (funny(text)) laugh(1500); }
       else if (kind === "barge") { face.talking = false; captionOff(400); event("barge_in", { screen: st.screen, source: "glasses" }); }
       else { face.talking = false; captionOff(2400); }
       faceState();

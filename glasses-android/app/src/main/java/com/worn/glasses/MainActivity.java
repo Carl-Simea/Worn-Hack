@@ -88,6 +88,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
+        // A bug on a worker thread (camera, mic, network) must not take the whole app (the glasses' home) down.
+        final Thread.UncaughtExceptionHandler sys = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((t, ex) -> {
+            if (t == Looper.getMainLooper().getThread()) { if (sys != null) sys.uncaughtException(t, ex); return; }
+            Log.e(TAG, "worker thread " + t.getName() + " died (app keeps running)", ex);
+        });
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
         FrameLayout root = new FrameLayout(this);
@@ -497,6 +503,8 @@ public class MainActivity extends Activity {
 
     private int captureRetries;
 
+    private volatile String gradeChar, gradeLang;   // sent with /grade so a backend restart (lost session) can't break a check
+
     private void capture() {
         if (busy) { Log.i(TAG, "capture ignored, still busy"); return; }
         if (!has(Manifest.permission.CAMERA)) { js("worn.error(" + JSONObject.quote("No camera permission") + ")"); return; }
@@ -523,7 +531,7 @@ public class MainActivity extends Activity {
     private void grade(byte[] jpeg) {
         try {
             long t0 = System.currentTimeMillis();
-            String json = new Backend(api).grade(jpeg, null, null); // the backend uses the active session
+            String json = new Backend(api).grade(jpeg, gradeChar, gradeLang);
             Log.i(TAG, "graded in " + (System.currentTimeMillis() - t0) + "ms: " + json);
             new JSONObject(json);
             done("worn.graded(" + JSONObject.quote(json) + ")");
@@ -580,6 +588,27 @@ public class MainActivity extends Activity {
         });
         web.setWebViewClient(new WebViewClient() {
             @Override public void onPageFinished(WebView v, String url) { Log.i(TAG, "page loaded " + url); }
+            /** /__app/… is served from the APK's assets (bundled Noto fonts for the five non-Latin scripts). */
+            @Override public android.webkit.WebResourceResponse shouldInterceptRequest(WebView v, android.webkit.WebResourceRequest req) {
+                Uri u = req.getUrl();
+                String path = u.getPath();
+                if (path == null || !path.startsWith("/__app/")) return null;
+                String name = path.substring("/__app/".length());
+                if (name.contains("..")) return null;
+                try {
+                    String mime = name.endsWith(".ttf") ? "font/ttf" : name.endsWith(".otf") ? "font/otf" : name.endsWith(".woff2") ? "font/woff2"
+                            : name.endsWith(".css") ? "text/css" : name.endsWith(".js") ? "application/javascript" : "application/octet-stream";
+                    android.webkit.WebResourceResponse r = new android.webkit.WebResourceResponse(mime, null, getAssets().open(name));
+                    java.util.Map<String, String> h = new java.util.HashMap<>();
+                    h.put("Access-Control-Allow-Origin", "*");
+                    h.put("Cache-Control", "max-age=86400");
+                    r.setResponseHeaders(h);
+                    return r;
+                } catch (Exception e) {
+                    Log.w(TAG, "asset " + name + ": " + e.getMessage());
+                    return null;
+                }
+            }
         });
     }
 
@@ -659,6 +688,14 @@ public class MainActivity extends Activity {
             ui.post(() -> speakLine(u, t));
         }
         @JavascriptInterface public void bargeIn(boolean on) { mic.bargeEnabled = on; }
+        /** A new reply from Scribi replaces anything still queued or playing (no stale lines). */
+        @JavascriptInterface public void speakNow(String url, String text) {
+            String u = abs(url), t = text == null ? "" : text.trim();
+            ui.post(() -> { audioQueue.clear(); MediaPlayer m = player; player = null; current = null;
+                if (m != null) { try { m.stop(); } catch (Exception ignored) { } releaseQuietly(m); }
+                if (ttsSpeaking && tts != null) { tts.stop(); ttsSpeaking = false; }
+                speakLine(u, t); });
+        }
         @JavascriptInterface public void play(String url) {
             String u = abs(url);
             if (u != null) ui.post(() -> playUrl(u));
@@ -678,6 +715,11 @@ public class MainActivity extends Activity {
         }
         @JavascriptInterface public void strokeShot(int index, String ch, String lang) { ui.post(() -> strokeShot(index, ch, lang)); }
         @JavascriptInterface public void capture() { ui.post(MainActivity.this::capture); }
+        @JavascriptInterface public void captureFor(String ch, String lang) {
+            gradeChar = ch == null || ch.isEmpty() ? null : ch;
+            gradeLang = lang == null || lang.isEmpty() ? null : lang;
+            ui.post(MainActivity.this::capture);
+        }
         @JavascriptInterface public String backend() { return api; }
         @JavascriptInterface public String via() { return api != null && api.equals(primary) ? "wifi" : "usb"; }
     }

@@ -158,6 +158,12 @@ final class GlassesCamera {
             opening = true;
             manager.openCamera(cameraId, new CameraDevice.StateCallback() {
                 @Override public void onOpened(CameraDevice d) {
+                    // A close() may have run while the camera was opening (fast pause/resume): don't use torn-down readers.
+                    if (!opening || reader == null || previewSurface == null) {
+                        Log.w(TAG, "camera opened after close; releasing it");
+                        try { d.close(); } catch (Exception ignored) { }
+                        return;
+                    }
                     device = d;
                     startSession();
                 }
@@ -184,10 +190,12 @@ final class GlassesCamera {
     }
 
     private void startSession() {
+        if (device == null || reader == null || previewSurface == null) { closeInternal(); return; }
         try {
             device.createCaptureSession(Arrays.asList(previewSurface, reader.getSurface()),
                     new CameraCaptureSession.StateCallback() {
                         @Override public void onConfigured(CameraCaptureSession s) {
+                            if (device == null) { try { s.close(); } catch (Exception ignored) { } return; }
                             session = s;
                             opening = false;
                             readySince = System.currentTimeMillis();
