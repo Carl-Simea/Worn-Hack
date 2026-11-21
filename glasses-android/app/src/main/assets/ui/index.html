@@ -597,7 +597,8 @@
     $("strip").setAttribute("dir", s.rtl ? "rtl" : "ltr");
     $("strip").innerHTML = chars.map(function (ch, i) {
       var cls = i < st.charIdx ? "done" : i === st.charIdx ? "cur" : "";
-      var many = Array.from ? Array.from(ch).length > 1 && chars.length > 1 : ch.length > 1;
+      // only the joined-word step (Arabic: the char equals the whole text) is "+ word"; Hindi aksharas (स्ते) are real steps
+      var many = chars.length > 1 && ch === String((s.item && s.item.text) || s.text || "").replace(/\s/g, "");
       return many ? "<span class='word " + cls + "'>" + (i === st.charIdx ? esc(ch) : "<bdi dir='ltr'>+ word</bdi>") + "</span>" : "<span class='" + cls + "'>" + esc(ch) + "</span>";
     }).join("");
     $("rom").textContent = s.char_romanization || s.romanization || "";
@@ -998,7 +999,7 @@
       case "faster": st.speed = Math.max(0.5, st.speed / 1.4); toast("Faster", 1200); say("Faster."); if (st.phase === "your_turn") showStroke("voice"); return true;
       case "slower": st.speed = Math.min(2.5, st.speed * 1.4); toast("Slower", 1200); say("Slower."); if (st.phase === "your_turn") showStroke("voice"); else watch(true); return true;
       case "repeat": if (st.session && st.session.audio_url) N.play(st.session.audio_url); say(hint.replace(/[“”]/g, "")); return true;
-      case "check": check(); return true;
+      case "check": if (st.phase === "your_turn" || st.phase === "watch") check(); return true;
       case "skip": nextChar(); return true;
     }
     return false;
@@ -1045,7 +1046,8 @@
     if (lens[st.screen]) {
       if (intent === "next") { moveSel(1, lens[st.screen]); return; }
       if (intent === "previous") { moveSel(-1, lens[st.screen]); return; }
-      if (intent === "check" || intent === "skip") { startHere(); return; }
+      if (intent === "skip") { startHere(); return; }
+      if (intent === "check") { toast("Pick a word first", 1600); return; }
     }
     if (st.screen === "compose" && (intent === "next" || intent === "check")) { startHere(); return; }
     if (intent === "repeat") { say(hint.replace(/[“”]/g, "")); return; }
@@ -1139,6 +1141,9 @@
   function runTool(name, a) {
     a = a || {};
     var t = TOOL_ALIAS[name] || name;
+    // a check aimed at another lesson (stale backend session, someone else's command) is ignored
+    if (t === "check" && (a.lang || a.char) && st.session &&
+        ((a.lang && a.lang !== st.session.lang) || (a.char && a.char !== st.session.char))) { console.log("ignored check for " + (a.lang || "") + " " + (a.char || "")); return; }
     console.log("tool " + name + " " + JSON.stringify(a));
     switch (t) {
       case "exit": sleepNow(a.say || a.text); return;
@@ -1165,6 +1170,13 @@
   }
   function applyNav(nav, session) {
     if (!nav || !nav.screen) return;
+    // "check" only means something inside a lesson: never let it pull the wearer back into an old one
+    if (nav.phase === "check") {
+      if (st.screen !== "lesson") { console.log("ignored check nav outside a lesson"); return; }
+      var cur = st.session || {};
+      if ((nav.lang && nav.lang !== cur.lang) || (nav.item_id && nav.item_id !== cur.item_id) ||
+          (nav.char_index != null && nav.char_index !== st.charIdx)) { console.log("ignored check nav for another lesson"); return; }
+    }
     var sc = SCREEN_ALIAS[nav.screen] || nav.screen;
     if (!sameAsNow(nav)) {
       if (sc === "idle") { sleepNow(); return; }
