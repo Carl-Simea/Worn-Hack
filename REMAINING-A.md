@@ -13,6 +13,14 @@ _Last updated 2026-11-21, overnight. Everything below is pushed to origin/main._
 - **6 languages** (Mandarin, Hindi, Arabic, Russian, Hebrew, Greek). Japanese and ASL are filtered out even if a file returns.
 - **Tests:** `uv run pytest` (65 fast, models mocked) and `uv run pytest -m live` (real qwen2.5vl on teammates' handwriting).
 
+## Voice (glasses are voice-first; tutor = Scribi, app = Worn)
+- `POST /voice` (faster-whisper base on this Mac, ~250–350 ms; C's shared matcher, then the backend matcher), `GET /say`
+  (16 kHz WAV, since the glasses have no TTS), `GET/POST /app-state`. Contract: `backend/README.md` → Voice. 20 tests.
+- Speech eval (macOS voices, 27 commands × 3 voices): clean **79/81**, 15 dB noise **73/81**, 5 dB noise **59/81**.
+  Most misses are one-word commands ("Greek"→"Great", "back"→"That"). Some aliases and a per-screen word list are
+  already in; on real glasses, speak close to the mic and use two-word forms ("go back", "learn Greek").
+- Needs real glasses: their mic audio is untested by me (D sends 16 kHz WAV; m4a works too).
+
 ## Real-world handwriting eval (teammate notebook photos, `backend/test_data/handwriting`)
 Full table: `backend/test_data/eval_results.md` (re-run: `uv run python eval_handwriting.py --live`).
 
